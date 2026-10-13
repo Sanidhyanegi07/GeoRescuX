@@ -9,6 +9,7 @@ import android.os.Looper
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -50,6 +51,9 @@ class BleDiagnosticsActivity : AppCompatActivity() {
     private lateinit var errorText: TextView
     private lateinit var testMessageInput: EditText
     private lateinit var grantPermissionsButton: Button
+    // Nearby-device tappable list (fix: discovered devices had no click handler)
+    private lateinit var nearbyDeviceButtons: LinearLayout
+    private lateinit var nearbyDevicesHint: TextView
 
     private val refreshHandler = Handler(Looper.getMainLooper())
     private val refreshRunnable = object : Runnable {
@@ -106,6 +110,8 @@ class BleDiagnosticsActivity : AppCompatActivity() {
         errorText = findViewById(R.id.textLastError)
         testMessageInput = findViewById(R.id.inputTestMessage)
         grantPermissionsButton = findViewById(R.id.buttonGrantPermissions)
+        nearbyDeviceButtons = findViewById(R.id.layoutNearbyDeviceButtons)
+        nearbyDevicesHint = findViewById(R.id.textNearbyDevicesHint)
 
         grantPermissionsButton.setOnClickListener {
             requestBlePermissions()
@@ -158,6 +164,8 @@ class BleDiagnosticsActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        refreshHandler.removeCallbacks(refreshRunnable)
+        GeoRescueBleDiagnostics.removeListener(logListener)
         bleManager.removePacketListener(packetDisplayListener)
     }
 
@@ -226,6 +234,112 @@ class BleDiagnosticsActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Rebuilds the tappable nearby-device list.
+     *
+     * This is the fix for the defect described in the task:
+     * "Phone A can display Phone B in the nearby-device list, but tapping the row
+     * produces no visual feedback and no connection activity."
+     *
+     * Root cause: the discovered-device data existed in [GeoRescueBleManager.DiagnosticsState]
+     * but was only rendered as a plain count in [statusText]. There was NO per-row View
+     * with a click listener wired to [GeoRescueBleManager.connectTo]. This method
+     * creates one [Button] per discovered device. Tapping the button calls
+     * [GeoRescueBleManager.connectTo] which triggers the full GATT client connection
+     * flow: CONNECTING → CONNECTED → DISCOVERING_SERVICES → READY.
+     */
+    private fun refreshNearbyDevices(diagnostics: com.example.georescux.data.ble.GeoRescueBleManager.DiagnosticsState) {
+        val nearby = diagnostics.nearbyDevices
+        val peersByAddress = diagnostics.peers.associateBy { it.address }
+        val now = System.currentTimeMillis()
+
+        if (nearby.isEmpty()) {
+            nearbyDeviceButtons.removeAllViews()
+            nearbyDevicesHint.text = "Scanning\u2026 no nearby GeoRescuX devices yet."
+            nearbyDevicesHint.visibility = View.VISIBLE
+            return
+        }
+
+        nearbyDevicesHint.text = "${nearby.size} device(s) found. Tap a row to connect."
+        nearbyDevicesHint.visibility = View.VISIBLE
+
+        val currentAddresses = nearby.map { it.address }.toSet()
+        // Prune views for devices no longer in the nearby list
+        for (i in nearbyDeviceButtons.childCount - 1 downTo 0) {
+            val child = nearbyDeviceButtons.getChildAt(i)
+            val addr = child.tag as? String
+            if (addr == null || addr !in currentAddresses) {
+                nearbyDeviceButtons.removeViewAt(i)
+            }
+        }
+
+        nearby.sortedByDescending { it.rssi }.forEach { device ->
+            val peer = peersByAddress[device.address]
+            val isConnecting = peer?.state == com.example.georescux.domain.ble.GeoRescueBleState.CONNECTING ||
+                peer?.state == com.example.georescux.domain.ble.GeoRescueBleState.DISCOVERING_SERVICES
+            val isReady = peer?.state == com.example.georescux.domain.ble.GeoRescueBleState.READY
+            val isConnected = peer?.state == com.example.georescux.domain.ble.GeoRescueBleState.CONNECTED
+            val isLive = isConnecting || isReady || isConnected
+
+            val ageSec = ((now - device.lastSeenMs) / 1000L).coerceAtLeast(0L)
+            val isStale = ageSec >= 20L
+
+            val buttonText = buildString {
+                append(device.address)
+                append("  RSSI: ${device.rssi} dBm")
+                when {
+                    isReady -> append("  \u2713 linked")
+                    isConnected -> append("  connected")
+                    isConnecting -> append("  connecting\u2026")
+                    isStale -> append("  (stale, ${ageSec}s ago)")
+                }
+            }
+
+            var btn = nearbyDeviceButtons.findViewWithTag<Button>(device.address)
+            if (btn == null) {
+                btn = Button(this).apply {
+                    id = View.generateViewId()
+                    tag = device.address
+                    contentDescription = "connect_to_${device.address.replace(':', '_')}"
+                    textSize = 12f
+                    isAllCaps = false
+                    backgroundTintList = null
+                    val lp = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = (4 * resources.displayMetrics.density).toInt() }
+                    layoutParams = lp
+                    nearbyDeviceButtons.addView(this)
+                }
+            }
+
+            btn.text = buttonText
+            btn.isEnabled = !isLive
+            btn.setBackgroundResource(
+                if (isLive) R.drawable.bg_button_secondary
+                else R.drawable.bg_button_violet
+            )
+
+            btn.setOnClickListener {
+                btn.isEnabled = false
+                btn.text = "${device.address}  connecting\u2026"
+                btn.setBackgroundResource(R.drawable.bg_button_secondary)
+
+                val started = bleManager.connectTo(device.address)
+                if (started) {
+                    GeoRescueBleDiagnostics.info(
+                        GeoRescueBleDiagnostics.GATT_CONNECTING,
+                        "source=UI_TAP address=${device.address}"
+                    )
+                    errorText.text = "Connecting to ${device.address}\u2026"
+                } else {
+                    errorText.text = "connectTo(${device.address}) returned false — check if already connected or BLE not ready."
+                }
+                refreshStatus()
+            }
+        }
+    }
+
     private fun refreshStatus() {
         val diagnostics = bleManager.diagnostics()
         val readiness = diagnostics.readiness
@@ -282,6 +396,9 @@ class BleDiagnosticsActivity : AppCompatActivity() {
             } else {
                 View.VISIBLE
             }
+
+        // Rebuild the tappable discovered-device list on every refresh cycle.
+        refreshNearbyDevices(diagnostics)
     }
 
     private fun renderReceivedPackets() {

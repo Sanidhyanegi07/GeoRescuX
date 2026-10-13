@@ -89,7 +89,7 @@ class AlertsActivity : AppCompatActivity() {
     }
 
     private fun alertRow(alert: AlertEntry): View {
-        val row = layoutInflater.inflate(R.layout.item_alert, null, false)
+        val row = layoutInflater.inflate(R.layout.item_alert, findViewById<LinearLayout>(R.id.alertsListContainer), false)
 
         val sourceBadge = row.findViewById<TextView>(R.id.textAlertSource)
         sourceBadge.text = alert.source.label

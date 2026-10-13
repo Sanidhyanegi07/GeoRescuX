@@ -116,6 +116,55 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Nearby (discovered but not yet connected) devices — each row is tappable
+             and calls bleManager.connectTo(address) directly. This is the fix for the
+             symptom: "tap on discovered device row produces no visual feedback and no
+             connection activity" — the discovered-device list was previously a read-only
+             TextView with no click handler wired to the connection layer. -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:cardBackgroundColor="@color/bg_card"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/violet_border"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="NEARBY DEVICES (tap to connect)"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textNearbyDevicesHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Scanning… no nearby GeoRescuX devices yet."
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
+
+                <!-- Populated dynamically in BleDiagnosticsActivity.refreshNearbyDevices() -->
+                <LinearLayout
+                    android:id="@+id/layoutNearbyDeviceButtons"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Actions -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"

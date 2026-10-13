@@ -252,6 +252,24 @@ The repository includes deeper technical documentation for operators and contrib
 - [docs/UTTARAKHAND_REGION.md](docs/UTTARAKHAND_REGION.md) — regional routing graph and validation notes
 - [docs/BLE_SUBSYSTEM.md](docs/BLE_SUBSYSTEM.md) — emergency BLE relay system design
 - [docs/STAGE8_SYNC_RETRY_DESIGN.md](docs/STAGE8_SYNC_RETRY_DESIGN.md) — background sync design and failure handling
+- [backend/README.md](backend/README.md) — standalone C++20 Drogon emergency backend architecture and deployment
+- `app/src/main/cpp/` — high-performance C++20 offline routing engine (A* pathfinder, JNI bridge, and safe Kotlin fallback)
+
+## Native C++ Routing Engine & Drogon Backend
+
+### 1. C++20 Offline Routing Engine (`app/src/main/cpp/routing/`)
+- High-performance A* pathfinder implementation over regional road networks.
+- Enforces admissible Haversine heuristics, road hazard penalties, and blocked edge avoidance.
+- Safe-haven fallback finds the nearest reachable relief shelter if destination is blocked.
+- JNI integration via `GeoRescueNativeRouting`: automatically checks `libgeorescux_routing.so` availability and seamlessly falls back to pure Kotlin if native binary is absent.
+
+### 2. Standalone C++20 Drogon Backend (`backend/`)
+- Independent, high-throughput REST service built on the Drogon C++ framework.
+- SQLite durable persistence for emergency events and BLE store-and-forward mesh packets.
+- Cryptographic Firebase ID token verification (RS256 JWT validation, audience `georescex`, issuer, expiry).
+- Role-based authorization for admin endpoints verifying Firebase Custom Claim `admin: true`.
+- Zero secrets committed to the repository.
+
 
 ## Getting started
 

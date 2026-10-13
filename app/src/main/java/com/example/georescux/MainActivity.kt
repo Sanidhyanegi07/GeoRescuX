@@ -21,14 +21,19 @@ class MainActivity : AppCompatActivity() {
         val appContainer = (application as GeoRescuXApplication).appContainer
         if (appContainer.authRepository.isSignedIn) {
             lifecycleScope.launch {
-                val role = appContainer.roleResolver.resolveRole()
-                val nextScreen = if (role == com.example.georescux.data.auth.UserRole.ADMIN) {
-                    com.example.georescux.ui.admin.AdminDashboardActivity::class.java
-                } else {
-                    HomeActivity::class.java
+                try {
+                    val role = appContainer.roleResolver.resolveRole()
+                    val nextScreen = if (role == com.example.georescux.data.auth.UserRole.ADMIN) {
+                        com.example.georescux.ui.admin.AdminDashboardActivity::class.java
+                    } else {
+                        HomeActivity::class.java
+                    }
+                    startActivity(Intent(this@MainActivity, nextScreen))
+                    finish()
+                } catch (_: Throwable) {
+                    startActivity(Intent(this@MainActivity, HomeActivity::class.java))
+                    finish()
                 }
-                startActivity(Intent(this@MainActivity, nextScreen))
-                finish()
             }
         } else {
             startActivity(Intent(this, LoginActivity::class.java))

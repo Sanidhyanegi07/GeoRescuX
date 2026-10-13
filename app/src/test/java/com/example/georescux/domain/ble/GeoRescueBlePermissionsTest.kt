@@ -133,4 +133,27 @@ class GeoRescueBleConnectionStateMachineTest {
         machine.transitionTo(GeoRescueBleState.DISCONNECTING)
         assertTrue(machine.lastError?.contains("Illegal") == true)
     }
+
+    @Test
+    fun `server peer transitions directly from CONNECTED to READY upon subscription`() {
+        // A GATT server peer enters CONNECTED on incoming connection (no service discovery on server side)
+        val serverMachine = GeoRescueBleConnectionStateMachine(GeoRescueBleState.CONNECTED)
+        assertEquals(GeoRescueBleState.CONNECTED, serverMachine.state)
+
+        // Remote client subscribes to CCCD notifications -> transitions CONNECTED -> READY
+        assertTrue(serverMachine.transitionTo(GeoRescueBleState.READY))
+        assertEquals(GeoRescueBleState.READY, serverMachine.state)
+
+        // Remote client unsubscribes -> transitions READY -> CONNECTED
+        assertTrue(serverMachine.transitionTo(GeoRescueBleState.CONNECTED))
+        assertEquals(GeoRescueBleState.CONNECTED, serverMachine.state)
+
+        // Remote client resubscribes -> transitions CONNECTED -> READY
+        assertTrue(serverMachine.transitionTo(GeoRescueBleState.READY))
+        assertEquals(GeoRescueBleState.READY, serverMachine.state)
+
+        // Disconnect -> transitions READY -> DISCONNECTED
+        assertTrue(serverMachine.transitionTo(GeoRescueBleState.DISCONNECTED))
+        assertEquals(GeoRescueBleState.DISCONNECTED, serverMachine.state)
+    }
 }

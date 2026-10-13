@@ -536,6 +536,7 @@ class GeoRescueBleManager(
             serverPeers.getOrPut(device.address) { ServerPeer(device.address) }.apply {
                 this.subscribed = subscribed
                 if (subscribed) stateMachine.transitionTo(GeoRescueBleState.READY)
+                else stateMachine.transitionTo(GeoRescueBleState.CONNECTED)
             }
         }
         if (subscribed) {

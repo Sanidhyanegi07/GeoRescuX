@@ -1,0 +1,26 @@
+{
+  "listeners": [
+    {
+      "address": "0.0.0.0",
+      "port": 8080,
+      "https": false
+    }
+  ],
+  "app": {
+    "threads_num": 4,
+    "max_connections": 10000,
+    "max_connections_per_ip": 100,
+    "client_max_body_size": "1M",
+    "client_max_memory_body_size": "64K",
+    "log": {
+      "log_path": "./logs",
+      "logfile_base_name": "georescux_backend",
+      "log_size_limit": 100000000,
+      "log_level": "DEBUG"
+    }
+  },
+  "custom_config": {
+    "firebase_project_id": "georescex",
+    "database_file": "georescux_backend.db"
+  }
+}

@@ -32,9 +32,9 @@ enum class GeoRescueBleState {
  *
  * Legal transitions:
  *   CONNECTING            -> CONNECTED, ERROR, DISCONNECTED
- *   CONNECTED             -> DISCOVERING_SERVICES, ERROR, DISCONNECTED
+ *   CONNECTED             -> DISCOVERING_SERVICES, READY, ERROR, DISCONNECTED
  *   DISCOVERING_SERVICES  -> READY, ERROR, DISCONNECTED
- *   READY                 -> TRANSFERRING, DISCONNECTING, DISCONNECTED, ERROR
+ *   READY                 -> TRANSFERRING, CONNECTED, DISCONNECTING, DISCONNECTED, ERROR
  *   TRANSFERRING          -> READY, DISCONNECTING, DISCONNECTED, ERROR
  *   DISCONNECTING         -> DISCONNECTED
  *   DISCONNECTED          -> CONNECTING (reconnect), IDLE (forgotten)
@@ -76,13 +76,13 @@ class GeoRescueBleConnectionStateMachine(initial: GeoRescueBleState = GeoRescueB
                 GeoRescueBleState.CONNECTED, GeoRescueBleState.ERROR, GeoRescueBleState.DISCONNECTED
             ),
             GeoRescueBleState.CONNECTED to setOf(
-                GeoRescueBleState.DISCOVERING_SERVICES, GeoRescueBleState.ERROR, GeoRescueBleState.DISCONNECTED
+                GeoRescueBleState.DISCOVERING_SERVICES, GeoRescueBleState.READY, GeoRescueBleState.ERROR, GeoRescueBleState.DISCONNECTED
             ),
             GeoRescueBleState.DISCOVERING_SERVICES to setOf(
                 GeoRescueBleState.READY, GeoRescueBleState.ERROR, GeoRescueBleState.DISCONNECTED
             ),
             GeoRescueBleState.READY to setOf(
-                GeoRescueBleState.TRANSFERRING, GeoRescueBleState.DISCONNECTING,
+                GeoRescueBleState.TRANSFERRING, GeoRescueBleState.CONNECTED, GeoRescueBleState.DISCONNECTING,
                 GeoRescueBleState.DISCONNECTED, GeoRescueBleState.ERROR
             ),
             GeoRescueBleState.TRANSFERRING to setOf(

@@ -97,7 +97,7 @@ class ContactsActivity : AppCompatActivity() {
         contact: EmergencyContact,
         onDelete: (String) -> Unit,
     ): View {
-        val row = layoutInflater.inflate(R.layout.item_contact, null, false)
+        val row = layoutInflater.inflate(R.layout.item_contact, findViewById<LinearLayout>(R.id.contactsListContainer), false)
         row.findViewById<TextView>(R.id.textContactName).text = contact.name
         row.findViewById<TextView>(R.id.textContactPriority).apply {
             text = contact.priority.name

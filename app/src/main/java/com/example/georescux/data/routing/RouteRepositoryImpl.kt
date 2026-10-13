@@ -63,7 +63,7 @@ class RouteRepositoryImpl(
     }
 
     override fun findRoute(startNodeId: String, destinationNodeId: String): EvacuationRoute? =
-        SafeHavenFallback.findRoute(getGraph(), startNodeId, destinationNodeId)
+        GeoRescueNativeRouting.findRoute(getGraph(), startNodeId, destinationNodeId)
 
     override fun setRoadBlocked(fromNodeId: String, toNodeId: String, blocked: Boolean) {
         val graph = getGraph()
