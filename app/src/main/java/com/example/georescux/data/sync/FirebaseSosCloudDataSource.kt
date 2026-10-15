@@ -25,12 +25,20 @@ class FirebaseSosCloudDataSource : SosCloudDataSource {
     override suspend fun upsertEmergency(emergency: SosEmergency): Boolean {
         val uid = firebaseAuth.currentUser?.uid ?: return false // signed out: skip
         return try {
+            val alertRef = database.getReference("sos_alerts").child(uid).child(emergency.id)
+            val currentSnap = try { alertRef.child("status").get().await() } catch (_: Exception) { null }
+            val cloudStatus = currentSnap?.getValue(String::class.java)
+
             val payload = SosCloudPayload.fromEmergency(emergency)
-            database.getReference("sos_alerts")
-                .child(uid)
-                .child(emergency.id)
-                .setValue(payload)
-                .await()
+            if (cloudStatus == "RESOLVED" && emergency.stoppedAtMs == null) {
+                // Admin has resolved this emergency on the dashboard.
+                // Keep the RESOLVED status intact and update only telemetry.
+                @Suppress("UNCHECKED_CAST")
+                val partialUpdate = payload.filterKeys { it != "status" && payload[it] != null } as Map<String, Any>
+                alertRef.updateChildren(partialUpdate).await()
+            } else {
+                alertRef.setValue(payload).await()
+            }
             true
         } catch (e: CancellationException) {
             throw e

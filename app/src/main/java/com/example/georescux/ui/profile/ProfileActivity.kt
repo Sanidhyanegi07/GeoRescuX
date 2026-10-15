@@ -145,10 +145,11 @@ class ProfileActivity : AppCompatActivity() {
 
         val documentPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             if (uri != null) {
-                currentVerificationDocPath = copyImageToPrivateStorage(uri) // Reusing the copy method for simplicity
+                currentVerificationDocPath = copyDocumentToPrivateStorage(uri)
                 currentVerificationStatus = "PENDING"
-                verificationStatusText.text = "Status: PENDING"
-                Toast.makeText(this, "Document uploaded for verification", Toast.LENGTH_SHORT).show()
+                verificationStatusText.text = "Status: PENDING (Under Review)"
+                findViewById<TextView>(R.id.textUploadDocument)?.text = "📄 Document Attached (Tap to replace)"
+                Toast.makeText(this, "Verification document attached successfully", Toast.LENGTH_SHORT).show()
                 
                 // Sync verification request to Firebase
                 val uid = FirebaseAuth.getInstance().currentUser?.uid
@@ -166,7 +167,7 @@ class ProfileActivity : AppCompatActivity() {
         }
 
         findViewById<TextView>(R.id.textUploadDocument).setOnClickListener {
-            documentPicker.launch("image/*") // Mocking document upload with image picker
+            documentPicker.launch("*/*")
         }
 
         findViewById<TextView>(R.id.textChangePhoto).setOnClickListener {
@@ -176,16 +177,35 @@ class ProfileActivity : AppCompatActivity() {
         findViewById<View>(R.id.buttonSaveProfile).setOnClickListener {
             val imagePath = selectedImageUri?.let { copyImageToPrivateStorage(it) }
                 ?: saved.imagePath
+            val name = nameField.text.toString().trim()
+            val phone = phoneField.text.toString().trim()
+            val email = emailField.text.toString().trim()
             profileStore.save(
                 ProfileStore.Profile(
-                    name = nameField.text.toString().trim(),
-                    phone = phoneField.text.toString().trim(),
-                    email = emailField.text.toString().trim(),
+                    name = name,
+                    phone = phone,
+                    email = email,
                     imagePath = imagePath,
                     verificationStatus = currentVerificationStatus,
                     verificationDocumentPath = currentVerificationDocPath,
                 )
             )
+
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            if (uid != null) {
+                val appContainer = (application as GeoRescuXApplication).appContainer
+                val userMap = mapOf(
+                    "uid" to uid,
+                    "email" to (email.ifBlank { FirebaseAuth.getInstance().currentUser?.email ?: "" }),
+                    "name" to name,
+                    "phone" to phone,
+                    "regionId" to appContainer.activeRegionId,
+                    "updatedAtMs" to System.currentTimeMillis()
+                )
+                com.google.firebase.database.FirebaseDatabase.getInstance()
+                    .getReference("users").child(uid).updateChildren(userMap)
+            }
+
             Toast.makeText(this, "Profile saved", Toast.LENGTH_SHORT).show()
             finish()
         }
@@ -268,6 +288,20 @@ class ProfileActivity : AppCompatActivity() {
             FileOutputStream(target).use { output ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 85, output)
             }
+        }
+        target.absolutePath
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Copies the picked verification document (PDF, PNG, JPG) into private storage without destructive bitmap downsampling. */
+    private fun copyDocumentToPrivateStorage(uri: Uri): String? = try {
+        val extension = contentResolver.getType(uri)?.let { mime ->
+            if (mime.contains("pdf")) ".pdf" else ".jpg"
+        } ?: ".bin"
+        val target = File(filesDir, "verification_document$extension")
+        contentResolver.openInputStream(uri)?.use { input ->
+            FileOutputStream(target).use { output -> input.copyTo(output) }
         }
         target.absolutePath
     } catch (e: Exception) {

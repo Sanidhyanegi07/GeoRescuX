@@ -103,7 +103,6 @@ class AdminDashboardActivity : AppCompatActivity() {
                     val selectedName = regions[position]
                     selectedRegion = if (selectedName == "All Regions") null else MapRegionCatalog.availableRegions.find { it.displayName == selectedName }
                     populateDistrictSpinner(districtSpinner, selectedRegion?.id)
-                    renderCurrentTabContent()
                 }
                 override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
             }
@@ -196,10 +195,17 @@ class AdminDashboardActivity : AppCompatActivity() {
      * "All Districts" keeps the state-wide view; choosing a district scopes
      * the emergency feed and the priority statistics to that district.
      */
+    private var lastPopulatedStateId: String? = "UNINITIALIZED"
+
     private fun populateDistrictSpinner(
         districtSpinner: android.widget.Spinner,
         stateId: String?,
     ) {
+        if (stateId == lastPopulatedStateId && districtSpinner.adapter != null) {
+            renderCurrentTabContent()
+            return
+        }
+        lastPopulatedStateId = stateId
         val districts = if (stateId == null) emptyList()
             else com.example.georescux.domain.admin.DistrictCatalog.districtsForState(stateId)
         val labels = listOf("All Districts") + districts.map { it.displayName }
@@ -337,7 +343,7 @@ class AdminDashboardActivity : AppCompatActivity() {
         emergencyList.take(5).forEach { em ->
             val priority = if (em.isVerified) "High Priority" else "Medium Priority"
             val time = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(em.startedAtMs))
-            list.add(RecentReportItem("#SOS-${em.alertId.takeLast(4).uppercase()}", priority, time, if (em.isActive) "Active" else "Pending", em, null))
+            list.add(RecentReportItem("#SOS-${em.alertId.takeLast(4).uppercase()}", priority, time, if (em.isActive) "Active" else "Resolved", em, null))
         }
 
         incidentList.take(5).forEach { inc ->
@@ -400,10 +406,16 @@ class AdminDashboardActivity : AppCompatActivity() {
         }
         val details = "Started: $dateStr\nLocation: $locText\nCaller UID: ${emergency.uid}\nNote: ${emergency.note ?: "None"}\nStatus: ${emergency.status}"
 
-        AlertDialog.Builder(this)
+        val builder = AlertDialog.Builder(this)
             .setTitle("Emergency #${emergency.alertId.takeLast(4).uppercase()}")
             .setMessage(details)
-            .setPositiveButton("Mark Resolved") { _, _ ->
+            .setNeutralButton("View on Map") { _, _ ->
+                startActivity(Intent(this, AdminMapActivity::class.java))
+            }
+            .setNegativeButton("Close", null)
+
+        if (emergency.isActive) {
+            builder.setPositiveButton("Mark Resolved") { _, _ ->
                 lifecycleScope.launch {
                     try {
                         database.getReference("sos_alerts")
@@ -418,11 +430,10 @@ class AdminDashboardActivity : AppCompatActivity() {
                     }
                 }
             }
-            .setNeutralButton("View on Map") { _, _ ->
-                startActivity(Intent(this, AdminMapActivity::class.java))
-            }
-            .setNegativeButton("Close", null)
-            .show()
+        } else {
+            builder.setPositiveButton("Resolved (OK)", null)
+        }
+        builder.show()
     }
 
     private fun showNotificationsSummaryDialog() {
@@ -463,7 +474,7 @@ class AdminDashboardActivity : AppCompatActivity() {
                         val status = alertSnap.child("status").getValue(String::class.java)
                             ?: if (stoppedAtMs == null) "ACTIVE" else "COMPLETED"
 
-                        val isActive = stoppedAtMs == null || status == "ACTIVE"
+                        val isActive = status != "RESOLVED" && status != "COMPLETED" && status != "CANCELLED" && stoppedAtMs == null
 
                         val locSnap = alertSnap.child("location")
                         val lat = locSnap.child("latitude").getValue(Double::class.java)
@@ -781,7 +792,14 @@ AdminTab.VERIFICATIONS -> {
         } else {
             "📍 Location: GPS Fix Pending"
         }
-        card.findViewById<TextView>(R.id.textAlertLocation).text = locText
+        card.findViewById<TextView>(R.id.textAlertLocation).apply {
+            text = if (emergency.isActive) "$locText\nTap to Resolve / View details →" else "$locText\n✅ Resolved (Tap to View)"
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, if (emergency.isActive) R.color.brand_primary else R.color.safe_green))
+        }
+
+        card.setOnClickListener {
+            showEmergencyActionDialog(emergency)
+        }
         return card
     }
 

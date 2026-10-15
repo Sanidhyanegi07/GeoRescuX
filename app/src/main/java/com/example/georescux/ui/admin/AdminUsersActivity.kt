@@ -34,14 +34,18 @@ class AdminUsersActivity : AppCompatActivity() {
     private data class AdminUserRow(
         val uid: String,
         val email: String,
+        val name: String?,
         val regionId: String?,
         val isVerified: Boolean,
         val sosCount: Int,
     )
 
+    private val profileMap = mutableMapOf<String, Triple<String, String?, String?>>()
+    private val sosMap = mutableMapOf<String, Pair<Boolean, Int>>()
     private val users = mutableListOf<AdminUserRow>()
     private var filter: String = ""
-    private var listener: ValueEventListener? = null
+    private var usersListener: ValueEventListener? = null
+    private var sosListener: ValueEventListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,31 +60,60 @@ class AdminUsersActivity : AppCompatActivity() {
             renderUsers()
         }
 
-        listener = object : ValueEventListener {
+        usersListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                users.clear()
-                for (userSnap in snapshot.children) {
-                    val uid = userSnap.key ?: continue
-                    val email = userSnap.child("email").getValue(String::class.java)
-                        ?: userSnap.child("contact").getValue(String::class.java)
-                        ?: "(no email on record)"
-                    val regionId = userSnap.child("regionId").getValue(String::class.java)
-                    val isVerified = userSnap.child("isVerified").getValue(Boolean::class.java) ?: false
-                    // Count this user's own SOS records under sos_alerts/{uid}.
-                    var sosCount = 0
-                    for (alertSnap in userSnap.children) {
-                        if (alertSnap.key == "isVerified" || alertSnap.key == "email" ||
-                            alertSnap.key == "regionId" || alertSnap.key == "contact") continue
-                        sosCount++
-                    }
-                    users.add(AdminUserRow(uid, email, regionId, isVerified, sosCount))
+                profileMap.clear()
+                for (child in snapshot.children) {
+                    val uid = child.key ?: continue
+                    val email = child.child("email").getValue(String::class.java) ?: "(no email)"
+                    val name = child.child("name").getValue(String::class.java)
+                    val regionId = child.child("regionId").getValue(String::class.java)
+                    profileMap[uid] = Triple(email, name, regionId)
                 }
-                renderUsers()
+                recomputeAndRenderUsers()
             }
 
             override fun onCancelled(error: DatabaseError) {}
         }
-        database.getReference("sos_alerts").addValueEventListener(listener!!)
+
+        sosListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                sosMap.clear()
+                for (userSnap in snapshot.children) {
+                    val uid = userSnap.key ?: continue
+                    val isVerified = userSnap.child("isVerified").getValue(Boolean::class.java) ?: false
+                    var sosCount = 0
+                    for (alertSnap in userSnap.children) {
+                        if (alertSnap.key != "isVerified") {
+                            sosCount++
+                        }
+                    }
+                    sosMap[uid] = Pair(isVerified, sosCount)
+                }
+                recomputeAndRenderUsers()
+            }
+
+            override fun onCancelled(error: DatabaseError) {}
+        }
+
+        database.getReference("users").addValueEventListener(usersListener!!)
+        database.getReference("sos_alerts").addValueEventListener(sosListener!!)
+    }
+
+    private fun recomputeAndRenderUsers() {
+        val allUids = (profileMap.keys + sosMap.keys).toSet()
+        users.clear()
+        for (uid in allUids) {
+            val prof = profileMap[uid]
+            val sos = sosMap[uid]
+            val email = prof?.first ?: "(registered user)"
+            val name = prof?.second
+            val regionId = prof?.third
+            val isVerified = sos?.first ?: false
+            val count = sos?.second ?: 0
+            users.add(AdminUserRow(uid, email, name, regionId, isVerified, count))
+        }
+        renderUsers()
     }
 
     private fun renderUsers() {
@@ -88,6 +121,7 @@ class AdminUsersActivity : AppCompatActivity() {
         val matched = users.filter {
             filter.isBlank() ||
                 it.email.lowercase().contains(filter) ||
+                (it.name?.lowercase()?.contains(filter) == true) ||
                 it.uid.lowercase().contains(filter)
         }
         val verified = matched.count { it.isVerified }
@@ -107,9 +141,10 @@ class AdminUsersActivity : AppCompatActivity() {
             val regionName = user.regionId?.let { MapRegionCatalog.byId(it)?.displayName }
             TextView(this).apply {
                 text = buildString {
-                    append("👤 ${user.email}\n")
+                    val displayName = if (!user.name.isNullOrBlank()) "${user.name} (${user.email})" else user.email
+                    append("👤 $displayName\n")
                     append("UID: ${user.uid.take(12)}… · ")
-                    append("Region: ${regionName ?: "not selected"}\n")
+                    append("Region: ${regionName ?: "Default Region"}\n")
                     append("Verification: ")
                     append(if (user.isVerified) "VERIFIED (×2 priority)" else "unverified (×1 priority)")
                     append(" · SOS records: ${user.sosCount}")
@@ -128,7 +163,8 @@ class AdminUsersActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        listener?.let { database.getReference("sos_alerts").removeEventListener(it) }
+        usersListener?.let { database.getReference("users").removeEventListener(it) }
+        sosListener?.let { database.getReference("sos_alerts").removeEventListener(it) }
         super.onDestroy()
     }
 }

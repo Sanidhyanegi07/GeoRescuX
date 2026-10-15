@@ -119,10 +119,11 @@ class AdminMapActivity : AppCompatActivity() {
                         val lat = loc.child("latitude").getValue(Double::class.java) ?: continue
                         val lng = loc.child("longitude").getValue(Double::class.java) ?: continue
                         val stopped = alertSnap.child("stoppedAtMs").getValue(Long::class.java)
+                        val status = alertSnap.child("status").getValue(String::class.java)
                         emergencies.add(AdminSosPoint(
                             id = alertSnap.key ?: "alert",
                             latitude = lat, longitude = lng,
-                            isActive = stopped == null,
+                            isActive = stopped == null && status != "RESOLVED" && status != "COMPLETED" && status != "CANCELLED",
                             isVerified = isVerified,
                         ))
                     }

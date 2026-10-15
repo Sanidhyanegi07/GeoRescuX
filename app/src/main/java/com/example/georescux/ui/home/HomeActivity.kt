@@ -339,34 +339,28 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun refreshRecentActivitySummary() {
-        val latest = (application as GeoRescuXApplication)
-            .appContainer.sosRepository.getHistory().firstOrNull()
+        val app = application as? GeoRescuXApplication ?: return
+        val titleView = findViewById<TextView>(R.id.textViewWeatherAlertTitle)
+        val storedAlerts = com.example.georescux.data.alerts.AdminAlertStore(this).loadAll()
+        val activeAlert = storedAlerts.sortedByDescending { it.timestampMs }.firstOrNull()
 
-        recentActivitySummaryText.text = if (latest == null) {
-            "No alerts yet"
+        if (activeAlert != null) {
+            titleView?.text = "⚠️ Regional Weather & Safety Advisory"
+            titleView?.setTextColor(ContextCompat.getColor(this, R.color.hazard_amber))
+            recentActivitySummaryText.text = "${activeAlert.title} — ${activeAlert.body.take(65)}"
         } else {
-            buildRecentActivitySummary(latest)
+            val latestSos = app.appContainer.sosRepository.getHistory().firstOrNull()
+            if (latestSos != null && latestSos.stoppedAtMs == null) {
+                titleView?.text = "🚨 ACTIVE SOS IN PROGRESS"
+                titleView?.setTextColor(ContextCompat.getColor(this, R.color.sos_red))
+                val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(latestSos.startedAtMs))
+                recentActivitySummaryText.text = "Emergency declared at $timeStr — Tap to view live emergency screen"
+            } else {
+                titleView?.text = "🌤️ Weather & Safety Status: Clear"
+                titleView?.setTextColor(ContextCompat.getColor(this, R.color.safe_green))
+                recentActivitySummaryText.text = "No active storms, landslides, or road blocks in your region."
+            }
         }
-    }
-
-    private fun buildRecentActivitySummary(latest: SosEmergency): String {
-        val date = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()).format(Date(latest.startedAtMs))
-        val summary = StringBuilder("$date · ${formatDuration(latest)}")
-        when (latest.locationStatus) {
-            SosLocationStatus.ACQUIRED -> summary.append(" · 📍 Location found")
-            SosLocationStatus.PERMISSION_MISSING -> summary.append(" · Location permission needed")
-            SosLocationStatus.UNAVAILABLE -> summary.append(" · Location unavailable")
-            null -> Unit
-        }
-        return summary.toString()
-    }
-
-    private fun formatDuration(alert: SosEmergency): String {
-        val stoppedAt = alert.stoppedAtMs ?: return "ongoing"
-        val totalSeconds = ((stoppedAt - alert.startedAtMs) / 1000).coerceAtLeast(0)
-        val minutes = totalSeconds / 60
-        val seconds = totalSeconds % 60
-        return if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
     }
 
     private companion object

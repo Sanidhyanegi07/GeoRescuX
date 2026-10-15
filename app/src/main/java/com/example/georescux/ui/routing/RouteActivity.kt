@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
 import com.example.georescux.data.maps.MapRegionCatalog
@@ -113,18 +114,24 @@ class RouteActivity : AppCompatActivity() {
 
         // Offline place-name search: autocomplete + name resolution
         // (places.json is produced by the region's build tool).
-        places = PlaceIndex.loadFromAsset(
-            assets, "maps/${activeRegion.id}-places.json"
-        )
-        val startField = findViewById<AutoCompleteTextView>(R.id.editTextStartNode)
-        val destinationField = findViewById<AutoCompleteTextView>(R.id.editTextDestinationNode)
-        if (places.isNotEmpty()) {
-            val nameAdapter = ArrayAdapter(
-                this, android.R.layout.simple_dropdown_item_1line,
-                places.map { it.name }.distinct()
+        // Offload to Dispatchers.IO so 2.37MB JSON parsing does not drop UI frames during startup.
+        lifecycleScope.launch(Dispatchers.IO) {
+            val loadedPlaces = PlaceIndex.loadFromAsset(
+                assets, "maps/${activeRegion.id}-places.json"
             )
-            startField.setAdapter(nameAdapter)
-            destinationField.setAdapter(nameAdapter)
+            withContext(Dispatchers.Main) {
+                places = loadedPlaces
+                val startField = findViewById<AutoCompleteTextView>(R.id.editTextStartNode)
+                val destinationField = findViewById<AutoCompleteTextView>(R.id.editTextDestinationNode)
+                if (places.isNotEmpty()) {
+                    val nameAdapter = ArrayAdapter(
+                        this@RouteActivity, android.R.layout.simple_dropdown_item_1line,
+                        places.map { it.name }.distinct()
+                    )
+                    startField.setAdapter(nameAdapter)
+                    destinationField.setAdapter(nameAdapter)
+                }
+            }
         }
 
         val mapView = findViewById<MapView>(R.id.mapView)
@@ -133,8 +140,29 @@ class RouteActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.buttonRouteBack)?.setOnClickListener { finish() }
         findViewById<View>(R.id.buttonBackToSos)?.setOnClickListener { finish() }
-        findViewById<View>(R.id.buttonStartNavigation)?.setOnClickListener {
-            Toast.makeText(this, "Evacuation guidance started. Follow highlighted safe path.", Toast.LENGTH_SHORT).show()
+        val navButton = findViewById<Button>(R.id.buttonStartNavigation)
+        var isNavigating = false
+        navButton?.setOnClickListener {
+            isNavigating = !isNavigating
+            if (isNavigating) {
+                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                navButton.text = "⏹ Stop Navigation"
+                navButton.setBackgroundResource(R.drawable.bg_button_white)
+                navButton.setTextColor(ContextCompat.getColor(this, R.color.sos_red))
+                startLocationAcquisition()
+                val targetPoint = lastUserFix ?: userLocationMarker?.position ?: routePolyline?.actualPoints?.firstOrNull()
+                if (targetPoint != null) {
+                    mapView.controller.animateTo(targetPoint)
+                    mapView.controller.setZoom(17.5)
+                }
+                Toast.makeText(this, "Active evacuation guidance engaged. Screen stay-awake active.", Toast.LENGTH_LONG).show()
+            } else {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                navButton.text = "Start Navigation"
+                navButton.setBackgroundResource(R.drawable.bg_button_primary)
+                navButton.setTextColor(ContextCompat.getColor(this, R.color.white))
+                Toast.makeText(this, "Evacuation guidance paused.", Toast.LENGTH_SHORT).show()
+            }
         }
         updateProModeUi()
 

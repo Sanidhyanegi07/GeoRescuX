@@ -348,6 +348,34 @@ async function runTests() {
     req('/verification_requests/bob_uid/status.json', 'DELETE', null, adminAuth)
   );
 
+  // 40. Owner (Alice) writes user profile under /users/alice_uid
+  await assertCase(
+    "40. Owner (Alice) writes user profile under /users/alice_uid",
+    true,
+    req('/users/alice_uid.json', 'PUT', { email: "alice@example.com", name: "Alice", regionId: "uttarakhand" }, aliceAuth)
+  );
+
+  // 41. Unrelated user (Bob) cannot read Alice's profile under /users/alice_uid
+  await assertCase(
+    "41. Unrelated user (Bob) cannot read Alice's profile under /users/alice_uid",
+    false,
+    req('/users/alice_uid.json', 'GET', null, bobAuth)
+  );
+
+  // 42. Unrelated user (Bob) cannot write to Alice's profile under /users/alice_uid
+  await assertCase(
+    "42. Unrelated user (Bob) cannot write to Alice's profile under /users/alice_uid",
+    false,
+    req('/users/alice_uid.json', 'PUT', { email: "hacked@example.com" }, bobAuth)
+  );
+
+  // 43. Admin can read all users under /users
+  await assertCase(
+    "43. Admin can read all users under /users",
+    true,
+    req('/users.json', 'GET', null, adminAuth)
+  );
+
   console.log(`\n========================================================`);
   console.log(`REAL FIREBASE EMULATOR RESULTS: ${passed} PASSED, ${failed} FAILED out of ${passed + failed} tests`);
   console.log(`========================================================\n`);
