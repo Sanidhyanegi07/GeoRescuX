@@ -404,12 +404,19 @@ class AdminDashboardActivity : AppCompatActivity() {
             .setTitle("Emergency #${emergency.alertId.takeLast(4).uppercase()}")
             .setMessage(details)
             .setPositiveButton("Mark Resolved") { _, _ ->
-                database.getReference("sos_alerts")
-                    .child(emergency.uid)
-                    .child(emergency.alertId)
-                    .child("status")
-                    .setValue("RESOLVED")
-                Toast.makeText(this, "Marked emergency resolved", Toast.LENGTH_SHORT).show()
+                lifecycleScope.launch {
+                    try {
+                        database.getReference("sos_alerts")
+                            .child(emergency.uid)
+                            .child(emergency.alertId)
+                            .child("status")
+                            .setValue("RESOLVED")
+                            .await()
+                        Toast.makeText(this@AdminDashboardActivity, "Emergency marked resolved", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@AdminDashboardActivity, "Failed to resolve emergency: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
             }
             .setNeutralButton("View on Map") { _, _ ->
                 startActivity(Intent(this, AdminMapActivity::class.java))

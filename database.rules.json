@@ -7,7 +7,19 @@
       ".read": "auth != null && auth.token.admin == true",
       "$uid": {
         ".read": "auth != null && (auth.uid == $uid || auth.token.admin == true)",
-        ".write": "auth != null && auth.uid == $uid"
+        "isVerified": {
+          ".read": "auth != null && (auth.uid == $uid || auth.token.admin == true)",
+          ".write": "auth != null && auth.token.admin == true && newData.exists()",
+          ".validate": "newData.isBoolean()"
+        },
+        "$alertId": {
+          ".write": "auth != null && auth.uid == $uid && $alertId !== 'isVerified' && newData.exists()",
+          ".validate": "$alertId !== 'isVerified' && newData.hasChildren(['id', 'status', 'startedAtMs'])",
+          "status": {
+            ".write": "auth != null && ((auth.uid == $uid && $alertId !== 'isVerified') || (auth.token.admin == true && newData.exists() && newData.val() == 'RESOLVED'))",
+            ".validate": "newData.isString() && ((auth.uid == $uid && (newData.val() == 'ACTIVE' || newData.val() == 'COMPLETED')) || (auth.token.admin == true && newData.val() == 'RESOLVED'))"
+          }
+        }
       }
     },
 
@@ -36,8 +48,18 @@
     "incidents": {
       ".read": "auth != null",
       "$incidentId": {
-        ".write": "auth != null && (auth.token.admin == true || !data.exists())"
+        ".write": "auth != null && auth.token.admin == true"
       }
+    },
+
+    "events": {
+      ".read": "auth != null && auth.token.admin == true",
+      ".write": "auth != null && auth.token.admin == true"
+    },
+
+    "admin_alerts": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin == true"
     },
 
     "verification_requests": {

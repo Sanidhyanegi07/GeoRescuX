@@ -44,11 +44,13 @@ class FirebaseSosCloudDataSource : SosCloudDataSource {
 
     override suspend fun upsertHistory(emergencies: List<SosEmergency>): Boolean {
         val uid = firebaseAuth.currentUser?.uid ?: return false // signed out: skip
+        if (emergencies.isEmpty()) return true
         return try {
             val payload = SosCloudPayload.fromHistory(emergencies)
+            @Suppress("UNCHECKED_CAST")
             database.getReference("sos_alerts")
                 .child(uid)
-                .setValue(payload)
+                .updateChildren(payload as Map<String, Any>)
                 .await()
             true
         } catch (e: CancellationException) {
