@@ -224,16 +224,128 @@ async function runTests() {
     req('/events.json', 'GET', null, adminAuth)
   );
 
-  // 20. /incidents creation
+  // 21. /incidents permissions
   await assertCase(
-    "21. Admin can create an incident in /incidents",
+    "21. Ordinary user (Alice) cannot read /incidents",
+    false,
+    req('/incidents.json', 'GET', null, aliceAuth)
+  );
+  await assertCase(
+    "22. Admin can read /incidents",
+    true,
+    req('/incidents.json', 'GET', null, adminAuth)
+  );
+  await assertCase(
+    "23. Admin can create an incident in /incidents",
     true,
     req('/incidents/inc_999.json', 'PUT', { type: "FLOOD", description: "River cresting", status: "REPORTED", timestampMs: 1729000300000 }, adminAuth)
   );
   await assertCase(
-    "22. Ordinary user (Alice) cannot create an incident in /incidents",
+    "24. Ordinary user (Alice) cannot create an incident in /incidents",
     false,
     req('/incidents/inc_999_fake.json', 'PUT', { type: "FLOOD", description: "Fake", status: "REPORTED", timestampMs: 1729000300000 }, aliceAuth)
+  );
+
+  // 22. /verification_requests read restrictions
+  await assertCase(
+    "25. Unauthenticated user cannot read /verification_requests",
+    false,
+    req('/verification_requests.json', 'GET', null, null)
+  );
+  await assertCase(
+    "26. Unauthenticated user cannot read Alice's verification request",
+    false,
+    req('/verification_requests/alice_uid.json', 'GET', null, null)
+  );
+  await assertCase(
+    "27. Unrelated user (Bob) cannot read Alice's verification request",
+    false,
+    req('/verification_requests/alice_uid.json', 'GET', null, bobAuth)
+  );
+  await assertCase(
+    "28. Admin can read all verification requests",
+    true,
+    req('/verification_requests.json', 'GET', null, adminAuth)
+  );
+
+  // 23. /verification_requests write lifecycle & least privilege
+  const aliceValidRequest = {
+    uid: "alice_uid",
+    name: "Alice Walker",
+    timestampMs: 1729000000000,
+    status: "PENDING"
+  };
+
+  await assertCase(
+    "29. User (Alice) submits legitimate verification request with PENDING",
+    true,
+    req('/verification_requests/alice_uid.json', 'PUT', aliceValidRequest, aliceAuth)
+  );
+
+  await assertCase(
+    "30. User (Alice) can read her own verification request",
+    true,
+    req('/verification_requests/alice_uid.json', 'GET', null, aliceAuth)
+  );
+
+  await assertCase(
+    "31. User (Alice) cannot submit request with VERIFIED status directly",
+    false,
+    req('/verification_requests/alice_uid.json', 'PUT', { ...aliceValidRequest, status: "VERIFIED" }, aliceAuth)
+  );
+
+  await assertCase(
+    "32. User (Alice) cannot write directly to status child to set VERIFIED",
+    false,
+    req('/verification_requests/alice_uid/status.json', 'PUT', "VERIFIED", aliceAuth)
+  );
+
+  await assertCase(
+    "33. User (Alice) cannot delete verification request (DELETE)",
+    false,
+    req('/verification_requests/alice_uid.json', 'DELETE', null, aliceAuth)
+  );
+
+  await assertCase(
+    "34. Unrelated user (Bob) cannot write Alice's verification request",
+    false,
+    req('/verification_requests/alice_uid.json', 'PUT', { ...aliceValidRequest, name: "Bob Tamper" }, bobAuth)
+  );
+
+  await assertCase(
+    "35. Admin approves Alice's verification request (status: VERIFIED)",
+    true,
+    req('/verification_requests/alice_uid/status.json', 'PUT', "VERIFIED", adminAuth)
+  );
+
+  await assertCase(
+    "36. User (Alice) cannot overwrite or demote status back to PENDING once approved",
+    false,
+    req('/verification_requests/alice_uid.json', 'PUT', { ...aliceValidRequest, timestampMs: 1729000400000 }, aliceAuth)
+  );
+
+  const bobValidRequest = {
+    uid: "bob_uid",
+    name: "Bob Builder",
+    timestampMs: 1729000000000,
+    status: "PENDING"
+  };
+  await assertCase(
+    "37. Bob submits legitimate verification request with PENDING",
+    true,
+    req('/verification_requests/bob_uid.json', 'PUT', bobValidRequest, bobAuth)
+  );
+
+  await assertCase(
+    "38. Admin rejects Bob's verification request (status: REJECTED)",
+    true,
+    req('/verification_requests/bob_uid/status.json', 'PUT', "REJECTED", adminAuth)
+  );
+
+  await assertCase(
+    "39. Admin cannot delete status from a verification request (DELETE)",
+    false,
+    req('/verification_requests/bob_uid/status.json', 'DELETE', null, adminAuth)
   );
 
   console.log(`\n========================================================`);

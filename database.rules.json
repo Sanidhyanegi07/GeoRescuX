@@ -46,7 +46,7 @@
     },
 
     "incidents": {
-      ".read": "auth != null",
+      ".read": "auth != null && auth.token.admin == true",
       "$incidentId": {
         ".write": "auth != null && auth.token.admin == true"
       }
@@ -66,9 +66,13 @@
       ".read": "auth != null && auth.token.admin == true",
       "$uid": {
         ".read": "auth != null && (auth.uid == $uid || auth.token.admin == true)",
-        ".write": "auth != null && (auth.uid == $uid || auth.token.admin == true)",
+        ".write": "auth != null && ((auth.uid == $uid && newData.exists() && newData.hasChildren(['uid', 'status', 'name', 'timestampMs']) && (!data.exists() || data.child('status').val() == 'PENDING') && newData.child('status').val() == 'PENDING') || (auth.token.admin == true && newData.exists()))",
+        ".validate": "newData.hasChildren(['status'])",
         "status": {
-          ".validate": "auth.token.admin == true || newData.val() == 'PENDING'"
+          ".validate": "newData.isString() && (newData.val() == 'PENDING' || newData.val() == 'VERIFIED' || newData.val() == 'REJECTED')"
+        },
+        "uid": {
+          ".validate": "newData.isString() && newData.val() == $uid"
         }
       }
     },
