@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet"
+    android:orientation="vertical"
+    android:paddingBottom="24dp">
+
+    <!-- Top Drag Handle -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_drag_handle" />
+
+    <!-- Header -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:text="Filter Map Incidents"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/buttonResetFilters"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Reset"
+                android:textColor="@color/brand_primary"
+                android:textSize="13sp" />
+
+            <ImageButton
+                android:id="@+id/buttonCloseFilterSheet"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close"
+                android:src="@drawable/ic_close_circle"
+                app:tint="@color/text_muted" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/divider_subtle" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="14dp">
+
+            <!-- Incident Type Filter -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="INCIDENT TYPE"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupFilterType"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:singleSelection="true"
+                app:selectionRequired="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterTypeAll"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="All Types"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterTypeFlood"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🌊 Flood"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterTypeEarthquake"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🌋 Earthquake"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterTypeLandslide"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🪨 Landslide"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterTypeFire"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🔥 Fire"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterTypeRoadBlock"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🚧 Road Block"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterTypeCollapse"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🏚️ Collapse"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterTypeMedical"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🏥 Medical"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterTypeOther"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⚠️ Other"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+            </com.google.android.material.chip.ChipGroup>
+
+            <!-- Severity Level Filter -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="SEVERITY LEVEL"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupFilterSeverity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:singleSelection="true"
+                app:selectionRequired="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterSevAll"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="All Severities"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterSevCritical"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🚨 Critical"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterSevHigh"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🔴 High"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterSevMedium"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🟠 Medium"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipFilterSevLow"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🟡 Low"
+                    android:textColor="@color/text_primary"
+                    app:chipBackgroundColor="@color/bg_chip_state_selector" />
+            </com.google.android.material.chip.ChipGroup>
+
+            <!-- Matching count summary -->
+            <TextView
+                android:id="@+id/textFilterMatchCount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="Showing all incidents"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp" />
+
+            <!-- Apply Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonApplyFilter"
+                style="@style/Widget.GeoRescuX.Button"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:text="Apply Filter" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

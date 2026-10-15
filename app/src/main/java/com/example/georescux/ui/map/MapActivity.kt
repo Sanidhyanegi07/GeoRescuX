@@ -11,13 +11,21 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
+import com.example.georescux.data.incident.IncidentFilter
+import com.example.georescux.data.incident.IncidentReport
 import com.example.georescux.data.maps.MapRegionCatalog
+import com.example.georescux.domain.incident.IncidentSeverity
+import com.example.georescux.domain.incident.IncidentType
 import com.example.georescux.domain.routing.MapRegion
 import com.example.georescux.ui.common.ActiveSosBanner
 import com.example.georescux.ui.common.BottomNav
 import com.example.georescux.ui.common.ConnectivityBadge
 import com.example.georescux.ui.common.HelpLauncher
 import com.example.georescux.ui.common.OfflineMapSetup
+import com.example.georescux.ui.incident.FilterIncidentsBottomSheet
+import com.example.georescux.ui.incident.IncidentDetailsBottomSheet
+import com.example.georescux.ui.incident.IncidentIconFactory
+import com.example.georescux.ui.incident.ReportIncidentBottomSheet
 import com.example.georescux.ui.routing.RouteActivity
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -40,6 +48,12 @@ class MapActivity : AppCompatActivity() {
     private lateinit var mapView: MapView
     private lateinit var connectivityBadge: ConnectivityBadge
     private var locationMarker: Marker? = null
+
+    private var currentUserLat: Double? = null
+    private var currentUserLng: Double? = null
+    private val incidentMarkers = mutableListOf<Marker>()
+    private val incidents = mutableListOf<IncidentReport>()
+    private var currentFilter: IncidentFilter = IncidentFilter()
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -75,6 +89,9 @@ class MapActivity : AppCompatActivity() {
 
         setupRegionBoundaryOverlay()
         setupFloatingControls()
+        setupIncidentReporting()
+        setupQuickFilters()
+        loadAndObserveIncidents()
         bindConnectionBadge()
         wireHelpAndNavigation()
 
@@ -104,6 +121,219 @@ class MapActivity : AppCompatActivity() {
         findViewById<View>(R.id.buttonZoomOut).setOnClickListener { mapView.controller.zoomOut() }
     }
 
+    private fun setupQuickFilters() {
+        findViewById<View>(R.id.chipOpenFilterDialog)?.setOnClickListener {
+            val sheet = FilterIncidentsBottomSheet.newInstance(currentFilter, incidents)
+            sheet.onFilterAppliedListener = { newFilter ->
+                applyFilter(newFilter)
+            }
+            sheet.show(supportFragmentManager, "FilterIncidentsBottomSheet")
+        }
+
+        val chipGroup = findViewById<com.google.android.material.chip.ChipGroup>(R.id.chipGroupQuickFilters)
+        chipGroup?.setOnCheckedStateChangeListener { _, checkedIds ->
+            if (checkedIds.isEmpty()) {
+                applyFilter(IncidentFilter())
+                return@setOnCheckedStateChangeListener
+            }
+            val filter = when (checkedIds.first()) {
+                R.id.chipQuickFlood -> IncidentFilter(type = "FLOOD")
+                R.id.chipQuickEarthquake -> IncidentFilter(type = "EARTHQUAKE")
+                R.id.chipQuickFire -> IncidentFilter(type = "FIRE")
+                R.id.chipQuickLandslide -> IncidentFilter(type = "LANDSLIDE")
+                R.id.chipQuickRoadBlock -> IncidentFilter(type = "ROUTE_BLOCK")
+                R.id.chipQuickCritical -> IncidentFilter(severity = "CRITICAL")
+                R.id.chipQuickHigh -> IncidentFilter(severity = "HIGH")
+                else -> IncidentFilter()
+            }
+            applyFilter(filter, updateChips = false)
+        }
+
+        findViewById<View>(R.id.buttonClearActiveFilter)?.setOnClickListener {
+            applyFilter(IncidentFilter())
+        }
+    }
+
+    private fun applyFilter(filter: IncidentFilter, updateChips: Boolean = true) {
+        currentFilter = filter
+
+        val filtered = incidents.filter { currentFilter.matches(it) }
+        renderIncidentMarkers(filtered)
+
+        val pill = findViewById<View>(R.id.layoutActiveFilterStatus)
+        val pillText = findViewById<TextView>(R.id.textActiveFilterDescription)
+        val chipFilterBtn = findViewById<com.google.android.material.chip.Chip>(R.id.chipOpenFilterDialog)
+
+        if (currentFilter.isActive) {
+            pill?.visibility = View.VISIBLE
+            pillText?.text = "Filtered: ${currentFilter.describe()} (${filtered.size})"
+            chipFilterBtn?.text = "Filter • Active"
+            chipFilterBtn?.setChipBackgroundColorResource(R.color.brand_primary_light)
+        } else {
+            pill?.visibility = View.GONE
+            chipFilterBtn?.text = "Filter"
+            chipFilterBtn?.setChipBackgroundColorResource(R.color.white)
+        }
+
+        if (updateChips) {
+            syncQuickFilterChips(filter)
+        }
+
+        if (currentFilter.isActive && filtered.isEmpty()) {
+            android.widget.Toast.makeText(
+                this,
+                "No incidents match: ${currentFilter.describe()}",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun syncQuickFilterChips(filter: IncidentFilter) {
+        val chipGroup = findViewById<com.google.android.material.chip.ChipGroup>(R.id.chipGroupQuickFilters) ?: return
+        if (!filter.isActive) {
+            chipGroup.check(R.id.chipQuickAll)
+            return
+        }
+
+        val chipIdToCheck = when {
+            filter.type.equals("FLOOD", ignoreCase = true) && filter.severity == null -> R.id.chipQuickFlood
+            filter.type.equals("EARTHQUAKE", ignoreCase = true) && filter.severity == null -> R.id.chipQuickEarthquake
+            filter.type.equals("FIRE", ignoreCase = true) && filter.severity == null -> R.id.chipQuickFire
+            filter.type.equals("LANDSLIDE", ignoreCase = true) && filter.severity == null -> R.id.chipQuickLandslide
+            filter.type.equals("ROUTE_BLOCK", ignoreCase = true) && filter.severity == null -> R.id.chipQuickRoadBlock
+            filter.severity.equals("CRITICAL", ignoreCase = true) && filter.type == null -> R.id.chipQuickCritical
+            filter.severity.equals("HIGH", ignoreCase = true) && filter.type == null -> R.id.chipQuickHigh
+            else -> View.NO_ID
+        }
+
+        if (chipIdToCheck != View.NO_ID) {
+            chipGroup.check(chipIdToCheck)
+        } else {
+            chipGroup.clearCheck()
+        }
+    }
+
+    private fun setupIncidentReporting() {
+        findViewById<View>(R.id.buttonReportIncident)?.setOnClickListener {
+            val mapCenter = mapView.mapCenter
+            val lat = currentUserLat ?: mapCenter.latitude
+            val lng = currentUserLng ?: mapCenter.longitude
+
+            val reportSheet = ReportIncidentBottomSheet.newInstance(lat, lng)
+            reportSheet.onRefreshGpsRequested = {
+                (currentUserLat ?: mapView.mapCenter.latitude) to (currentUserLng ?: mapView.mapCenter.longitude)
+            }
+            reportSheet.onIncidentReportedListener = { newIncident ->
+                // 1. Save locally for instant offline availability
+                container.incidentStore.saveIncident(newIncident)
+
+                // 2. Publish to cloud if internet available
+                container.firebaseIncidentSync.publishIncident(newIncident)
+
+                // 3. Relay through peer-to-peer BLE mesh
+                try {
+                    val incType = if (newIncident.type.equals("ROUTE_BLOCK", ignoreCase = true) ||
+                        newIncident.type.equals("ROAD_BLOCK", ignoreCase = true)
+                    ) {
+                        IncidentType.ROUTE_BLOCK
+                    } else {
+                        IncidentType.HAZARD
+                    }
+
+                    val incSev = when (newIncident.severity.uppercase()) {
+                        "CRITICAL" -> IncidentSeverity.CRITICAL
+                        "HIGH" -> IncidentSeverity.HIGH
+                        "MEDIUM" -> IncidentSeverity.MEDIUM
+                        else -> IncidentSeverity.LOW
+                    }
+
+                    container.reportHazardUseCase.report(
+                        description = "${newIncident.getTypeDisplayName()}: ${newIncident.description}",
+                        latitude = newIncident.latitude,
+                        longitude = newIncident.longitude,
+                        type = incType,
+                        severity = incSev,
+                        eventId = newIncident.id,
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                // 4. Update memory list and re-render pins
+                val existingIdx = incidents.indexOfFirst { it.id == newIncident.id }
+                if (existingIdx >= 0) {
+                    incidents[existingIdx] = newIncident
+                } else {
+                    incidents.add(0, newIncident)
+                }
+                applyFilter(currentFilter, updateChips = false)
+
+                // 5. Center map onto the newly reported incident
+                mapView.controller.animateTo(GeoPoint(newIncident.latitude, newIncident.longitude))
+                mapView.controller.setZoom(16.5)
+            }
+            reportSheet.show(supportFragmentManager, "ReportIncidentBottomSheet")
+        }
+    }
+
+    private fun loadAndObserveIncidents() {
+        // 1. Instant local load (offline ready)
+        val localIncidents = container.incidentStore.getAllIncidents()
+        incidents.clear()
+        incidents.addAll(localIncidents)
+        applyFilter(currentFilter, updateChips = false)
+
+        // 2. Real-time cloud sync
+        container.firebaseIncidentSync.startObserving { updatedList ->
+            runOnUiThread {
+                incidents.clear()
+                incidents.addAll(updatedList)
+                applyFilter(currentFilter, updateChips = false)
+            }
+        }
+    }
+
+    private fun renderIncidentMarkers(list: List<IncidentReport>) {
+        incidentMarkers.forEach {
+            try {
+                mapView.overlayManager.remove(it)
+            } catch (_: Exception) {}
+        }
+        incidentMarkers.clear()
+
+        list.forEach { incident ->
+            if (incident.latitude == 0.0 && incident.longitude == 0.0) return@forEach
+
+            val marker = Marker(mapView).apply {
+                position = GeoPoint(incident.latitude, incident.longitude)
+                title = "${incident.getTypeEmoji()} ${incident.getTypeDisplayName()}"
+                val snippetText = if (incident.description.length > 55) {
+                    "${incident.description.take(52)}…"
+                } else {
+                    incident.description
+                }
+                snippet = "$snippetText\nTap for details"
+                icon = IncidentIconFactory.getMarkerIcon(this@MapActivity, incident)
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+
+                setOnMarkerClickListener { m, _ ->
+                    m.showInfoWindow()
+                    val detailsSheet = IncidentDetailsBottomSheet.newInstance(
+                        incident = incident,
+                        userLat = currentUserLat,
+                        userLng = currentUserLng,
+                    )
+                    detailsSheet.show(supportFragmentManager, "IncidentDetailsBottomSheet")
+                    true
+                }
+            }
+
+            mapView.overlays.add(marker)
+            incidentMarkers.add(marker)
+        }
+        mapView.invalidate()
+    }
+
     /**
      * Draws the active region's boundary so the user can always see the edge
      * of the installed offline package (spec §14 "regional boundaries").
@@ -129,6 +359,8 @@ class MapActivity : AppCompatActivity() {
 
     private fun startLocationAcquisition() {
         container.locationRepository.startAcquisition { fix ->
+            currentUserLat = fix.latitude
+            currentUserLng = fix.longitude
             runOnUiThread { showLocationMarker(GeoPoint(fix.latitude, fix.longitude)) }
         }
     }
@@ -163,6 +395,13 @@ class MapActivity : AppCompatActivity() {
         super.onResume()
         mapView.onResume()
         ActiveSosBanner.refresh(this)
+        // Refresh incidents when returning to the map
+        val local = container.incidentStore.getAllIncidents()
+        if (local.isNotEmpty()) {
+            incidents.clear()
+            incidents.addAll(local)
+            applyFilter(currentFilter, updateChips = false)
+        }
     }
 
     override fun onPause() {
@@ -171,6 +410,7 @@ class MapActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        container.firebaseIncidentSync.stopObserving()
         container.locationRepository.stopAcquisition()
         connectivityBadge.unbind()
         mapView.onDetach()

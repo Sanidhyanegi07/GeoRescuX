@@ -190,6 +190,14 @@ class AppContainer(context: Context) {
         )
     }
 
+    // User-Reported Incidents (Offline-first store + Firebase cloud sync)
+    val incidentStore: com.example.georescux.data.incident.IncidentStore by lazy {
+        com.example.georescux.data.incident.SharedPreferencesIncidentStore(appContext)
+    }
+    val firebaseIncidentSync: com.example.georescux.data.incident.FirebaseIncidentSync by lazy {
+        com.example.georescux.data.incident.FirebaseIncidentSync(incidentStore)
+    }
+
     // Wire SOS through BLE Mesh Relay
     private val sosRelayRepository: SosRepository by lazy {
         com.example.georescux.data.sos.SosRelayRepository(

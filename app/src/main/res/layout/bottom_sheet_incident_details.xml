@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_sheet"
+    android:orientation="vertical"
+    android:paddingBottom="24dp">
+
+    <!-- Top Drag Handle -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_drag_handle" />
+
+    <!-- Header -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@id/buttonCloseDetailsSheet"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/textDetailsTypeEmoji"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⚠️"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/textDetailsTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Hazard Incident"
+                    android:textColor="@color/text_primary"
+                    android:textSize="19sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Severity Pill -->
+                <TextView
+                    android:id="@+id/textDetailsSeverityPill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_pill_high_priority"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="3dp"
+                    android:text="HIGH SEVERITY"
+                    android:textColor="@color/sos_red"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <!-- Status Pill -->
+                <TextView
+                    android:id="@+id/textDetailsStatusPill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_badge_pill"
+                    android:backgroundTint="@color/brand_primary_light"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="3dp"
+                    android:text="REPORTED"
+                    android:textColor="@color/brand_primary"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/buttonCloseDetailsSheet"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentTop="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close"
+            android:src="@drawable/ic_close_circle"
+            app:tint="@color/text_muted" />
+    </RelativeLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/divider_subtle" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="14dp">
+
+            <!-- Incident Photo Preview (if present) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardDetailsPhoto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                android:visibility="gone"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/border_subtle"
+                app:strokeWidth="1dp"
+                tools:visibility="visible">
+
+                <ImageView
+                    android:id="@+id/imageDetailsPhoto"
+                    android:layout_width="match_parent"
+                    android:layout_height="220dp"
+                    android:background="@color/bg_card_secondary"
+                    android:contentDescription="Incident Photo"
+                    android:scaleType="centerCrop" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Description Card -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="INCIDENT DESCRIPTION"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:cardBackgroundColor="@color/bg_card_secondary"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/border_subtle"
+                app:strokeWidth="1dp">
+
+                <TextView
+                    android:id="@+id/textDetailsDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:lineSpacingExtra="3dp"
+                    android:padding="14dp"
+                    android:text="Flash flooding has covered the main roadway. Water depth approximately 3 feet. Current strong, impassable for all vehicles."
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Location & Time Info Grid -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:orientation="horizontal">
+
+                <!-- Location Box -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/bg_card_secondary"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/border_subtle"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="LOCATION"
+                            android:textColor="@color/text_muted"
+                            android:textSize="10sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/textDetailsCoordinates"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="30.5564° N, 79.5670° E"
+                            android:textColor="@color/text_primary"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/textDetailsDistance"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Nearby"
+                            android:textColor="@color/brand_primary"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Time Box -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/bg_card_secondary"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/border_subtle"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="REPORTED"
+                            android:textColor="@color/text_muted"
+                            android:textSize="10sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/textDetailsTime"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="15 Oct, 09:45 PM"
+                            android:textColor="@color/text_primary"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/textDetailsRelativeTime"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="12m ago"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Reported By -->
+            <TextView
+                android:id="@+id/textDetailsReportedBy"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Report source: Verified User"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp" />
+
+            <!-- Action: Safe Route Avoidance -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonSafeRouteAround"
+                style="@style/Widget.GeoRescuX.Button"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="18dp"
+                android:layout_marginBottom="8dp"
+                android:text="Plan Safe Route (Avoid Hazard)"
+                app:icon="@drawable/ic_safe_route"
+                app:iconGravity="textStart" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

@@ -54,9 +54,9 @@
     },
 
     "incidents": {
-      ".read": "auth != null && auth.token.admin == true",
+      ".read": "auth != null",
       "$incidentId": {
-        ".write": "auth != null && auth.token.admin == true"
+        ".write": "auth != null"
       }
     },
 
