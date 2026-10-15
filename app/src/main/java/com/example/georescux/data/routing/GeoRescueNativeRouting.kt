@@ -86,6 +86,23 @@ object GeoRescueNativeRouting {
     @JvmStatic
     private external fun nativeHmacSha256(key: String, message: String): String
 
+    private var cachedGraphKey: Int? = null
+    private var cachedGraphJson: String? = null
+    private val graphCacheLock = Any()
+
+    internal fun getSerializedGraphJson(graph: RouteGraph): String {
+        val key = graph.hashCode()
+        synchronized(graphCacheLock) {
+            if (cachedGraphKey == key && cachedGraphJson != null) {
+                return cachedGraphJson!!
+            }
+            val json = serializeGraphToJson(graph)
+            cachedGraphKey = key
+            cachedGraphJson = json
+            return json
+        }
+    }
+
     /**
      * Executes route finding using the native C++ engine if available, or
      * falls back to the pure Kotlin [SafeHavenFallback] engine.
@@ -96,7 +113,7 @@ object GeoRescueNativeRouting {
         }
 
         return try {
-            val json = serializeGraphToJson(graph)
+            val json = getSerializedGraphJson(graph)
             val resultJson = nativeFindRoute(json, startId, destinationId)
             parseNativeResult(resultJson, graph) ?: SafeHavenFallback.findRoute(graph, startId, destinationId)
         } catch (_: Throwable) {
@@ -113,7 +130,7 @@ object GeoRescueNativeRouting {
         }
 
         return try {
-            val json = serializeGraphToJson(graph)
+            val json = getSerializedGraphJson(graph)
             val resultJson = nativeFindBidirectionalRoute(json, startId, destinationId)
             parseNativeResult(resultJson, graph) ?: SafeHavenFallback.findRoute(graph, startId, destinationId)
         } catch (_: Throwable) {

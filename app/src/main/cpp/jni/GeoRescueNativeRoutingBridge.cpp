@@ -46,27 +46,33 @@ Java_com_example_georescux_data_routing_GeoRescueNativeRouting_nativeFindRoute(
         return env->NewStringUTF("{\"found\":false,\"error\":\"null_arguments\"}");
     }
 
-    const char* graphJsonChars = env->GetStringUTFChars(jGraphJson, nullptr);
-    const char* startIdChars = env->GetStringUTFChars(jStartId, nullptr);
-    const char* destIdChars = env->GetStringUTFChars(jDestId, nullptr);
+    try {
+        const char* graphJsonChars = env->GetStringUTFChars(jGraphJson, nullptr);
+        const char* startIdChars = env->GetStringUTFChars(jStartId, nullptr);
+        const char* destIdChars = env->GetStringUTFChars(jDestId, nullptr);
 
-    std::string graphJson = graphJsonChars ? graphJsonChars : "";
-    std::string startId = startIdChars ? startIdChars : "";
-    std::string destId = destIdChars ? destIdChars : "";
+        std::string graphJson = graphJsonChars ? graphJsonChars : "";
+        std::string startId = startIdChars ? startIdChars : "";
+        std::string destId = destIdChars ? destIdChars : "";
 
-    if (graphJsonChars) env->ReleaseStringUTFChars(jGraphJson, graphJsonChars);
-    if (startIdChars) env->ReleaseStringUTFChars(jStartId, startIdChars);
-    if (destIdChars) env->ReleaseStringUTFChars(jDestId, destIdChars);
+        if (graphJsonChars) env->ReleaseStringUTFChars(jGraphJson, graphJsonChars);
+        if (startIdChars) env->ReleaseStringUTFChars(jStartId, startIdChars);
+        if (destIdChars) env->ReleaseStringUTFChars(jDestId, destIdChars);
 
-    auto graphOpt = GraphJsonParser::parse(graphJson);
-    if (!graphOpt) {
-        return env->NewStringUTF("{\"found\":false,\"error\":\"invalid_graph_json\"}");
+        auto graphOpt = GraphJsonParser::parse(graphJson);
+        if (!graphOpt) {
+            return env->NewStringUTF("{\"found\":false,\"error\":\"invalid_graph_json\"}");
+        }
+
+        auto routeOpt = SafeHavenFallback::findRoute(*graphOpt, startId, destId);
+        std::string resultJson = GraphJsonParser::serializeRoute(routeOpt);
+
+        return env->NewStringUTF(resultJson.c_str());
+    } catch (const std::exception& e) {
+        return env->NewStringUTF("{\"found\":false,\"error\":\"native_exception\"}");
+    } catch (...) {
+        return env->NewStringUTF("{\"found\":false,\"error\":\"unknown_native_exception\"}");
     }
-
-    auto routeOpt = SafeHavenFallback::findRoute(*graphOpt, startId, destId);
-    std::string resultJson = GraphJsonParser::serializeRoute(routeOpt);
-
-    return env->NewStringUTF(resultJson.c_str());
 }
 
 JNIEXPORT jstring JNICALL
@@ -81,27 +87,33 @@ Java_com_example_georescux_data_routing_GeoRescueNativeRouting_nativeFindBidirec
         return env->NewStringUTF("{\"found\":false,\"error\":\"null_arguments\"}");
     }
 
-    const char* graphJsonChars = env->GetStringUTFChars(jGraphJson, nullptr);
-    const char* startIdChars = env->GetStringUTFChars(jStartId, nullptr);
-    const char* destIdChars = env->GetStringUTFChars(jDestId, nullptr);
+    try {
+        const char* graphJsonChars = env->GetStringUTFChars(jGraphJson, nullptr);
+        const char* startIdChars = env->GetStringUTFChars(jStartId, nullptr);
+        const char* destIdChars = env->GetStringUTFChars(jDestId, nullptr);
 
-    std::string graphJson = graphJsonChars ? graphJsonChars : "";
-    std::string startId = startIdChars ? startIdChars : "";
-    std::string destId = destIdChars ? destIdChars : "";
+        std::string graphJson = graphJsonChars ? graphJsonChars : "";
+        std::string startId = startIdChars ? startIdChars : "";
+        std::string destId = destIdChars ? destIdChars : "";
 
-    if (graphJsonChars) env->ReleaseStringUTFChars(jGraphJson, graphJsonChars);
-    if (startIdChars) env->ReleaseStringUTFChars(jStartId, startIdChars);
-    if (destIdChars) env->ReleaseStringUTFChars(jDestId, destIdChars);
+        if (graphJsonChars) env->ReleaseStringUTFChars(jGraphJson, graphJsonChars);
+        if (startIdChars) env->ReleaseStringUTFChars(jStartId, startIdChars);
+        if (destIdChars) env->ReleaseStringUTFChars(jDestId, destIdChars);
 
-    auto graphOpt = GraphJsonParser::parse(graphJson);
-    if (!graphOpt) {
-        return env->NewStringUTF("{\"found\":false,\"error\":\"invalid_graph_json\"}");
+        auto graphOpt = GraphJsonParser::parse(graphJson);
+        if (!graphOpt) {
+            return env->NewStringUTF("{\"found\":false,\"error\":\"invalid_graph_json\"}");
+        }
+
+        auto routeOpt = BidirectionalAStar::findRoute(*graphOpt, startId, destId);
+        std::string resultJson = GraphJsonParser::serializeRoute(routeOpt);
+
+        return env->NewStringUTF(resultJson.c_str());
+    } catch (const std::exception& e) {
+        return env->NewStringUTF("{\"found\":false,\"error\":\"native_exception\"}");
+    } catch (...) {
+        return env->NewStringUTF("{\"found\":false,\"error\":\"unknown_native_exception\"}");
     }
-
-    auto routeOpt = BidirectionalAStar::findRoute(*graphOpt, startId, destId);
-    std::string resultJson = GraphJsonParser::serializeRoute(routeOpt);
-
-    return env->NewStringUTF(resultJson.c_str());
 }
 
 JNIEXPORT jdouble JNICALL
@@ -111,7 +123,11 @@ Java_com_example_georescux_data_routing_GeoRescueNativeRouting_nativeHaversineDi
     jdouble lat1, jdouble lon1,
     jdouble lat2, jdouble lon2
 ) {
-    return GeodesicMath::haversineDistanceMeters(lat1, lon1, lat2, lon2);
+    try {
+        return GeodesicMath::haversineDistanceMeters(lat1, lon1, lat2, lon2);
+    } catch (...) {
+        return 0.0;
+    }
 }
 
 JNIEXPORT jdouble JNICALL
@@ -121,7 +137,11 @@ Java_com_example_georescux_data_routing_GeoRescueNativeRouting_nativeVincentyDis
     jdouble lat1, jdouble lon1,
     jdouble lat2, jdouble lon2
 ) {
-    return GeodesicMath::vincentyDistanceMeters(lat1, lon1, lat2, lon2);
+    try {
+        return GeodesicMath::vincentyDistanceMeters(lat1, lon1, lat2, lon2);
+    } catch (...) {
+        return GeodesicMath::haversineDistanceMeters(lat1, lon1, lat2, lon2);
+    }
 }
 
 JNIEXPORT jdouble JNICALL
@@ -131,7 +151,11 @@ Java_com_example_georescux_data_routing_GeoRescueNativeRouting_nativeElevationIm
     jdouble fromElev, jdouble toElev,
     jdouble distanceMeters, jboolean injured
 ) {
-    return ElevationCostModel::calculateImpedanceMultiplier(fromElev, toElev, distanceMeters, injured);
+    try {
+        return ElevationCostModel::calculateImpedanceMultiplier(fromElev, toElev, distanceMeters, injured);
+    } catch (...) {
+        return 1.0;
+    }
 }
 
 JNIEXPORT jstring JNICALL
@@ -148,28 +172,32 @@ Java_com_example_georescux_data_routing_GeoRescueNativeRouting_nativeEvaluateTri
     jboolean hasHemorrhage,
     jboolean isTrapped
 ) {
-    VictimAssessment a;
-    a.canWalk = canWalk;
-    a.breathingSpontaneously = breathingSpontaneously;
-    a.breathingAfterAirwayPositioned = breathingAfterAirway;
-    a.respirationRatePerMinute = static_cast<uint8_t>(respirationRate);
-    a.capillaryRefillSeconds = capillaryRefill;
-    a.radialPulsePresent = radialPulse;
-    a.followsSimpleCommands = followsCommands;
-    a.hasUncontrolledHemorrhage = hasHemorrhage;
-    a.isTrapped = isTrapped;
+    try {
+        VictimAssessment a;
+        a.canWalk = canWalk;
+        a.breathingSpontaneously = breathingSpontaneously;
+        a.breathingAfterAirwayPositioned = breathingAfterAirway;
+        a.respirationRatePerMinute = static_cast<uint8_t>(respirationRate);
+        a.capillaryRefillSeconds = capillaryRefill;
+        a.radialPulsePresent = radialPulse;
+        a.followsSimpleCommands = followsCommands;
+        a.hasUncontrolledHemorrhage = hasHemorrhage;
+        a.isTrapped = isTrapped;
 
-    TriageResult res = TriageEngine::evaluateStart(a);
+        TriageResult res = TriageEngine::evaluateStart(a);
 
-    std::ostringstream oss;
-    oss << "{"
-        << "\"category\":\"" << TriageEngine::categoryToString(res.category) << "\","
-        << "\"priorityScore\":" << static_cast<int>(res.priorityScore) << ","
-        << "\"primaryReason\":\"" << res.primaryReason << "\","
-        << "\"recommendedIntervention\":\"" << res.recommendedIntervention << "\""
-        << "}";
+        std::ostringstream oss;
+        oss << "{"
+            << "\"category\":\"" << TriageEngine::categoryToString(res.category) << "\","
+            << "\"priorityScore\":" << static_cast<int>(res.priorityScore) << ","
+            << "\"primaryReason\":\"" << res.primaryReason << "\","
+            << "\"recommendedIntervention\":\"" << res.recommendedIntervention << "\""
+            << "}";
 
-    return env->NewStringUTF(oss.str().c_str());
+        return env->NewStringUTF(oss.str().c_str());
+    } catch (...) {
+        return env->NewStringUTF("{}");
+    }
 }
 
 JNIEXPORT jboolean JNICALL
@@ -179,10 +207,14 @@ Java_com_example_georescux_data_routing_GeoRescueNativeRouting_nativeDeduplicate
     jint senderHash,
     jint seqNumber
 ) {
-    return sGlobalDeduplicator.checkAndMark(
-        static_cast<uint32_t>(senderHash),
-        static_cast<uint16_t>(seqNumber)
-    );
+    try {
+        return sGlobalDeduplicator.checkAndMark(
+            static_cast<uint32_t>(senderHash),
+            static_cast<uint16_t>(seqNumber)
+        );
+    } catch (...) {
+        return JNI_FALSE;
+    }
 }
 
 JNIEXPORT jbyteArray JNICALL
@@ -197,25 +229,33 @@ Java_com_example_georescux_data_routing_GeoRescueNativeRouting_nativeEncodeSosPa
     jint batteryPct, jint urgency, jint peopleCount,
     jlong timestampSec
 ) {
-    const char* senderIdChars = env->GetStringUTFChars(jSenderId, nullptr);
-    std::string senderId = senderIdChars ? senderIdChars : "";
-    if (senderIdChars) env->ReleaseStringUTFChars(jSenderId, senderIdChars);
+    if (!jSenderId) {
+        return nullptr;
+    }
+    try {
+        const char* senderIdChars = env->GetStringUTFChars(jSenderId, nullptr);
+        std::string senderId = senderIdChars ? senderIdChars : "";
+        if (senderIdChars) env->ReleaseStringUTFChars(jSenderId, senderIdChars);
 
-    std::vector<uint8_t> packet = MeshPacketCodec::encodeSosPacket(
-        static_cast<uint8_t>(priority),
-        static_cast<uint8_t>(ttl),
-        static_cast<uint16_t>(seqNum),
-        senderId,
-        lat, lon, alt,
-        static_cast<uint8_t>(batteryPct),
-        static_cast<uint8_t>(urgency),
-        static_cast<uint16_t>(peopleCount),
-        static_cast<uint32_t>(timestampSec)
-    );
+        std::vector<uint8_t> packet = MeshPacketCodec::encodeSosPacket(
+            static_cast<uint8_t>(priority),
+            static_cast<uint8_t>(ttl),
+            static_cast<uint16_t>(seqNum),
+            senderId,
+            lat, lon, alt,
+            static_cast<uint8_t>(batteryPct),
+            static_cast<uint8_t>(urgency),
+            static_cast<uint16_t>(peopleCount),
+            static_cast<uint32_t>(timestampSec)
+        );
 
-    jbyteArray result = env->NewByteArray(static_cast<jsize>(packet.size()));
-    env->SetByteArrayRegion(result, 0, static_cast<jsize>(packet.size()), reinterpret_cast<const jbyte*>(packet.data()));
-    return result;
+        jbyteArray result = env->NewByteArray(static_cast<jsize>(packet.size()));
+        if (!result) return nullptr;
+        env->SetByteArrayRegion(result, 0, static_cast<jsize>(packet.size()), reinterpret_cast<const jbyte*>(packet.data()));
+        return result;
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 JNIEXPORT jstring JNICALL
@@ -225,22 +265,29 @@ Java_com_example_georescux_data_routing_GeoRescueNativeRouting_nativeHmacSha256(
     jstring jKey,
     jstring jMessage
 ) {
-    const char* keyChars = env->GetStringUTFChars(jKey, nullptr);
-    const char* msgChars = env->GetStringUTFChars(jMessage, nullptr);
+    if (!jKey || !jMessage) {
+        return env->NewStringUTF("");
+    }
+    try {
+        const char* keyChars = env->GetStringUTFChars(jKey, nullptr);
+        const char* msgChars = env->GetStringUTFChars(jMessage, nullptr);
 
-    std::string key = keyChars ? keyChars : "";
-    std::string msg = msgChars ? msgChars : "";
+        std::string key = keyChars ? keyChars : "";
+        std::string msg = msgChars ? msgChars : "";
 
-    if (keyChars) env->ReleaseStringUTFChars(jKey, keyChars);
-    if (msgChars) env->ReleaseStringUTFChars(jMessage, msgChars);
+        if (keyChars) env->ReleaseStringUTFChars(jKey, keyChars);
+        if (msgChars) env->ReleaseStringUTFChars(jMessage, msgChars);
 
-    auto digest = PacketAuthenticator::hmacSha256(
-        reinterpret_cast<const uint8_t*>(key.data()), key.size(),
-        reinterpret_cast<const uint8_t*>(msg.data()), msg.size()
-    );
+        auto digest = PacketAuthenticator::hmacSha256(
+            reinterpret_cast<const uint8_t*>(key.data()), key.size(),
+            reinterpret_cast<const uint8_t*>(msg.data()), msg.size()
+        );
 
-    std::string hex = PacketAuthenticator::toHexString(digest);
-    return env->NewStringUTF(hex.c_str());
+        std::string hex = PacketAuthenticator::toHexString(digest);
+        return env->NewStringUTF(hex.c_str());
+    } catch (...) {
+        return env->NewStringUTF("");
+    }
 }
 
 } // extern "C"

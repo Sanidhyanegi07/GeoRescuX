@@ -80,9 +80,9 @@ class SyncingSosRepository(
         return completed
     }
 
-    override suspend fun backupNow(): Boolean {
+    override suspend fun backupNow(): Boolean = backupMutex.withLock {
         // Signed-out users skip the backup entirely.
-        val uid = authRepository.currentUserId ?: return false
+        val uid = authRepository.currentUserId ?: return@withLock false
         // Order matters: the history upsert mirrors the whole node, then the
         // active record (which is NOT part of local history) is re-added.
         val history = local.getHistory()
@@ -106,7 +106,7 @@ class SyncingSosRepository(
         if (active != null) {
             syncStateStore.setSosAlertPending(uid, active.id, pending = !activeUploaded)
         }
-        return historyUploaded && activeUploaded
+        historyUploaded && activeUploaded
     }
 
     override fun retryPendingBackups(): Boolean {
@@ -146,7 +146,9 @@ class SyncingSosRepository(
         syncStateStore.setSosAlertPending(uid, record.id, pending = true)
         backupScope.launch {
             try {
-                tryUpload(record)
+                backupMutex.withLock {
+                    tryUpload(record)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

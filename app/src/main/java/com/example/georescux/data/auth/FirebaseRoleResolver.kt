@@ -2,6 +2,7 @@ package com.example.georescux.data.auth
 
 import com.example.georescux.domain.auth.RoleResolver
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -20,6 +21,8 @@ class FirebaseRoleResolver(private val firebaseAuth: FirebaseAuth) : RoleResolve
             val result = user.getIdToken(forceRefresh).await()
             val isAdmin = result.claims["admin"] == true
             if (isAdmin) UserRole.ADMIN else UserRole.USER
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             // Network failure during refresh or auth error.
             // Fail closed securely to prevent fake cached access.
