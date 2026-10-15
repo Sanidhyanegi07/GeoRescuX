@@ -56,7 +56,11 @@
     "incidents": {
       ".read": "auth != null",
       "$incidentId": {
-        ".write": "auth != null"
+        ".write": "auth != null && ((!data.exists() && newData.exists() && (!newData.hasChild('status') || newData.child('status').val() == 'REPORTED')) || (auth.token.admin == true && newData.exists()))",
+        ".validate": "newData.hasChildren(['type', 'description', 'status'])",
+        "status": {
+          ".validate": "newData.exists() && newData.isString() && (newData.val() == 'REPORTED' || newData.val() == 'VERIFIED' || newData.val() == 'IN_PROGRESS' || newData.val() == 'RESOLVED')"
+        }
       }
     },
 

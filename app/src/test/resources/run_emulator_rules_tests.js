@@ -224,46 +224,81 @@ async function runTests() {
     req('/events.json', 'GET', null, adminAuth)
   );
 
-  // 21. /incidents permissions
+  // 21. /incidents permissions & citizen reporting lifecycle
   await assertCase(
-    "21. Ordinary user (Alice) cannot read /incidents",
+    "21. Unauthenticated user cannot read /incidents",
     false,
+    req('/incidents.json', 'GET', null, null)
+  );
+  await assertCase(
+    "22. Authenticated user (Alice) can read /incidents",
+    true,
     req('/incidents.json', 'GET', null, aliceAuth)
   );
   await assertCase(
-    "22. Admin can read /incidents",
+    "23. Admin can read /incidents",
     true,
     req('/incidents.json', 'GET', null, adminAuth)
   );
   await assertCase(
-    "23. Admin can create an incident in /incidents",
+    "24. Unauthenticated user cannot create an incident",
+    false,
+    req('/incidents/inc_anon.json', 'PUT', { type: "FLOOD", description: "Anon", status: "REPORTED", timestampMs: 1729000300000 }, null)
+  );
+  await assertCase(
+    "25. Authenticated user (Alice) submits a valid report with status REPORTED",
+    true,
+    req('/incidents/inc_alice.json', 'PUT', { type: "FLOOD", description: "Flash flood at river crossing", status: "REPORTED", timestampMs: 1729000300000 }, aliceAuth)
+  );
+  await assertCase(
+    "26. User (Alice) cannot submit report with status VERIFIED directly",
+    false,
+    req('/incidents/inc_alice_tamper.json', 'PUT', { type: "FLOOD", description: "Bypass verification", status: "VERIFIED", timestampMs: 1729000300000 }, aliceAuth)
+  );
+  await assertCase(
+    "27. Unrelated user (Bob) cannot modify Alice's incident report",
+    false,
+    req('/incidents/inc_alice.json', 'PUT', { type: "FLOOD", description: "Overwritten by Bob", status: "REPORTED", timestampMs: 1729000300000 }, bobAuth)
+  );
+  await assertCase(
+    "28. User (Alice) cannot delete incident report (DELETE)",
+    false,
+    req('/incidents/inc_alice.json', 'DELETE', null, aliceAuth)
+  );
+  await assertCase(
+    "29. Admin can create an incident in /incidents",
     true,
     req('/incidents/inc_999.json', 'PUT', { type: "FLOOD", description: "River cresting", status: "REPORTED", timestampMs: 1729000300000 }, adminAuth)
   );
   await assertCase(
-    "24. Ordinary user (Alice) cannot create an incident in /incidents",
+    "30. Admin can update Alice's incident status to VERIFIED",
+    true,
+    req('/incidents/inc_alice/status.json', 'PUT', "VERIFIED", adminAuth)
+  );
+  await assertCase(
+    "31. Admin cannot delete status from an incident (DELETE)",
     false,
-    req('/incidents/inc_999_fake.json', 'PUT', { type: "FLOOD", description: "Fake", status: "REPORTED", timestampMs: 1729000300000 }, aliceAuth)
+    req('/incidents/inc_alice/status.json', 'DELETE', null, adminAuth)
   );
 
   // 22. /verification_requests read restrictions
   await assertCase(
-    "25. Unauthenticated user cannot read /verification_requests",
+    "32. Unauthenticated user cannot read /verification_requests",
     false,
     req('/verification_requests.json', 'GET', null, null)
   );
   await assertCase(
-    "26. Unauthenticated user cannot read Alice's verification request",
+    "33. Unauthenticated user cannot read Alice's verification request",
     false,
     req('/verification_requests/alice_uid.json', 'GET', null, null)
   );
   await assertCase(
-    "27. Unrelated user (Bob) cannot read Alice's verification request",
+    "34. Unrelated user (Bob) cannot read Alice's verification request",
     false,
     req('/verification_requests/alice_uid.json', 'GET', null, bobAuth)
   );
   await assertCase(
-    "28. Admin can read all verification requests",
+    "35. Admin can read all verification requests",
     true,
     req('/verification_requests.json', 'GET', null, adminAuth)
   );
@@ -277,49 +312,49 @@ async function runTests() {
   };
 
   await assertCase(
-    "29. User (Alice) submits legitimate verification request with PENDING",
+    "36. User (Alice) submits legitimate verification request with PENDING",
     true,
     req('/verification_requests/alice_uid.json', 'PUT', aliceValidRequest, aliceAuth)
   );
 
   await assertCase(
-    "30. User (Alice) can read her own verification request",
+    "37. User (Alice) can read her own verification request",
     true,
     req('/verification_requests/alice_uid.json', 'GET', null, aliceAuth)
   );
 
   await assertCase(
-    "31. User (Alice) cannot submit request with VERIFIED status directly",
+    "38. User (Alice) cannot submit request with VERIFIED status directly",
     false,
     req('/verification_requests/alice_uid.json', 'PUT', { ...aliceValidRequest, status: "VERIFIED" }, aliceAuth)
   );
 
   await assertCase(
-    "32. User (Alice) cannot write directly to status child to set VERIFIED",
+    "39. User (Alice) cannot write directly to status child to set VERIFIED",
     false,
     req('/verification_requests/alice_uid/status.json', 'PUT', "VERIFIED", aliceAuth)
   );
 
   await assertCase(
-    "33. User (Alice) cannot delete verification request (DELETE)",
+    "40. User (Alice) cannot delete verification request (DELETE)",
     false,
     req('/verification_requests/alice_uid.json', 'DELETE', null, aliceAuth)
   );
 
   await assertCase(
-    "34. Unrelated user (Bob) cannot write Alice's verification request",
+    "41. Unrelated user (Bob) cannot write Alice's verification request",
     false,
     req('/verification_requests/alice_uid.json', 'PUT', { ...aliceValidRequest, name: "Bob Tamper" }, bobAuth)
   );
 
   await assertCase(
-    "35. Admin approves Alice's verification request (status: VERIFIED)",
+    "42. Admin approves Alice's verification request (status: VERIFIED)",
     true,
     req('/verification_requests/alice_uid/status.json', 'PUT', "VERIFIED", adminAuth)
   );
 
   await assertCase(
-    "36. User (Alice) cannot overwrite or demote status back to PENDING once approved",
+    "43. User (Alice) cannot overwrite or demote status back to PENDING once approved",
     false,
     req('/verification_requests/alice_uid.json', 'PUT', { ...aliceValidRequest, timestampMs: 1729000400000 }, aliceAuth)
   );
@@ -331,47 +366,47 @@ async function runTests() {
     status: "PENDING"
   };
   await assertCase(
-    "37. Bob submits legitimate verification request with PENDING",
+    "44. Bob submits legitimate verification request with PENDING",
     true,
     req('/verification_requests/bob_uid.json', 'PUT', bobValidRequest, bobAuth)
   );
 
   await assertCase(
-    "38. Admin rejects Bob's verification request (status: REJECTED)",
+    "45. Admin rejects Bob's verification request (status: REJECTED)",
     true,
     req('/verification_requests/bob_uid/status.json', 'PUT', "REJECTED", adminAuth)
   );
 
   await assertCase(
-    "39. Admin cannot delete status from a verification request (DELETE)",
+    "46. Admin cannot delete status from a verification request (DELETE)",
     false,
     req('/verification_requests/bob_uid/status.json', 'DELETE', null, adminAuth)
   );
 
-  // 40. Owner (Alice) writes user profile under /users/alice_uid
+  // 47. Owner (Alice) writes user profile under /users/alice_uid
   await assertCase(
-    "40. Owner (Alice) writes user profile under /users/alice_uid",
+    "47. Owner (Alice) writes user profile under /users/alice_uid",
     true,
     req('/users/alice_uid.json', 'PUT', { email: "alice@example.com", name: "Alice", regionId: "uttarakhand" }, aliceAuth)
   );
 
-  // 41. Unrelated user (Bob) cannot read Alice's profile under /users/alice_uid
+  // 48. Unrelated user (Bob) cannot read Alice's profile under /users/alice_uid
   await assertCase(
-    "41. Unrelated user (Bob) cannot read Alice's profile under /users/alice_uid",
+    "48. Unrelated user (Bob) cannot read Alice's profile under /users/alice_uid",
     false,
     req('/users/alice_uid.json', 'GET', null, bobAuth)
   );
 
-  // 42. Unrelated user (Bob) cannot write to Alice's profile under /users/alice_uid
+  // 49. Unrelated user (Bob) cannot write to Alice's profile under /users/alice_uid
   await assertCase(
-    "42. Unrelated user (Bob) cannot write to Alice's profile under /users/alice_uid",
+    "49. Unrelated user (Bob) cannot write to Alice's profile under /users/alice_uid",
     false,
     req('/users/alice_uid.json', 'PUT', { email: "hacked@example.com" }, bobAuth)
   );
 
-  // 43. Admin can read all users under /users
+  // 50. Admin can read all users under /users
   await assertCase(
-    "43. Admin can read all users under /users",
+    "50. Admin can read all users under /users",
     true,
     req('/users.json', 'GET', null, adminAuth)
   );
