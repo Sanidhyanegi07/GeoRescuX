@@ -1,23 +1,65 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated build directories
+/build/
+app/build/
+backend/build/
+.gradle/
+.externalNativeBuild/
+.cxx/
+/captures/
+.navigation/
+
+# Local SDK and machine-specific configuration
 local.properties
 
-# Generated maps and external tool binaries
+# Proguard / R8
+proguard/
+
+# Log files and runtime traces
+*.log
+firebase-debug.log*
+database-debug.log*
+ui-debug.log
+.bisect/
+
+# Kotlin sessions & compiler caches
+.kotlin/
+
+# Node / Firebase CLI intermediates
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE specific settings (IntelliJ / Android Studio)
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/shelf/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Generated offline maps and external data tooling
 *.map
 output/*/*.map
 tools/osmosis/
 tools/osmosis.zip
 tools/libs/
-local.properties
+state/
