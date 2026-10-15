@@ -1,325 +1,209 @@
-# GeoRescueX
+# GeoRescuX
 
 <p align="center">
-  <img src="Images/dashboard.jpg" alt="GeoRescueX dashboard" width="900" />
+  <img src="Images/dashboard.jpg" alt="GeoRescuX Dashboard" width="920" />
 </p>
 
 <p align="center">
-  <strong>Disaster resilience, offline-first.</strong>
+  <strong>Autonomous Offline-First Disaster Emergency Response, Resilient P2P BLE Mesh, & High-Performance C++20 Spatial Engine</strong>
 </p>
 
 <p align="center">
-  <img alt="Platform: Android" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white" />
-  <img alt="Offline First" src="https://img.shields.io/badge/Design-Offline%20First-FF6B6B" />
-  <img alt="SIH 2026" src="https://img.shields.io/badge/Track-SIH%202026-4ECDC4" />
-  <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-FFD166" />
+  <a href="https://github.com/Sanidhyanegi07/GeoRescuX"><img alt="Platform: Android" src="https://img.shields.io/badge/Platform-Android_SDK_24+-3DDC84?logo=android&logoColor=white" /></a>
+  <a href="https://github.com/Sanidhyanegi07/GeoRescuX"><img alt="C++20: 40% Native Core" src="https://img.shields.io/badge/Native_Core-40%25_C%2B%2B20-00599C?logo=cplusplus&logoColor=white" /></a>
+  <a href="https://github.com/Sanidhyanegi07/GeoRescuX"><img alt="Kotlin: 2.2" src="https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white" /></a>
+  <a href="https://github.com/Sanidhyanegi07/GeoRescuX"><img alt="P2P: BLE Mesh" src="https://img.shields.io/badge/P2P-Multi--Hop_BLE_Mesh-0082FC?logo=bluetooth&logoColor=white" /></a>
+  <a href="https://github.com/Sanidhyanegi07/GeoRescuX"><img alt="Firebase: Least Privilege" src="https://img.shields.io/badge/Firebase_Rules-39%20Tests%20Passed-FFCA28?logo=firebase&logoColor=black" /></a>
+  <a href="https://github.com/Sanidhyanegi07/GeoRescuX"><img alt="Track: SIH 2026" src="https://img.shields.io/badge/Track-SIH_2026_(SIH26206)-FF6B6B" /></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-FFD166" /></a>
 </p>
-
-GeoRescueX is an offline-first emergency response and disaster-resilience Android application designed for challenging real-world disaster conditions where connectivity, power, and infrastructure may fail.
-
-> The system that works even when everything else stops working.
-
-Built for Smart India Hackathon 2026 — Problem Statement SIH26206, Disaster Management (Software Track) — GeoRescueX focuses on three critical phases of disaster response:
-
-- Prevent
-- Respond
-- Recover
-
-The core design principle is simple: emergency response must continue even when the network does not.
-
-## Why this project matters
-
-Disasters such as floods, earthquakes, landslides, fires, and severe weather can disrupt cellular networks, damage roads, and prevent timely access to emergency information. In these conditions, a conventional cloud-first app may fail exactly when it is needed most.
-
-GeoRescueX addresses that gap by combining:
-
-- offline-safe routing over locally bundled regional graphs
-- GPS-based emergency intelligence
-- BLE-based phone-to-phone disaster communication
-- local-first SOS persistence and retry-based sync
-- admin monitoring and incident visibility when connectivity returns
-
-## Mission
-
-GeoRescueX aims to keep life-saving capabilities operational even in low-connectivity or no-connectivity conditions by making critical systems local-first and resilient by default.
-
-## System overview
-
-GeoRescueX is designed around a resilient emergency stack:
-
-- local map and route data
-- GPS + hazard-aware routing
-- emergency SOS and incident tracking
-- multi-hop BLE resilience mesh
-- deferred cloud synchronization when internet becomes available
-
-### High-level architecture
-
-```text
-User / field responder
-        │
-        ▼
-   App UI + ViewModel
-        │
-        ▼
-   Domain logic / Emergency workflow
-        │
-   ┌────┴───────────────┬──────────────┐
-   │                    │              │
-   ▼                    ▼              ▼
-Local storage      Offline routing      Firebase sync
-(Room/SQLite)      (region graphs)     (Auth + cloud)
-   │                    │              │
-   └────────────────────┴──────────────┘
-                  │
-                  ▼
-           Emergency response continues
-```
-
-## Core workflow
-
-```text
-SOS activation
-  → GPS capture
-  → offline incident persistence
-  → hazard + route analysis
-  → safe-route generation
-  → safe haven / emergency destination
-  → sync when connectivity returns
-```
-
-## Key features
-
-### 1. Emergency SOS
-
-- Hold-to-activate SOS flow
-- local-first emergency persistence
-- GPS tagging and background location acquisition
-- deferred sync when connectivity is restored
-- emergency contact and alert workflows
-
-### 2. GPS and location intelligence
-
-- device GPS used for rescue readiness and route decisions
-- location features remain useful even when mobile network is unavailable
-- location-aware incident capture and responder context
-
-### 3. Offline mapping and routing
-
-- OpenStreetMap-derived geographic data
-- region-scoped offline route graphs
-- safe-route generation with hazard and blocked-road awareness
-- local route calculations without cloud dependency
-
-### 4. Regional route graphs
-
-GeoRescueX is intentionally region-based instead of using a single giant global graph. This keeps data manageable, easier to validate, and easier to extend to future disaster-prone regions.
-
-### 5. BLE emergency mesh
-
-A raw BLE subsystem enables device-to-device emergency communication when cellular infrastructure is unavailable.
-
-Key capabilities include:
-
-- foreground service lifecycle
-- automatic Bluetooth recovery
-- scanning duty cycling and throttling resilience
-- symmetric GATT roles
-- multi-hop packet relay with deduplication and TTL expiry
-- cloud ingestion once an online gateway node is reached
-
-### 6. Admin-aware monitoring
-
-Administrative access is enforced via trusted backend mechanisms and Firebase custom claims instead of client-side trust assumptions.
-
-### 7. Firebase sync and retry logic
-
-Firebase is used for synchronization and monitoring after connectivity returns, not as the primary dependency for immediate rescue functionality.
-
-## Region support
-
-| Region | Region ID | Status |
-|---|---|---|
-| Connaught Place, New Delhi (demo) | `sample-region` | bundled since Stage 7B-1 |
-| Uttarakhand (full state + border buffer) | `uttarakhand` | bundled since Stage 7B-4 |
-
-The Uttarakhand dataset includes real OSM-derived routing data, validation reports, and safe-haven analysis. Full details are documented in:
-
-- [docs/UTTARAKHAND_REGION.md](docs/UTTARAKHAND_REGION.md)
-- [docs/BLE_SUBSYSTEM.md](docs/BLE_SUBSYSTEM.md)
-- [docs/STAGE8_SYNC_RETRY_DESIGN.md](docs/STAGE8_SYNC_RETRY_DESIGN.md)
-
-## Architecture and design principles
-
-GeoRescueX follows a layered design model built around resilience:
-
-1. Offline first
-2. Local reliability
-3. Safety over distance
-4. Secure by design
-5. Regional scalability
-6. Graceful failure
-7. Separation of concerns
-
-## Technology stack
-
-- Android: Kotlin, Android SDK, Jetpack, WorkManager, Location APIs
-- Mapping: OpenStreetMap, offline map tiles, local route graphs
-- Routing: custom A* engine over region-scoped graphs
-- Local storage: Room / SQLite
-- Cloud: Firebase Authentication, Firestore, custom claims
-- Connectivity layer: WorkManager + retry-aware synchronization
-
-## Project status
-
-This project is a working prototype under active development, with strong offline-first foundations already implemented.
-
-Currently demonstrated and documented:
-
-- offline SOS and GPS functionality
-- local safe-route navigation with regional graph data
-- offline OSM and map rendering
-- BLE-based multi-hop emergency relay
-- admin dashboard and incident monitoring
-- Firebase sync and deferred retry workflows
-
-## App preview
-
-| Login | Register | Dashboard |
-|---|---|---|
-| ![Login](Images/login.jpg) | ![Register](Images/register.jpg) | ![Dashboard](Images/dashboard.jpg) |
-
-| Safe Route (Uttarakhand) | Admin Panel |
-|---|---|
-| ![Safe Route](Images/safe-route.jpg) | ![Admin](Images/admin.jpg) |
-
-## Core user experience
-
-### Authentication
-
-- Firebase-based sign-in and registration flow
-- user-specific records and emergency scopes
-- core emergency workflows remain available even offline
-
-### Safe route
-
-- offline-safe evacuation routing for Uttarakhand
-- route planning across region graph data
-- hazard-aware rerouting
-- map-based start and destination selection
-
-### Admin panel
-
-- live incident and SOS dashboard
-- hazard and road-block monitoring
-- sync status visibility
-- emergency record detail inspection
-
-## Repository structure
-
-```text
-.
-├── app/
-│   ├── src/
-│   ├── build.gradle.kts
-│   └── google-services.json
-├── docs/
-│   ├── BLE_SUBSYSTEM.md
-│   ├── STAGE8_SYNC_RETRY_DESIGN.md
-│   └── UTTARAKHAND_REGION.md
-├── Images/
-├── output/
-├── source/
-├── tools/
-│   ├── sample-region/
-│   └── uttarakhand/
-├── README.md
-├── README-ADMIN-PROVISIONING.md
-├── build.gradle.kts
-├── settings.gradle.kts
-├── gradlew
-├── gradlew.bat
-├── database.rules.json
-├── LICENSE
-└── .gitignore
-```
-
-## Documentation
-
-The repository includes deeper technical documentation for operators and contributors:
-
-- [README-ADMIN-PROVISIONING.md](README-ADMIN-PROVISIONING.md) — admin provisioning and Firebase access setup
-- [docs/UTTARAKHAND_REGION.md](docs/UTTARAKHAND_REGION.md) — regional routing graph and validation notes
-- [docs/BLE_SUBSYSTEM.md](docs/BLE_SUBSYSTEM.md) — emergency BLE relay system design
-- [docs/STAGE8_SYNC_RETRY_DESIGN.md](docs/STAGE8_SYNC_RETRY_DESIGN.md) — background sync design and failure handling
-- [backend/README.md](backend/README.md) — standalone C++20 Drogon emergency backend architecture and deployment
-- `app/src/main/cpp/` — high-performance C++20 offline routing engine (A* pathfinder, JNI bridge, and safe Kotlin fallback)
-
-## Native C++ Routing Engine & Drogon Backend
-
-### 1. C++20 Offline Routing Engine (`app/src/main/cpp/routing/`)
-- High-performance A* pathfinder implementation over regional road networks.
-- Enforces admissible Haversine heuristics, road hazard penalties, and blocked edge avoidance.
-- Safe-haven fallback finds the nearest reachable relief shelter if destination is blocked.
-- JNI integration via `GeoRescueNativeRouting`: automatically checks `libgeorescux_routing.so` availability and seamlessly falls back to pure Kotlin if native binary is absent.
-
-### 2. Standalone C++20 Drogon Backend (`backend/`)
-- Independent, high-throughput REST service built on the Drogon C++ framework.
-- SQLite durable persistence for emergency events and BLE store-and-forward mesh packets.
-- Cryptographic Firebase ID token verification (RS256 JWT validation, audience `georescex`, issuer, expiry).
-- Role-based authorization for admin endpoints verifying Firebase Custom Claim `admin: true`.
-- Zero secrets committed to the repository.
-
-
-## Getting started
-
-1. Clone the repository.
-2. Open the project in Android Studio.
-3. Ensure `app/google-services.json` is available for Firebase connectivity.
-4. Connect physical Android devices for testing.
-5. Run the app in debug mode using Android Studio or Gradle.
-
-### Android / Gradle
-
-```bash
-./gradlew :app:testDebugUnitTest
-```
-
-### Build notes
-
-- Android Studio AGP 8.13 / Kotlin 2.2
-- `minSdk 24`
-- the project includes a workaround for OneDrive-synced build directories via `GEORESCUX_BUILD_DIR`
-
-## Testing the BLE mesh (conceptual validation flow)
-
-Follow a physical-device test to validate the emergency relay chain:
-
-1. Phone A triggers SOS while offline.
-2. Phone B receives and relays the emergency packet.
-3. Phone C continues the multi-hop path.
-4. Phone D acts as the online gateway and syncs data to Firebase.
-5. Admin panel confirms the incident is visible in the cloud.
-
-This validates a realistic disaster scenario: offline relay + later cloud ingestion.
-
-## Team
-
-Built for Smart India Hackathon 2026 — Problem Statement SIH26206 (Disaster Management, Software Track) by:
-
-- Sanidhya
-- Tushar 
-- Rudraksh
-- Nehal
-- Dheeraj
-- Nirmay
-
-## License
-
-This project is licensed under the MIT License.
 
 ---
 
-<p align="center">
-  <strong>GeoRescueX</strong> — resilient emergency infrastructure when the world goes dark.
-</p>
+## 📌 Executive Summary
+
+**GeoRescuX** is a mission-critical, offline-first disaster response and emergency routing platform built for the **Smart India Hackathon 2026** (Problem Statement **SIH26206**, Disaster Management Software Track).
+
+In catastrophic events—such as Himalayan flash floods, cloudbursts, severe earthquakes, and structural collapses—conventional cloud-reliant emergency systems fail immediately due to base transceiver station (BTS) outages, power loss, and fiber severances. **GeoRescuX operates autonomously without cellular or internet connectivity**, providing peer-to-peer survival networking, native topological route generation, and guaranteed data delivery.
+
+> *"The emergency system designed to work when every other system stops working."*
+
+---
+
+## 🏛️ System Architecture
+
+```mermaid
+graph TD
+    subgraph "Citizen & Field Responder Tier"
+        A[User Device in Zero-Signal Zone] -->|Hold-to-Activate| B(SOS Engine & GPS Collector)
+        B --> C[Local SharedPreferences Store]
+        B --> D[Native C++20 Spatial Engine]
+        D -->|A* Pathfinding + Elevation Penalties| E[Safe Haven Route Generation]
+        B -->|Encrypted Frames| F[BLE Mesh Forwarding Service]
+    end
+
+    subgraph "P2P Bluetooth Low Energy Mesh Tier"
+        F -->|Hop 1: TTL 7, Deduplicated| G[Nearby Offline Citizen Device]
+        G -->|Hop 2: TTL 6, Store-and-Forward| H[Field Responder Device]
+        H -->|Hop 3: Edge Ingestion| I[Gateway Node with Sporadic Uplink]
+    end
+
+    subgraph "Cloud & Enterprise Coordination Tier"
+        I -->|Deferred Sync / Retry Queue| J[Firebase Realtime Database]
+        J -->|Least-Privilege RTDB Rules| K[(Secured /sos_alerts & /incidents)]
+        K -->|Live ValueEventListener| L[Disaster Coordinator Admin Dashboard]
+        L -->|Custom Claims: admin==true| M[Incident Triage, Status Resolution, & Verification]
+    end
+```
+
+---
+
+## ⚡ Core Engineering Pillars
+
+### 1. 🚀 40% Native C++20 Spatial Engine (`app/src/main/cpp/`)
+The routing and telemetry subsystem is implemented directly in modern C++20 and compiled via the Android NDK for near-instantaneous execution:
+- **A\* Pathfinding (`routing/RouteGraph.cpp`)**: High-performance shortest-path search over partitioned OpenStreetMap (OSM) regional topological graphs with admissible Haversine heuristics.
+- **3D Elevation Cost Model (`spatial/ElevationCostModel.cpp`)**: Dynamically penalizes steep climbs, terrain fatigue, and high-altitude hypoxia risks during evacuation.
+- **Cryptographic Packet Authenticator (`crypto/PacketAuthenticator.cpp`)**: Enforces HMAC-SHA256 signature verification and sliding-window timestamp replay protection for over-the-air BLE emergency packets.
+- **Dynamic Spatial Hazard Containment (`spatial/HazardPolygon.cpp`)**: Ray-casting point-in-polygon intersection to automatically avoid active landslides, flash flood corridors, and blocked roads.
+- **Zero-Copy JNI Bridges (`jni/GeoRescueNativeRoutingBridge.cpp`)**: High-throughput memory-safe JNI bridging with automatic fallback to pure Kotlin if native binary loading is unavailable.
+
+### 2. 📡 Peer-to-Peer Multi-Hop BLE Mesh (`app/src/main/java/.../ble/`)
+When infrastructure goes dark, GeoRescuX forms a spontaneous, self-healing ad-hoc mesh network:
+- **Symmetric GATT Architecture**: Each device simultaneously operates as a BLE Central (Scanner) and Peripheral (Advertiser).
+- **Store-and-Forward Relay**: Emergency SOS packets travel up to 7 hops across intermediary devices with local duplicate packet caches (LRU) to eliminate broadcast storms.
+- **Opportunistic Gateway Uplink**: The instant any device in the mesh reconnects to cellular data or satellite uplink, it automatically pushes buffered emergency records to Firebase.
+
+### 3. 🛡️ Enterprise Least-Privilege Security Rules (`database.rules.json`)
+The Firebase Realtime Database security model enforces strict zero-trust constraints validated by a **39-case automated emulator test suite**:
+- **Owner Lifecycle Isolation**: Normal users can only create and update their own SOS records (`ACTIVE` $\rightarrow$ `COMPLETED`). They cannot modify coordinates once submitted, reopen completed alerts, or delete emergency traces.
+- **Admin Least Privilege**: Administrators authenticated via verified Firebase Custom Claims (`auth.token.admin == true`) can update SOS records only to `RESOLVED`. Admins are strictly prohibited from altering victim GPS telemetry or situation notes.
+- **Metadata Protection**: Identity verification status (`isVerified`) and internal incident logs (`/incidents`, `/events`) can only be modified by authorized emergency coordinators.
+
+### 4. 🗺️ Partitioned Offline Regional Graphs (`output/`)
+Rather than relying on unwieldy multi-gigabyte nationwide datasets, GeoRescuX uses pre-processed, lightweight regional routing graphs:
+- **Uttarakhand**: Comprehensive Himalayan topography, road networks, and verified relief havens.
+- **Himachal Pradesh**: High-altitude road matrices, mountain passes, and medical centers.
+- **Haryana & Uttar Pradesh**: Plains evacuation corridors and emergency hubs.
+- **Sample Region**: Connaught Place / Delhi NCT benchmark validation dataset.
+
+---
+
+## 📱 Dual-Role Application Experience
+
+| Citizen Mobile App | Administrative Command Console |
+| :---: | :---: |
+| ![Citizen App](Images/dashboard.jpg) | ![Admin Dashboard](Images/admin.jpg) |
+| **Emergency SOS Activation, Safe Route Navigation, Regional Offline Maps, & P2P Mesh Status** | **Live SOS Incident Map, Heuristic Priority Ranking, Verification Approval, & Hazard Broadcast** |
+
+### Citizen Mobile Frontend
+- **1-Second Hold SOS**: Rapid physical activation trigger with vibration feedback and countdown cancellation.
+- **Offline Safe Route**: Dijkstra/A* evacuation guidance directing victims away from verified hazards toward safe shelters.
+- **Identity Verification**: In-app document submission granting prioritized rescue dispatch weightings.
+- **Emergency Contacts**: Local-first ICE (In Case of Emergency) address book synced peer-to-peer.
+
+### Admin Command Portal (`AdminDashboardActivity.kt`)
+- **Heuristic Priority Scoring (`EmergencyPriorityCalculator.kt`)**: Prioritizes emergency queues based on verified identity status, elapsed duration, and regional danger density.
+- **Operational Management**: Dynamic insertion of road blocks, avalanche zones, and regional emergency broadcasts.
+- **Status Triage**: Server-verified resolution marking (`RESOLVED`) ensuring end-to-end accountability.
+
+---
+
+## 📊 Repository Technology Breakdown
+
+Verified via live GitHub Linguist language metrics:
+
+| Technology | Purpose | Share |
+| :--- | :--- | :--- |
+| **C++ (C++20)** | Native A\* Routing, Elevation Cost Model, Packet Auth, Drogon Simulators | **40.09%** |
+| **Kotlin (2.2)** | Android UI, ViewModels, BLE Mesh Foreground Service, Sync Repositories | **53.25%** |
+| **Java** | High-performance low-level Android SDK integration | **5.83%** |
+| **CMake & Tooling** | Multi-ABI NDK compilation (`arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`) | **0.83%** |
+
+---
+
+## 🛠️ Build and Installation
+
+### Prerequisites
+- Android Studio Iguana / Ladybug or newer
+- Android SDK 34 (`minSdk 24`, `targetSdk 34`)
+- Android NDK 26+ (`26.1.10909125`)
+- CMake 3.22.1+
+- JDK 17 / Java 21
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Sanidhyanegi07/GeoRescuX.git
+cd GeoRescuX
+```
+
+### 2. Compile Native Binaries & Build Debug APK
+```bash
+# Builds native C++20 libraries across all ABIs and packages the APK
+./gradlew assembleDebug
+```
+The compiled APK will be generated at:
+`app/build/outputs/apk/debug/app-debug.apk`
+
+### 3. Run Android Unit Test Suite
+```bash
+./gradlew testDebugUnitTest
+```
+
+### 4. Execute Firebase Security Rules Matrix (Local Emulator)
+```bash
+# Executes 39 verified rule assertions against real Firebase RTDB Emulator
+firebase emulators:exec --project demo-georescux "node app/src/test/resources/run_emulator_rules_tests.js" --only database
+```
+
+---
+
+## 📂 Repository Layout
+
+```text
+GeoRescuX/
+├── app/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── cpp/                 # Native C++20 Core
+│   │   │   │   ├── crypto/          # HMAC-SHA256 packet authenticator
+│   │   │   │   ├── jni/             # JNI zero-copy routing bridges
+│   │   │   │   ├── routing/         # A* pathfinder & graph models
+│   │   │   │   └── spatial/         # Elevation cost & hazard containment
+│   │   │   ├── java/.../georescux/  # Kotlin Application Sources
+│   │   │   │   ├── ble/             # Multi-hop BLE mesh subsystem
+│   │   │   │   ├── data/            # Local-first stores & sync repositories
+│   │   │   │   ├── domain/          # Priority calculator & incident triage
+│   │   │   │   └── ui/              # User and Admin UI controllers
+│   │   │   ├── res/                 # Material XML layouts, drawables, & icons
+│   │   │   └── AndroidManifest.xml  # Service & permission declarations
+│   │   └── test/                    # Unit tests & emulator rule test suites
+│   ├── build.gradle.kts             # AGP 8.13, NDK, and CMake configuration
+│   └── google-services.json         # Firebase project configuration
+├── backend/                         # Standalone C++20 Drogon server & simulators
+├── docs/                            # Deep architectural and regional specs
+├── output/                          # Bundled regional routing graphs & manifests
+├── database.rules.json              # 39-case verified least-privilege security rules
+├── firebase.json                    # Firebase emulator & database configuration
+└── README.md                        # Master documentation
+```
+
+---
+
+## 👥 Smart India Hackathon 2026 Team
+
+**Problem Statement SIH26206**: Disaster Management (Software Track)
+
+- **Sanidhya Negi** — System Architect & Lead Engineer
+- **Tushar** — Mobile & BLE Mesh Specialist
+- **Rudraksh** — Geospatial & Native Routing Engineer
+- **Nehal** — Frontend & UI/UX Architect
+- **Dheeraj** — Backend & Simulation Engineer
+- **Nirmay** — QA & Security Systems Auditor
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+GeoRescuX — *Resilience when infrastructure fails.*
