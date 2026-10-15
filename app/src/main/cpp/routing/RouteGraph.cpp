@@ -47,4 +47,22 @@ std::optional<RouteEdge> RouteGraph::edgeBetween(const std::string& fromNodeId, 
     return std::nullopt;
 }
 
+void RouteGraph::rebuildAdjacency() {
+    buildIndexAndAdjacency();
+}
+
+bool RouteGraph::updateEdgeBlocked(const std::string& fromNodeId, const std::string& toNodeId, bool blocked) {
+    bool found = false;
+    for (auto& edge : edges) {
+        if (edge.connects(fromNodeId, toNodeId)) {
+            edge.blocked = blocked;
+            found = true;
+        }
+    }
+    if (found) {
+        buildIndexAndAdjacency();
+    }
+    return found;
+}
+
 } // namespace georescux::routing

@@ -25,6 +25,9 @@ public:
     const std::vector<std::pair<RouteEdge, RouteNode>>& neighbors(const std::string& nodeId) const;
     std::optional<RouteEdge> edgeBetween(const std::string& fromNodeId, const std::string& toNodeId) const;
 
+    void rebuildAdjacency();
+    bool updateEdgeBlocked(const std::string& fromNodeId, const std::string& toNodeId, bool blocked);
+
 private:
     std::unordered_map<std::string, RouteNode> nodesById;
     std::unordered_map<std::string, std::vector<std::pair<RouteEdge, RouteNode>>> adjacency;

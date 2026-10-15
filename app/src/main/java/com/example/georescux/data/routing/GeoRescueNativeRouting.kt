@@ -40,6 +40,52 @@ object GeoRescueNativeRouting {
     @JvmStatic
     private external fun nativeFindRoute(graphJson: String, startId: String, destId: String): String
 
+    @JvmStatic
+    private external fun nativeFindBidirectionalRoute(graphJson: String, startId: String, destId: String): String
+
+    @JvmStatic
+    private external fun nativeHaversineDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double
+
+    @JvmStatic
+    private external fun nativeVincentyDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double
+
+    @JvmStatic
+    private external fun nativeElevationImpedance(fromElev: Double, toElev: Double, distanceMeters: Double, injured: Boolean): Double
+
+    @JvmStatic
+    private external fun nativeEvaluateTriage(
+        canWalk: Boolean,
+        breathingSpontaneously: Boolean,
+        breathingAfterAirway: Boolean,
+        respirationRate: Int,
+        capillaryRefill: Double,
+        radialPulse: Boolean,
+        followsCommands: Boolean,
+        hasHemorrhage: Boolean,
+        isTrapped: Boolean
+    ): String
+
+    @JvmStatic
+    private external fun nativeDeduplicatePacket(senderHash: Int, seqNumber: Int): Boolean
+
+    @JvmStatic
+    private external fun nativeEncodeSosPacket(
+        priority: Int,
+        ttl: Int,
+        seqNum: Int,
+        senderId: String,
+        lat: Double,
+        lon: Double,
+        alt: Double,
+        batteryPct: Int,
+        urgency: Int,
+        peopleCount: Int,
+        timestampSec: Long
+    ): ByteArray
+
+    @JvmStatic
+    private external fun nativeHmacSha256(key: String, message: String): String
+
     /**
      * Executes route finding using the native C++ engine if available, or
      * falls back to the pure Kotlin [SafeHavenFallback] engine.
@@ -55,6 +101,115 @@ object GeoRescueNativeRouting {
             parseNativeResult(resultJson, graph) ?: SafeHavenFallback.findRoute(graph, startId, destinationId)
         } catch (_: Throwable) {
             SafeHavenFallback.findRoute(graph, startId, destinationId)
+        }
+    }
+
+    /**
+     * Executes high-speed bidirectional route finding using native C++ Bidirectional A*.
+     */
+    fun findBidirectionalRoute(graph: RouteGraph, startId: String, destinationId: String): EvacuationRoute? {
+        if (!isAvailable) {
+            return SafeHavenFallback.findRoute(graph, startId, destinationId)
+        }
+
+        return try {
+            val json = serializeGraphToJson(graph)
+            val resultJson = nativeFindBidirectionalRoute(json, startId, destinationId)
+            parseNativeResult(resultJson, graph) ?: SafeHavenFallback.findRoute(graph, startId, destinationId)
+        } catch (_: Throwable) {
+            SafeHavenFallback.findRoute(graph, startId, destinationId)
+        }
+    }
+
+    /**
+     * High-precision geodesic distance in meters (Vincenty / WGS84).
+     */
+    fun computeGeodesicDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        return if (isAvailable) {
+            try {
+                nativeVincentyDistance(lat1, lon1, lat2, lon2)
+            } catch (_: Throwable) {
+                nativeHaversineDistance(lat1, lon1, lat2, lon2)
+            }
+        } else {
+            val r = 6371000.0
+            val dLat = Math.toRadians(lat2 - lat1)
+            val dLon = Math.toRadians(lon2 - lon1)
+            val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+            val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+            r * c
+        }
+    }
+
+    /**
+     * Native packet deduplication using Bloom filter.
+     */
+    fun isDuplicatePacket(senderHash: Int, sequenceNumber: Int): Boolean {
+        if (!isAvailable) return false
+        return try {
+            nativeDeduplicatePacket(senderHash, sequenceNumber)
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    /**
+     * Encodes a compact 20-31 byte BLE mesh packet natively.
+     */
+    fun encodeSosPacket(
+        priority: Int, ttl: Int, seqNum: Int, senderId: String,
+        lat: Double, lon: Double, alt: Double,
+        batteryPct: Int, urgency: Int, peopleCount: Int,
+        timestampSec: Long
+    ): ByteArray? {
+        if (!isAvailable) return null
+        return try {
+            nativeEncodeSosPacket(
+                priority, ttl, seqNum, senderId,
+                lat, lon, alt, batteryPct, urgency, peopleCount, timestampSec
+            )
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    /**
+     * Evaluates victim triage using native START engine.
+     */
+    fun evaluateTriage(
+        canWalk: Boolean,
+        breathing: Boolean,
+        breathingAfterAirway: Boolean,
+        respRate: Int,
+        capRefill: Double,
+        radialPulse: Boolean,
+        followsCommands: Boolean,
+        hasHemorrhage: Boolean,
+        isTrapped: Boolean
+    ): String? {
+        if (!isAvailable) return null
+        return try {
+            nativeEvaluateTriage(
+                canWalk, breathing, breathingAfterAirway,
+                respRate, capRefill, radialPulse, followsCommands,
+                hasHemorrhage, isTrapped
+            )
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    /**
+     * Authenticates packet payload using HMAC-SHA256.
+     */
+    fun computeHmacSha256(key: String, message: String): String? {
+        if (!isAvailable) return null
+        return try {
+            nativeHmacSha256(key, message)
+        } catch (_: Throwable) {
+            null
         }
     }
 
