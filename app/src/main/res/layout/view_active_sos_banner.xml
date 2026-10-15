@@ -1,48 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/activeSosBanner"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#C62828"
+    android:background="@drawable/bg_card_sos_tile"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="10dp"
+    android:paddingVertical="12dp"
+    android:layout_marginBottom="12dp"
     android:visibility="gone">
 
-    <TextView
-        android:id="@+id/activeSosBannerText"
+    <ImageView
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:src="@drawable/ic_emergency_sos"
+        app:tint="@color/sos_red"
+        android:contentDescription="Emergency Active"
+        android:layout_marginEnd="10dp" />
+
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="🚨 SOS ACTIVE — tap to open emergency"
-        android:textColor="@color/white"
-        android:textSize="13sp"
-        android:textStyle="bold" />
+        android:orientation="vertical">
 
-    <Button
-        android:id="@+id/activeSosBannerClose"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:paddingHorizontal="8dp"
-        android:paddingVertical="4dp"
-        android:text="×"
-        android:textColor="@color/white"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+        <TextView
+            android:id="@+id/activeSosBannerText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Emergency Alert Active"
+            android:textColor="@color/sos_red"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tap to open live emergency controls"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
 
     <Button
         android:id="@+id/activeSosBannerOpen"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="4dp"
-        android:text="OPEN"
+        android:layout_height="36dp"
+        android:background="@drawable/bg_button_danger"
+        android:paddingHorizontal="14dp"
+        android:text="VIEW"
         android:textColor="@color/white"
         android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/activeSosBannerClose"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:text="✕"
+        android:textColor="@color/text_muted"
+        android:textSize="14sp"
         android:textStyle="bold" />
 </LinearLayout>

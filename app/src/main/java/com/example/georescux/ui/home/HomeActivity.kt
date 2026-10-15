@@ -132,32 +132,50 @@ class HomeActivity : AppCompatActivity() {
         setupSosButton()
 
         // Emergency Contacts tile (Stage 3).
-        findViewById<View>(R.id.tileEmergencyContacts).setOnClickListener {
+        findViewById<View>(R.id.tileEmergencyContacts)?.setOnClickListener {
             startActivity(Intent(this, ContactsActivity::class.java))
         }
 
         // Alerts tile + Recent activity summary (Stage 4, read-only).
         recentActivitySummaryText = findViewById(R.id.textViewRecentActivitySummary)
-        findViewById<View>(R.id.tileAlerts).setOnClickListener {
+        findViewById<View>(R.id.tileAlerts)?.setOnClickListener {
+            startActivity(Intent(this, AlertsActivity::class.java))
+        }
+
+        findViewById<View>(R.id.cardWeatherAlert)?.setOnClickListener {
+            startActivity(Intent(this, AlertsActivity::class.java))
+        }
+
+        findViewById<View>(R.id.buttonNotifications)?.setOnClickListener {
             startActivity(Intent(this, AlertsActivity::class.java))
         }
 
         // Safe Route tile (Stage 7A): offline evacuation routing.
-        findViewById<View>(R.id.tileSafeRoute).setOnClickListener {
+        findViewById<View>(R.id.tileSafeRoute)?.setOnClickListener {
             startActivity(Intent(this, RouteActivity::class.java))
         }
 
+        // Offline Maps tile: download & manage regional packages
+        findViewById<View>(R.id.tileOfflineMaps)?.setOnClickListener {
+            startActivity(Intent(this, com.example.georescux.ui.region.RegionSelectionActivity::class.java))
+        }
+
+        // Help & Support tile
+        findViewById<View>(R.id.tileHelp)?.setOnClickListener {
+            startActivity(Intent(this, com.example.georescux.ui.help.HelpActivity::class.java))
+        }
+
         // BLE Diagnostics tile: two-device emergency mesh testing surface.
-        findViewById<View>(R.id.tileBleDiagnostics).setOnClickListener {
+        findViewById<View>(R.id.tileBleDiagnostics)?.setOnClickListener {
             startActivity(Intent(this, com.example.georescux.ui.ble.BleDiagnosticsActivity::class.java))
         }
 
         // Profile tile: photo, phone number and email (device-local).
-        findViewById<View>(R.id.tileProfile).setOnClickListener {
+        findViewById<View>(R.id.tileProfile)?.setOnClickListener {
             startActivity(Intent(this, com.example.georescux.ui.profile.ProfileActivity::class.java))
         }
 
-        // Primary bottom navigation: HOME · MAP · ALERTS · PROFILE (spec §9).
+        // Primary bottom navigation: HOME · MAP · CONTACTS · MORE.
         com.example.georescux.ui.common.BottomNav.bind(this, R.id.nav_home)
     }
 
@@ -167,12 +185,10 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun setupSosButton() {
-        val sosButton = findViewById<Button>(R.id.buttonSos)
+        val sosButton = findViewById<View>(R.id.buttonSos) ?: findViewById<View>(R.id.tileSosCard)
 
-        // §3: a single tap starts the 2-second countdown. The old
-        // press-and-hold arming stage is removed so the total time from
-        // tap to ACTIVE is exactly the countdown.
-        sosButton.setOnClickListener {
+        // §3: a single tap starts the 2-second countdown.
+        sosButton?.setOnClickListener {
             // §24: if an emergency is already active, don't create a second
             // one — open the live emergency panel (which is non-trapping).
             if ((application as GeoRescuXApplication).appContainer.sosRepository.getActiveEmergency() != null) {

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_admin_overview"
+        android:icon="@drawable/ic_admin_overview"
+        android:title="Overview" />
+    <item
+        android:id="@+id/nav_admin_incidents"
+        android:icon="@drawable/ic_admin_incidents"
+        android:title="Incidents" />
+    <item
+        android:id="@+id/nav_admin_users"
+        android:icon="@drawable/ic_admin_users"
+        android:title="Users" />
+    <item
+        android:id="@+id/nav_admin_monitoring"
+        android:icon="@drawable/ic_admin_monitoring"
+        android:title="Monitoring" />
+    <item
+        android:id="@+id/nav_admin_settings"
+        android:icon="@drawable/ic_admin_settings"
+        android:title="Settings" />
+</menu>

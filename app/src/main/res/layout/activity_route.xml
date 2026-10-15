@@ -1,412 +1,440 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_app"
-    android:fillViewport="true">
+    android:orientation="vertical">
 
+    <!-- Top Navigation Bar -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="18dp"
-        android:paddingTop="20dp"
-        android:paddingBottom="36dp">
+        android:layout_height="56dp"
+        android:background="@color/bg_surface"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp">
 
-        <!-- Screen Header -->
+        <Button
+            android:id="@+id/buttonRouteBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:text="←"
+            android:textColor="@color/text_primary"
+            android:textSize="22sp" />
+
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
             android:text="Safe Route"
             android:textColor="@color/text_primary"
-            android:textSize="22sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/textRegionSubtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Offline evacuation routing — Connaught Place, New Delhi"
-            android:textColor="@color/text_muted"
-            android:textSize="13sp" />
-
-        <!-- Live connectivity / sync-state badge (Phase 17 UX contract:
-             ONLINE / OFFLINE — offline never blocks map, routing or SOS). -->
-        <TextView
-            android:id="@+id/textConnectivityBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="14dp"
-            android:text="● Checking connection…"
-            android:textColor="@color/text_muted"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
+        <!-- Normal Mode / Pro Mode Badge -->
         <TextView
             android:id="@+id/textSafeRouteProBadge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp"
-            android:background="@drawable/bg_badge_pill"
-            android:backgroundTint="#C62828"
+            android:background="@drawable/bg_pill_active"
             android:paddingHorizontal="10dp"
             android:paddingVertical="4dp"
-            android:text="🚨 SAFE ROUTE PRO ACTIVE"
-            android:textColor="@color/white"
-            android:textSize="12sp"
+            android:text="SOS Mode Active"
+            android:textColor="@color/sos_red"
+            android:textSize="11sp"
             android:textStyle="bold"
             android:visibility="gone" />
 
-        <!-- Safe Route Pro monitoring panel (spec §12/§18): visible only
-             while an SOS is active. Reports each communication path honestly. -->
+        <TextView
+            android:id="@+id/textNormalModeBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_tab_container"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="Normal Mode"
+            android:textColor="@color/brand_primary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
         <LinearLayout
-            android:id="@+id/safeRouteProPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp"
-            android:background="@drawable/bg_badge_pill"
-            android:backgroundTint="#FDECEA"
             android:orientation="vertical"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
-            android:visibility="gone">
+            android:padding="16dp">
 
+            <!-- Route Inputs Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="@color/bg_card"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="1dp"
+                app:strokeColor="@color/border_subtle"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Origin input -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:contentDescription="Start Pin"
+                            android:src="@drawable/ic_safe_route"
+                            app:tint="@color/brand_primary" />
+
+                        <AutoCompleteTextView
+                            android:id="@+id/editTextStartNode"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:layout_marginStart="10dp"
+                            android:background="@drawable/bg_input_field"
+                            android:completionThreshold="1"
+                            android:hint="Your Location"
+                            android:inputType="text"
+                            android:paddingHorizontal="12dp"
+                            android:textColor="@color/text_primary"
+                            android:textColorHint="@color/text_subtle"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <!-- Destination input -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:contentDescription="Destination Pin"
+                            android:src="@drawable/ic_offline_maps"
+                            app:tint="@color/sos_red" />
+
+                        <AutoCompleteTextView
+                            android:id="@+id/editTextDestinationNode"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:layout_marginStart="10dp"
+                            android:background="@drawable/bg_input_field"
+                            android:completionThreshold="1"
+                            android:hint="To: Safe Haven, Lower Market, Joshimath"
+                            android:inputType="text"
+                            android:paddingHorizontal="12dp"
+                            android:textColor="@color/text_primary"
+                            android:textColorHint="@color/text_subtle"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/buttonFindRoute"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_button_primary"
+                            android:text="Find Route"
+                            android:textColor="@color/white"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <Button
+                            android:id="@+id/buttonReroute"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            android:background="@drawable/bg_button_white"
+                            android:text="Avoid Hazards"
+                            android:textColor="@color/brand_primary"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Map View Container Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="280dp"
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="@color/bg_card"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeColor="@color/border_subtle"
+                app:strokeWidth="1dp">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <org.osmdroid.views.MapView
+                        android:id="@+id/mapView"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+
+                    <!-- Floating Map Controls -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end|top"
+                        android:layout_margin="12dp"
+                        android:orientation="vertical">
+
+                        <Button
+                            android:id="@+id/buttonMyLocation"
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:background="@drawable/bg_button_white"
+                            android:text="📍"
+                            android:textColor="@color/brand_primary"
+                            android:textSize="14sp" />
+
+                        <Button
+                            android:id="@+id/buttonZoomIn"
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:layout_marginTop="6dp"
+                            android:background="@drawable/bg_button_white"
+                            android:text="+"
+                            android:textColor="@color/text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <Button
+                            android:id="@+id/buttonZoomOut"
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:layout_marginTop="4dp"
+                            android:background="@drawable/bg_button_white"
+                            android:text="−"
+                            android:textColor="@color/text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- Bottom Floating Legend Overlay -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|start"
+                        android:layout_margin="12dp"
+                        android:background="@drawable/bg_card_white"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="6dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="● Hazards"
+                            android:textColor="@color/hazard_orange"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="● Blocked"
+                            android:textColor="@color/sos_red"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="● Safe Path"
+                            android:textColor="@color/safe_green"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/textViewMapCacheState"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="start|top"
+                        android:layout_margin="12dp"
+                        android:background="@drawable/bg_pill_low_risk"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="3dp"
+                        android:text="Offline Regional Map"
+                        android:textColor="@color/safe_green"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+                </FrameLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Region & Connectivity Subtitles -->
             <TextView
+                android:id="@+id/textRegionSubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
-                android:text="EMERGENCY MONITORING"
-                android:textColor="#C62828"
+                android:text="Region: Uttarakhand Evacuation Map"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/textConnectivityBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="12dp"
+                android:text="● Offline routing active"
+                android:textColor="@color/safe_green"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/textProSosState"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                tools:ignore="HardcodedText" />
-
-            <TextView
-                android:id="@+id/textProBleState"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                tools:ignore="HardcodedText" />
-
-            <TextView
-                android:id="@+id/textProCloudState"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                tools:ignore="HardcodedText" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
-            android:text="💡 Tap anywhere on map to pick Start / Destination"
-            android:textColor="#1976D2"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <!-- Spec §17: shown when the user is outside every downloaded region -->
-        <TextView
-            android:id="@+id/textBoundaryNotice"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="6dp"
-            android:background="@drawable/bg_badge_pill"
-            android:backgroundTint="@color/hazard_dim"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
-            android:text="Offline routing is unavailable outside your downloaded region."
-            android:textColor="@color/hazard_orange"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
-
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="6dp"
-            app:cardBackgroundColor="@color/bg_card"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/divider_subtle"
-            app:strokeWidth="1dp">
-
-            <FrameLayout
+            <!-- Route Result Card (Safe Route & Safe Route Pro) -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
-                android:layout_height="340dp">
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="@color/bg_card"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="1dp"
+                app:strokeColor="@color/border_subtle"
+                app:strokeWidth="1dp">
 
-                <org.osmdroid.views.MapView
-                    android:id="@+id/mapView"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
-
-                <!-- Floating map overlay controls -->
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="end|bottom"
-                    android:layout_margin="12dp"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/buttonMyLocation"
-                        android:layout_width="42dp"
-                        android:layout_height="42dp"
-                        android:layout_marginBottom="8dp"
-                        android:insetLeft="0dp"
-                        android:insetTop="0dp"
-                        android:insetRight="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="📍"
-                        android:textSize="18sp"
-                        app:cornerRadius="21dp"
-                        app:backgroundTint="@color/bg_card_secondary"
-                        app:strokeColor="@color/divider_subtle"
-                        app:strokeWidth="1dp" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/buttonZoomIn"
-                        android:layout_width="42dp"
-                        android:layout_height="42dp"
-                        android:layout_marginBottom="6dp"
-                        android:insetLeft="0dp"
-                        android:insetTop="0dp"
-                        android:insetRight="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="+"
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:contentDescription="Route Found"
+                            android:src="@drawable/ic_safe_route"
+                            app:tint="@color/brand_primary" />
+
+                        <TextView
+                            android:id="@+id/textViewRouteSummary"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="10dp"
+                            android:text="Safe Route: 24 km • 1 hr 12 min"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/textViewHazardWarnings"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_pill_pending"
+                        android:padding="8dp"
+                        android:text="Hazard warnings: 1 active hazard on secondary segment"
+                        android:textColor="@color/hazard_amber"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+
+                    <Button
+                        android:id="@+id/buttonStartNavigation"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="14dp"
+                        android:background="@drawable/bg_button_primary"
+                        android:text="Start Navigation"
                         android:textColor="@color/white"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        app:cornerRadius="21dp"
-                        app:backgroundTint="@color/bg_card_secondary"
-                        app:strokeColor="@color/divider_subtle"
-                        app:strokeWidth="1dp" />
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/buttonZoomOut"
-                        android:layout_width="42dp"
-                        android:layout_height="42dp"
-                        android:insetLeft="0dp"
-                        android:insetTop="0dp"
-                        android:insetRight="0dp"
-                        android:insetBottom="0dp"
-                        android:padding="0dp"
-                        android:text="−"
-                        android:textColor="@color/white"
-                        android:textSize="18sp"
+                    <!-- Safe Route Pro Back to SOS Action -->
+                    <Button
+                        android:id="@+id/buttonBackToSos"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_button_white"
+                        android:text="Back to SOS"
+                        android:textColor="@color/sos_red"
+                        android:textSize="13sp"
                         android:textStyle="bold"
-                        app:cornerRadius="21dp"
-                        app:backgroundTint="@color/bg_card_secondary"
-                        app:strokeColor="@color/divider_subtle"
-                        app:strokeWidth="1dp" />
+                        android:visibility="gone" />
                 </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                <!-- Floating map status chip -->
-                <TextView
-                    android:id="@+id/textViewMapCacheState"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="start|top"
-                    android:layout_margin="10dp"
-                    android:background="@drawable/bg_badge_pill"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="4dp"
-                    android:text="Offline OSM Cache"
-                    android:textColor="@color/text_primary"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/textViewMapLoading"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:text="Loading Map..."
-                    android:textColor="@color/text_muted"
-                    android:textSize="14sp"
-                    android:visibility="gone" />
-            </FrameLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:text="Map data © OpenStreetMap contributors · Offline Cache"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp" />
-
-        <!-- Route inputs card -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp"
-            app:cardBackgroundColor="@color/bg_card"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/divider_subtle"
-            app:strokeWidth="1dp">
+            <!-- Route Steps Container -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Evacuation Segments"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
 
             <LinearLayout
+                android:id="@+id/routeStepsContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:orientation="vertical" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="6dp"
-                    android:text="START LOCATION / NODE"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+            <!-- Hidden elements for code compatibility -->
+            <TextView
+                android:id="@+id/textViewNoMapData"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
 
-                <AutoCompleteTextView
-                    android:id="@+id/editTextStartNode"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="14dp"
-                    android:background="@drawable/bg_input_field"
-                    android:hint="Place name, coordinates or node id"
-                    android:inputType="text"
-                    android:completionThreshold="1"
-                    android:textColor="@color/text_primary"
-                    android:textColorHint="@color/text_subtle"
-                    android:textSize="14sp" />
+            <TextView
+                android:id="@+id/textViewNoRoute"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="6dp"
-                    android:text="DESTINATION (SAFE HAVEN)"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+            <LinearLayout
+                android:id="@+id/safeRouteProPanel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone">
 
-                <AutoCompleteTextView
-                    android:id="@+id/editTextDestinationNode"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:background="@drawable/bg_input_field"
-                    android:hint="Place name, coordinates or node id"
-                    android:inputType="text"
-                    android:completionThreshold="1"
-                    android:textColor="@color/text_primary"
-                    android:textColorHint="@color/text_subtle"
-                    android:textSize="14sp" />
-
-                <Button
-                    android:id="@+id/buttonFindRoute"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/bg_button_violet"
-                    android:stateListAnimator="@null"
-                    android:text="Find Route"
-                    android:textAllCaps="false"
-                    android:textColor="@color/white"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    app:backgroundTint="@null" />
-
-                <Button
-                    android:id="@+id/buttonReroute"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_button_secondary"
-                    android:stateListAnimator="@null"
-                    android:text="Reroute (Avoid Hazards)"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    app:backgroundTint="@null" />
+                <TextView android:id="@+id/textProSosState" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                <TextView android:id="@+id/textProBleState" android:layout_width="wrap_content" android:layout_height="wrap_content" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Status & message banners -->
-        <TextView
-            android:id="@+id/textViewNoMapData"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:background="@drawable/bg_card_dark"
-            android:padding="12dp"
-            android:text="No map data available."
-            android:textColor="@color/text_error"
-            android:textSize="13sp"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/textViewNoRoute"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:background="@drawable/bg_card_dark"
-            android:padding="12dp"
-            android:textColor="@color/text_error"
-            android:textSize="13sp"
-            android:visibility="gone" />
-
-        <!-- Route summary card -->
-        <TextView
-            android:id="@+id/textViewRouteSummary"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:background="@drawable/bg_card_dark"
-            android:padding="14dp"
-            android:textColor="@color/safe_green"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
-
-        <!-- Hazard warnings card -->
-        <TextView
-            android:id="@+id/textViewHazardWarnings"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp"
-            android:background="@drawable/bg_card_dark"
-            android:padding="14dp"
-            android:textColor="@color/hazard_orange"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
-
-        <!-- Route steps container -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:text="ROUTE STEPS"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-
-        <LinearLayout
-            android:id="@+id/routeStepsContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-
-    </LinearLayout>
-</ScrollView>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

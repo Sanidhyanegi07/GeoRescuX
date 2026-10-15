@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Legacy/fallback navigation item IDs for BottomNav backwards compatibility -->
+    <item type="id" name="nav_alerts" />
+    <item type="id" name="nav_profile" />
+    <item type="id" name="buttonContinue" />
+    <item type="id" name="textBoundaryNotice" />
+    <item type="id" name="textProCloudState" />
+</resources>

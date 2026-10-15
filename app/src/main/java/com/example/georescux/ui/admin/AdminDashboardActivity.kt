@@ -111,8 +111,21 @@ class AdminDashboardActivity : AppCompatActivity() {
             setupTabs()
             setupRealtimeFirebaseListeners()
             setupActionButtons()
+            setupMapPreview()
+            updateRecentReportsList()
         }
     }
+
+    private var adminMapView: org.osmdroid.views.MapView? = null
+
+    private data class RecentReportItem(
+        val id: String,
+        val priority: String,
+        val time: String,
+        val status: String,
+        val emergency: EmergencyItem?,
+        val incident: IncidentItem?,
+    )
 
     private fun setupTabs() {
         val btnEmergencies = findViewById<Button>(R.id.buttonTabEmergencies)
@@ -123,50 +136,59 @@ class AdminDashboardActivity : AppCompatActivity() {
         val btnResources = findViewById<Button>(R.id.buttonTabResources)
         val btnVerifications = findViewById<Button>(R.id.buttonTabVerifications)
         val btnSettings = findViewById<Button>(R.id.buttonTabSettings)
+
+        btnEmergencies?.setOnClickListener { currentTab = AdminTab.EMERGENCIES; updateTabStyles() }
+        btnHazards?.setOnClickListener { currentTab = AdminTab.HAZARDS; updateTabStyles() }
+        btnIncidents?.setOnClickListener { currentTab = AdminTab.INCIDENTS; updateTabStyles() }
+        btnEvents?.setOnClickListener { currentTab = AdminTab.EVENTS; updateTabStyles() }
+        btnRoutes?.setOnClickListener { currentTab = AdminTab.ROUTES; updateTabStyles() }
+        btnResources?.setOnClickListener { currentTab = AdminTab.RESOURCES; updateTabStyles() }
+        btnVerifications?.setOnClickListener { currentTab = AdminTab.VERIFICATIONS; updateTabStyles() }
+        btnSettings?.setOnClickListener { currentTab = AdminTab.SETTINGS; updateTabStyles() }
+    }
+
+    private fun updateTabStyles() {
+        val btnEmergencies = findViewById<Button>(R.id.buttonTabEmergencies) ?: return
+        val btnHazards = findViewById<Button>(R.id.buttonTabHazards) ?: return
+        val btnIncidents = findViewById<Button>(R.id.buttonTabIncidents) ?: return
+        val btnEvents = findViewById<Button>(R.id.buttonTabEvents) ?: return
+        val btnRoutes = findViewById<Button>(R.id.buttonTabRoutes) ?: return
+        val btnResources = findViewById<Button>(R.id.buttonTabResources) ?: return
+        val btnVerifications = findViewById<Button>(R.id.buttonTabVerifications) ?: return
+        val btnSettings = findViewById<Button>(R.id.buttonTabSettings) ?: return
         val hazardActions = findViewById<LinearLayout>(R.id.layoutHazardActions)
 
-        fun updateTabStyles() {
-            val violetBg = ContextCompat.getDrawable(this, R.drawable.bg_button_violet)
-            val secondaryBg = ContextCompat.getDrawable(this, R.drawable.bg_button_secondary)
-            val white = ContextCompat.getColor(this, R.color.white)
-            val textPrimary = ContextCompat.getColor(this, R.color.text_primary)
+        val activeBg = ContextCompat.getDrawable(this, R.drawable.bg_tab_active)
+        val inactiveBg = ContextCompat.getDrawable(this, R.drawable.bg_tab_container)
+        val brandPrimary = ContextCompat.getColor(this, R.color.brand_primary)
+        val textMuted = ContextCompat.getColor(this, R.color.text_muted)
 
-            btnEmergencies.background = if (currentTab == AdminTab.EMERGENCIES) violetBg else secondaryBg
-            btnEmergencies.setTextColor(if (currentTab == AdminTab.EMERGENCIES) white else textPrimary)
+        btnEmergencies.background = if (currentTab == AdminTab.EMERGENCIES) activeBg else inactiveBg
+        btnEmergencies.setTextColor(if (currentTab == AdminTab.EMERGENCIES) brandPrimary else textMuted)
 
-            btnHazards.background = if (currentTab == AdminTab.HAZARDS) violetBg else secondaryBg
-            btnHazards.setTextColor(if (currentTab == AdminTab.HAZARDS) white else textPrimary)
+        btnHazards.background = if (currentTab == AdminTab.HAZARDS) activeBg else inactiveBg
+        btnHazards.setTextColor(if (currentTab == AdminTab.HAZARDS) brandPrimary else textMuted)
 
-            btnIncidents.background = if (currentTab == AdminTab.INCIDENTS) violetBg else secondaryBg
-            btnIncidents.setTextColor(if (currentTab == AdminTab.INCIDENTS) white else textPrimary)
+        btnIncidents.background = if (currentTab == AdminTab.INCIDENTS) activeBg else inactiveBg
+        btnIncidents.setTextColor(if (currentTab == AdminTab.INCIDENTS) brandPrimary else textMuted)
 
-            btnEvents.background = if (currentTab == AdminTab.EVENTS) violetBg else secondaryBg
-            btnEvents.setTextColor(if (currentTab == AdminTab.EVENTS) white else textPrimary)
+        btnEvents.background = if (currentTab == AdminTab.EVENTS) activeBg else inactiveBg
+        btnEvents.setTextColor(if (currentTab == AdminTab.EVENTS) brandPrimary else textMuted)
 
-            btnRoutes.background = if (currentTab == AdminTab.ROUTES) violetBg else secondaryBg
-            btnRoutes.setTextColor(if (currentTab == AdminTab.ROUTES) white else textPrimary)
+        btnRoutes.background = if (currentTab == AdminTab.ROUTES) activeBg else inactiveBg
+        btnRoutes.setTextColor(if (currentTab == AdminTab.ROUTES) brandPrimary else textMuted)
 
-            btnResources.background = if (currentTab == AdminTab.RESOURCES) violetBg else secondaryBg
-            btnResources.setTextColor(if (currentTab == AdminTab.RESOURCES) white else textPrimary)
+        btnResources.background = if (currentTab == AdminTab.RESOURCES) activeBg else inactiveBg
+        btnResources.setTextColor(if (currentTab == AdminTab.RESOURCES) brandPrimary else textMuted)
 
-            btnVerifications.background = if (currentTab == AdminTab.VERIFICATIONS) violetBg else secondaryBg
-            btnVerifications.setTextColor(if (currentTab == AdminTab.VERIFICATIONS) white else textPrimary)
+        btnVerifications.background = if (currentTab == AdminTab.VERIFICATIONS) activeBg else inactiveBg
+        btnVerifications.setTextColor(if (currentTab == AdminTab.VERIFICATIONS) brandPrimary else textMuted)
 
-            btnSettings.background = if (currentTab == AdminTab.SETTINGS) violetBg else secondaryBg
-            btnSettings.setTextColor(if (currentTab == AdminTab.SETTINGS) white else textPrimary)
+        btnSettings.background = if (currentTab == AdminTab.SETTINGS) activeBg else inactiveBg
+        btnSettings.setTextColor(if (currentTab == AdminTab.SETTINGS) brandPrimary else textMuted)
 
-            hazardActions.visibility = if (currentTab == AdminTab.HAZARDS) View.VISIBLE else View.GONE
-            renderCurrentTabContent()
-        }
-
-        btnEmergencies.setOnClickListener { currentTab = AdminTab.EMERGENCIES; updateTabStyles() }
-        btnHazards.setOnClickListener { currentTab = AdminTab.HAZARDS; updateTabStyles() }
-        btnIncidents.setOnClickListener { currentTab = AdminTab.INCIDENTS; updateTabStyles() }
-        btnEvents.setOnClickListener { currentTab = AdminTab.EVENTS; updateTabStyles() }
-        btnRoutes.setOnClickListener { currentTab = AdminTab.ROUTES; updateTabStyles() }
-        btnResources.setOnClickListener { currentTab = AdminTab.RESOURCES; updateTabStyles() }
-        btnVerifications.setOnClickListener { currentTab = AdminTab.VERIFICATIONS; updateTabStyles() }
-        btnSettings.setOnClickListener { currentTab = AdminTab.SETTINGS; updateTabStyles() }
+        hazardActions?.visibility = if (currentTab == AdminTab.HAZARDS) View.VISIBLE else View.GONE
+        renderCurrentTabContent()
     }
 
     /**
@@ -194,28 +216,220 @@ class AdminDashboardActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
         }
     }
+
     private fun setupActionButtons() {
-        findViewById<Button>(R.id.buttonAddHazard).setOnClickListener {
-            showAddHazardDialog()
-        }
-        findViewById<Button>(R.id.buttonBlockRoad).setOnClickListener {
-            showBlockRoadDialog()
-        }
-        // §63: publish a geographically scoped emergency alert.
-        findViewById<Button>(R.id.buttonBroadcastAlert).setOnClickListener {
-            showBroadcastAlertDialog()
-        }
-        // §49: log a larger emergency event with geographic scope.
-        findViewById<Button>(R.id.buttonCreateEvent).setOnClickListener {
-            showCreateEventDialog()
-        }
-        // §42/§43: open the geographic intelligence map.
-        findViewById<Button>(R.id.buttonOpenAdminMap).setOnClickListener {
+        findViewById<Button>(R.id.buttonAddHazard)?.setOnClickListener { showAddHazardDialog() }
+        findViewById<Button>(R.id.buttonBlockRoad)?.setOnClickListener { showBlockRoadDialog() }
+        findViewById<Button>(R.id.buttonBroadcastAlert)?.setOnClickListener { showBroadcastAlertDialog() }
+        findViewById<Button>(R.id.buttonCreateEvent)?.setOnClickListener { showCreateEventDialog() }
+        findViewById<View>(R.id.buttonOpenAdminMap)?.setOnClickListener {
             startActivity(Intent(this, AdminMapActivity::class.java))
         }
-        findViewById<Button>(R.id.buttonAdminUsers).setOnClickListener {
+        findViewById<View>(R.id.cardIncidentMapContainer)?.setOnClickListener {
+            startActivity(Intent(this, AdminMapActivity::class.java))
+        }
+        findViewById<Button>(R.id.buttonAdminUsers)?.setOnClickListener {
             startActivity(Intent(this, AdminUsersActivity::class.java))
         }
+        findViewById<View>(R.id.buttonViewAllReports)?.setOnClickListener {
+            currentTab = AdminTab.INCIDENTS
+            updateTabStyles()
+            findViewById<android.widget.ScrollView>(R.id.adminDashboardScrollView)?.post {
+                findViewById<android.widget.ScrollView>(R.id.adminDashboardScrollView)?.smoothScrollTo(
+                    0, findViewById<View>(R.id.textViewSectionTitle)?.top ?: 0
+                )
+            }
+        }
+        findViewById<View>(R.id.buttonAdminNotifications)?.setOnClickListener {
+            showNotificationsSummaryDialog()
+        }
+        findViewById<View>(R.id.buttonAdminMapZoomIn)?.setOnClickListener {
+            adminMapView?.controller?.zoomIn()
+        }
+        findViewById<View>(R.id.buttonAdminMapZoomOut)?.setOnClickListener {
+            adminMapView?.controller?.zoomOut()
+        }
+
+        // Admin Bottom Navigation (Overview, Incidents, Users, Monitoring, Settings)
+        findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.adminBottomNav)?.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_admin_overview -> {
+                    findViewById<android.widget.ScrollView>(R.id.adminDashboardScrollView)?.smoothScrollTo(0, 0)
+                    true
+                }
+                R.id.nav_admin_incidents -> {
+                    currentTab = AdminTab.INCIDENTS
+                    updateTabStyles()
+                    findViewById<android.widget.ScrollView>(R.id.adminDashboardScrollView)?.post {
+                        findViewById<android.widget.ScrollView>(R.id.adminDashboardScrollView)?.smoothScrollTo(
+                            0, findViewById<View>(R.id.textViewSectionTitle)?.top ?: 0
+                        )
+                    }
+                    true
+                }
+                R.id.nav_admin_users -> {
+                    startActivity(Intent(this, AdminUsersActivity::class.java))
+                    false
+                }
+                R.id.nav_admin_monitoring -> {
+                    currentTab = AdminTab.RESOURCES
+                    updateTabStyles()
+                    findViewById<android.widget.ScrollView>(R.id.adminDashboardScrollView)?.post {
+                        findViewById<android.widget.ScrollView>(R.id.adminDashboardScrollView)?.smoothScrollTo(
+                            0, findViewById<View>(R.id.textViewSectionTitle)?.top ?: 0
+                        )
+                    }
+                    true
+                }
+                R.id.nav_admin_settings -> {
+                    currentTab = AdminTab.SETTINGS
+                    updateTabStyles()
+                    findViewById<android.widget.ScrollView>(R.id.adminDashboardScrollView)?.post {
+                        findViewById<android.widget.ScrollView>(R.id.adminDashboardScrollView)?.smoothScrollTo(
+                            0, findViewById<View>(R.id.textViewSectionTitle)?.top ?: 0
+                        )
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun setupMapPreview() {
+        try {
+            com.example.georescux.ui.common.OfflineMapSetup.prepareOsmdroid(this)
+            val mapView = findViewById<org.osmdroid.views.MapView>(R.id.adminMapViewPreview) ?: return
+            adminMapView = mapView
+            mapView.setMultiTouchControls(true)
+            mapView.controller.setZoom(10.0)
+            mapView.controller.setCenter(org.osmdroid.util.GeoPoint(30.5564, 79.5670))
+            updateMapPreviewMarkers()
+        } catch (e: Exception) {
+            // Osmdroid gracefully falls back in testing or headless environments
+        }
+    }
+
+    private fun updateMapPreviewMarkers() {
+        val mapView = adminMapView ?: return
+        try {
+            mapView.overlays.clear()
+            emergencyList.filter { it.latitude != null && it.longitude != null }.take(15).forEach { em ->
+                val marker = org.osmdroid.views.overlay.Marker(mapView).apply {
+                    position = org.osmdroid.util.GeoPoint(em.latitude!!, em.longitude!!)
+                    title = "SOS #${em.alertId.takeLast(4).uppercase()}"
+                    snippet = "Status: ${em.status}"
+                }
+                mapView.overlays.add(marker)
+            }
+            mapView.invalidate()
+        } catch (e: Exception) {
+            // Ignore
+        }
+    }
+
+    private fun updateRecentReportsList() {
+        val container = findViewById<LinearLayout>(R.id.adminRecentReportsContainer) ?: return
+        container.removeAllViews()
+
+        val list = mutableListOf<RecentReportItem>()
+
+        emergencyList.take(5).forEach { em ->
+            val priority = if (em.isVerified) "High Priority" else "Medium Priority"
+            val time = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(em.startedAtMs))
+            list.add(RecentReportItem("#SOS-${em.alertId.takeLast(4).uppercase()}", priority, time, if (em.isActive) "Active" else "Pending", em, null))
+        }
+
+        incidentList.take(5).forEach { inc ->
+            val time = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(inc.timestampMs))
+            list.add(RecentReportItem("#INC-${inc.id.takeLast(4).uppercase()}", "Medium Priority", time, inc.status, null, inc))
+        }
+
+        if (list.isEmpty()) {
+            val emptyView = layoutInflater.inflate(R.layout.item_admin_report, container, false)
+            emptyView.findViewById<TextView>(R.id.textReportId)?.text = "No recent incidents"
+            emptyView.findViewById<TextView>(R.id.textReportPriorityPill)?.visibility = View.GONE
+            emptyView.findViewById<TextView>(R.id.textReportStatusPill)?.visibility = View.GONE
+            emptyView.findViewById<TextView>(R.id.textReportTime)?.text = "All clear"
+            container.addView(emptyView)
+            return
+        }
+
+        list.take(3).forEach { report ->
+            val row = layoutInflater.inflate(R.layout.item_admin_report, container, false)
+            row.findViewById<TextView>(R.id.textReportId)?.text = report.id
+            val priorityPill = row.findViewById<TextView>(R.id.textReportPriorityPill)
+            priorityPill?.text = report.priority
+            if (report.priority.contains("High")) {
+                priorityPill?.setBackgroundResource(R.drawable.bg_pill_high_priority)
+                priorityPill?.setTextColor(ContextCompat.getColor(this, R.color.sos_red))
+            } else {
+                priorityPill?.setBackgroundResource(R.drawable.bg_pill_pending)
+                priorityPill?.setTextColor(ContextCompat.getColor(this, R.color.amber_alert))
+            }
+
+            row.findViewById<TextView>(R.id.textReportTime)?.text = report.time
+            val statusPill = row.findViewById<TextView>(R.id.textReportStatusPill)
+            statusPill?.text = report.status
+            if (report.status.equals("Active", ignoreCase = true)) {
+                statusPill?.setBackgroundResource(R.drawable.bg_pill_active)
+                statusPill?.setTextColor(ContextCompat.getColor(this, R.color.sos_red))
+            } else {
+                statusPill?.setBackgroundResource(R.drawable.bg_pill_pending)
+                statusPill?.setTextColor(ContextCompat.getColor(this, R.color.amber_alert))
+            }
+
+            row.setOnClickListener {
+                if (report.emergency != null) {
+                    showEmergencyActionDialog(report.emergency)
+                } else if (report.incident != null) {
+                    showUpdateIncidentStatusDialog(report.incident.id, report.incident.status)
+                }
+            }
+
+            container.addView(row)
+        }
+    }
+
+    private fun showEmergencyActionDialog(emergency: EmergencyItem) {
+        val dateStr = SimpleDateFormat("dd MMM, HH:mm:ss", Locale.getDefault()).format(Date(emergency.startedAtMs))
+        val locText = if (emergency.latitude != null && emergency.longitude != null) {
+            "Lat: ${emergency.latitude}, Lng: ${emergency.longitude} (±${emergency.accuracy.toInt()}m)"
+        } else {
+            "GPS Fix Pending"
+        }
+        val details = "Started: $dateStr\nLocation: $locText\nCaller UID: ${emergency.uid}\nNote: ${emergency.note ?: "None"}\nStatus: ${emergency.status}"
+
+        AlertDialog.Builder(this)
+            .setTitle("Emergency #${emergency.alertId.takeLast(4).uppercase()}")
+            .setMessage(details)
+            .setPositiveButton("Mark Resolved") { _, _ ->
+                database.getReference("sos_alerts")
+                    .child(emergency.uid)
+                    .child(emergency.alertId)
+                    .child("status")
+                    .setValue("RESOLVED")
+                Toast.makeText(this, "Marked emergency resolved", Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("View on Map") { _, _ ->
+                startActivity(Intent(this, AdminMapActivity::class.java))
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showNotificationsSummaryDialog() {
+        val activeCount = emergencyList.count { it.isActive }
+        val pendingCount = verificationList.count { it.status == "PENDING" }
+        AlertDialog.Builder(this)
+            .setTitle("Admin Notifications")
+            .setMessage("Active SOS Alerts: $activeCount\nPending ID Verifications: $pendingCount\nReported Hazards: ${hazardList.size}")
+            .setPositiveButton("Close", null)
+            .setNeutralButton("View Incidents") { _, _ ->
+                currentTab = AdminTab.INCIDENTS
+                updateTabStyles()
+            }
+            .show()
     }
 
     private fun setupRealtimeFirebaseListeners() {
@@ -336,6 +550,7 @@ class AdminDashboardActivity : AppCompatActivity() {
                 }
                 findViewById<TextView>(R.id.textViewActiveIncidentsCount).text = activeIncidents.toString()
                 if (currentTab == AdminTab.INCIDENTS) renderCurrentTabContent()
+                updateRecentReportsList()
             }
 
             override fun onCancelled(error: DatabaseError) {}
@@ -389,16 +604,25 @@ class AdminDashboardActivity : AppCompatActivity() {
             inSelectedScope(em.latitude, em.longitude)
         }
         val stats = EmergencyPriorityCalculator.calculate(scoped)
-        findViewById<TextView>(R.id.textViewTotalSosCount).text = stats.totalSosCount.toString()
-        findViewById<TextView>(R.id.textViewVerifiedSosCount).text = stats.verifiedUserSosCount.toString()
-        findViewById<TextView>(R.id.textViewUnverifiedSosCount).text = stats.unverifiedUserSosCount.toString()
-        findViewById<TextView>(R.id.textViewPriorityScore).text = stats.emergencyPriorityScore.toString()
-        findViewById<TextView>(R.id.textViewActiveSosCount).text =
-            scoped.count { it.isActive }.toString()
+        findViewById<TextView>(R.id.textViewTotalSosCount)?.text = stats.totalSosCount.toString()
+        findViewById<TextView>(R.id.textViewVerifiedSosCount)?.text = stats.verifiedUserSosCount.toString()
+        findViewById<TextView>(R.id.textViewUnverifiedSosCount)?.text = stats.unverifiedUserSosCount.toString()
+        findViewById<TextView>(R.id.textViewPriorityScore)?.text = stats.emergencyPriorityScore.toString()
+        val activeCount = scoped.count { it.isActive }
+        findViewById<TextView>(R.id.textViewActiveSosCount)?.text = activeCount.toString()
+        val highCount = scoped.count { it.isActive && it.isVerified }
+        val medCount = scoped.count { it.isActive && !it.isVerified }
+        val lowCount = scoped.count { !it.isActive }
+        findViewById<TextView>(R.id.textStatActiveSosBreakdown)?.text = "$highCount High · $medCount Medium · $lowCount Low"
+        findViewById<TextView>(R.id.textAdminNotificationCount)?.text = activeCount.coerceAtLeast(1).toString()
+
         // §41: SOS started since midnight of the current day.
         val startOfToday = startOfTodayMs()
-        findViewById<TextView>(R.id.textViewTodaySosCount).text =
+        findViewById<TextView>(R.id.textViewTodaySosCount)?.text =
             scoped.count { it.startedAtMs >= startOfToday }.toString()
+
+        updateRecentReportsList()
+        updateMapPreviewMarkers()
     }
 
     private fun startOfTodayMs(): Long {

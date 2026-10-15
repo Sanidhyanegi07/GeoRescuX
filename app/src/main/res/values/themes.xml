@@ -1,30 +1,68 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme styled with D:\UI dark design system. -->
-    <style name="Theme.GeoRescuX" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/violet_accent</item>
-        <item name="colorPrimaryVariant">@color/bg_app</item>
+    <!-- GeoRescuX Light Modern Emergency Theme -->
+    <style name="Theme.GeoRescuX" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Primary brand color -->
+        <item name="colorPrimary">@color/brand_primary</item>
+        <item name="colorPrimaryVariant">@color/brand_primary_dark</item>
         <item name="colorOnPrimary">@color/white</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/violet_light</item>
-        <item name="colorSecondaryVariant">@color/violet_dim</item>
+        
+        <!-- Secondary brand color -->
+        <item name="colorSecondary">@color/brand_accent</item>
+        <item name="colorSecondaryVariant">@color/brand_primary_light</item>
         <item name="colorOnSecondary">@color/white</item>
+        
         <!-- Backgrounds and Surfaces -->
         <item name="android:windowBackground">@color/bg_app</item>
         <item name="colorSurface">@color/bg_surface</item>
         <item name="colorOnSurface">@color/text_primary</item>
-        <!-- Status bar and navigation bar. -->
+        
+        <!-- Status bar and navigation bar insets -->
         <item name="android:statusBarColor">@color/bg_app</item>
-        <item name="android:navigationBarColor">@color/bg_app</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:navigationBarColor">@color/bg_surface</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+        
         <!-- Material Card Styling Defaults -->
         <item name="materialCardViewStyle">@style/Widget.GeoRescuX.Card</item>
+        <item name="materialButtonStyle">@style/Widget.GeoRescuX.Button</item>
     </style>
 
     <style name="Widget.GeoRescuX.Card" parent="Widget.MaterialComponents.CardView">
         <item name="cardBackgroundColor">@color/bg_card</item>
         <item name="cardCornerRadius">16dp</item>
-        <item name="cardElevation">0dp</item>
-        <item name="strokeColor">@color/divider_subtle</item>
+        <item name="cardElevation">1dp</item>
+        <item name="strokeColor">@color/border_subtle</item>
         <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.GeoRescuX.Button" parent="Widget.MaterialComponents.Button">
+        <item name="cornerRadius">14dp</item>
+        <item name="backgroundTint">@color/brand_primary</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">15sp</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.GeoRescuX.Button.Secondary" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="cornerRadius">14dp</item>
+        <item name="strokeColor">@color/border_subtle</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">14sp</item>
+        <item name="backgroundTint">@color/white</item>
+    </style>
+
+    <style name="Widget.GeoRescuX.Button.Danger" parent="Widget.MaterialComponents.Button">
+        <item name="cornerRadius">14dp</item>
+        <item name="backgroundTint">@color/sos_red</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">15sp</item>
+        <item name="elevation">0dp</item>
     </style>
 </resources>

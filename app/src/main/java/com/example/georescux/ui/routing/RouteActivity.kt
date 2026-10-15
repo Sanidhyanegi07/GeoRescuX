@@ -131,6 +131,13 @@ class RouteActivity : AppCompatActivity() {
         mapView.setMultiTouchControls(true)
         val mapCacheBadge = findViewById<TextView>(R.id.textViewMapCacheState)
 
+        findViewById<View>(R.id.buttonRouteBack)?.setOnClickListener { finish() }
+        findViewById<View>(R.id.buttonBackToSos)?.setOnClickListener { finish() }
+        findViewById<View>(R.id.buttonStartNavigation)?.setOnClickListener {
+            Toast.makeText(this, "Evacuation guidance started. Follow highlighted safe path.", Toast.LENGTH_SHORT).show()
+        }
+        updateProModeUi()
+
         // Wire map floating controls (My Location, Zoom in, Zoom out)
         findViewById<View>(R.id.buttonMyLocation)?.setOnClickListener {
             val fix = lastUserFix ?: userLocationMarker?.position
@@ -823,6 +830,7 @@ class RouteActivity : AppCompatActivity() {
         // this screen was closed must appear on the map, and the badge must
         // reflect the current network state.
         updateConnectivityBadge()
+        updateProModeUi()
         if (staticOverlaysRendered) {
             renderSosMarkers()
             graph?.let { renderBlockedRoads(it, findViewById(R.id.mapView)) }
@@ -868,6 +876,13 @@ class RouteActivity : AppCompatActivity() {
         } catch (_: Exception) {
         }
         connectivityCallback = null
+    }
+
+    private fun updateProModeUi() {
+        val hasActiveSos = container().sosRepository.getActiveEmergency() != null
+        findViewById<View>(R.id.textSafeRouteProBadge)?.visibility = if (hasActiveSos) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.textNormalModeBadge)?.visibility = if (hasActiveSos) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.buttonBackToSos)?.visibility = if (hasActiveSos) View.VISIBLE else View.GONE
     }
 
     override fun onDestroy() {

@@ -9,11 +9,11 @@
         android:icon="@drawable/ic_nav_map"
         android:title="@string/nav_map" />
     <item
-        android:id="@+id/nav_alerts"
-        android:icon="@drawable/ic_nav_alerts"
-        android:title="@string/nav_alerts" />
+        android:id="@+id/nav_contacts"
+        android:icon="@drawable/ic_emergency_contacts"
+        android:title="@string/nav_contacts" />
     <item
-        android:id="@+id/nav_profile"
+        android:id="@+id/nav_more"
         android:icon="@drawable/ic_nav_profile"
-        android:title="@string/nav_profile" />
+        android:title="@string/nav_more" />
 </menu>

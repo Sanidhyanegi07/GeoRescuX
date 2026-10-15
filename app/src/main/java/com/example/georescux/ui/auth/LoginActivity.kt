@@ -60,6 +60,18 @@ class LoginActivity : AppCompatActivity() {
             startActivity(Intent(this, RegisterActivity::class.java))
         }
 
+        findViewById<View>(R.id.tabSignUp)?.setOnClickListener {
+            startActivity(Intent(this, RegisterActivity::class.java))
+        }
+
+        findViewById<View>(R.id.textForgotPassword)?.setOnClickListener {
+            android.widget.Toast.makeText(this, "Password reset link will be sent to your registered email address.", android.widget.Toast.LENGTH_SHORT).show()
+        }
+
+        findViewById<View>(R.id.buttonGoogleSignIn)?.setOnClickListener {
+            android.widget.Toast.makeText(this, "Google Sign-In requires active Google Play Services connection.", android.widget.Toast.LENGTH_SHORT).show()
+        }
+
         observeAuthState(errorText, loginButton)
     }
 

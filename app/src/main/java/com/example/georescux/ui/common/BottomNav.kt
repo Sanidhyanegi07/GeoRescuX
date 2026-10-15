@@ -29,8 +29,9 @@ object BottomNav {
             val target = when (item.itemId) {
                 R.id.nav_home -> com.example.georescux.ui.home.HomeActivity::class.java
                 R.id.nav_map -> com.example.georescux.ui.map.MapActivity::class.java
+                R.id.nav_contacts -> com.example.georescux.ui.contacts.ContactsActivity::class.java
                 R.id.nav_alerts -> com.example.georescux.ui.alerts.AlertsActivity::class.java
-                R.id.nav_profile -> com.example.georescux.ui.profile.ProfileActivity::class.java
+                R.id.nav_more, R.id.nav_profile -> com.example.georescux.ui.profile.ProfileActivity::class.java
                 else -> return@setOnItemSelectedListener false
             }
             val intent = Intent(activity, target).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)

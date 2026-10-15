@@ -115,10 +115,15 @@ class AdminUsersActivity : AppCompatActivity() {
                     append(" · SOS records: ${user.sosCount}")
                 }
                 setTextColor(ContextCompat.getColor(this@AdminUsersActivity, R.color.text_primary))
-                textSize = 12f
-                setPadding(20, 16, 20, 16)
-                background = ContextCompat.getDrawable(this@AdminUsersActivity, R.drawable.bg_card_dark)
-            }.also { listContainer.addView(it) }
+                textSize = 13f
+                setPadding(28, 24, 28, 24)
+                background = ContextCompat.getDrawable(this@AdminUsersActivity, R.drawable.bg_card_white)
+            }.also { 
+                val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                params.setMargins(0, 0, 0, 16)
+                it.layoutParams = params
+                listContainer.addView(it) 
+            }
         }
     }
 

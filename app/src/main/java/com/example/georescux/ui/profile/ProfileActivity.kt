@@ -89,10 +89,36 @@ class ProfileActivity : AppCompatActivity() {
         currentVerificationDocPath = saved.verificationDocumentPath
         currentVerificationStatus = saved.verificationStatus
 
+        // Header display and back button
+        findViewById<View>(R.id.buttonProfileBack)?.setOnClickListener { finish() }
+        val nameDisplay = findViewById<TextView>(R.id.textProfileDisplayName)
+        val emailDisplay = findViewById<TextView>(R.id.textProfileDisplayEmail)
+        nameDisplay?.text = saved.name.ifBlank { "User Profile" }
+        emailDisplay?.text = saved.email.ifBlank { FirebaseAuth.getInstance().currentUser?.email.orEmpty().ifBlank { "Offline Account" } }
+
         // Top bar, help, navigation and the region/contacts/logout rows.
-        findViewById<TextView>(R.id.topBarTitle).text = getString(R.string.nav_profile)
+        findViewById<TextView>(R.id.topBarTitle)?.text = "Settings"
         HelpLauncher.bind(this)
         showActiveRegion()
+
+        // App switches
+        val prefs = getSharedPreferences("georescux_app_prefs", MODE_PRIVATE)
+        val switchOffline = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchOfflineMode)
+        val switchSync = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchAutoSync)
+
+        switchOffline?.isChecked = prefs.getBoolean("pref_offline_mode", true)
+        switchSync?.isChecked = prefs.getBoolean("pref_auto_sync", true)
+
+        switchOffline?.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("pref_offline_mode", isChecked).apply()
+            Toast.makeText(this, if (isChecked) "Offline routing prioritized" else "Hybrid routing enabled", Toast.LENGTH_SHORT).show()
+        }
+
+        switchSync?.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("pref_auto_sync", isChecked).apply()
+            Toast.makeText(this, if (isChecked) "Auto-sync active when connected" else "Auto-sync paused", Toast.LENGTH_SHORT).show()
+        }
+
         findViewById<LinearLayout>(R.id.rowRegion).setOnClickListener {
             startActivity(Intent(this, RegionSelectionActivity::class.java))
         }
@@ -100,14 +126,21 @@ class ProfileActivity : AppCompatActivity() {
             startActivity(Intent(this, ContactsActivity::class.java))
         }
         findViewById<View>(R.id.buttonLogout).setOnClickListener {
-            FirebaseAuth.getInstance().signOut()
-            startActivity(
-                Intent(this, LoginActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
-            )
-            finish()
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Log Out")
+                .setMessage("Are you sure you want to log out of GeoRescuX?")
+                .setPositiveButton("Log Out") { _, _ ->
+                    FirebaseAuth.getInstance().signOut()
+                    startActivity(
+                        Intent(this, LoginActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+                    )
+                    finish()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
         }
-        BottomNav.bind(this, R.id.nav_profile)
+        BottomNav.bind(this, R.id.nav_more)
         observeVerificationStatus(verificationStatusText)
 
         val documentPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->

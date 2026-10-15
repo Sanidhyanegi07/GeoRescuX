@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    app:cardBackgroundColor="@color/bg_card"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="1dp"
+    app:strokeColor="@color/border_subtle"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:id="@+id/reportRowLayout"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp">
+
+        <!-- Report ID -->
+        <TextView
+            android:id="@+id/textReportId"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="#SOS-1042"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <!-- Priority Pill -->
+        <TextView
+            android:id="@+id/textReportPriorityPill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_pill_high_priority"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp"
+            android:text="High Priority"
+            android:textColor="@color/sos_red"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Timestamp -->
+        <TextView
+            android:id="@+id/textReportTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:text="12:46 PM"
+            android:textColor="@color/text_muted"
+            android:textSize="12sp" />
+
+        <!-- Status Pill -->
+        <TextView
+            android:id="@+id/textReportStatusPill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_pill_active"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp"
+            android:text="Active"
+            android:textColor="@color/sos_red"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <!-- Chevron -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="›"
+            android:textColor="@color/text_muted"
+            android:textSize="18sp" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

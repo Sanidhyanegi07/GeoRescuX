@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Mountain base -->
+    <path
+        android:fillColor="#0066CC"
+        android:pathData="M24,6 L4,38 L44,38 Z" />
+    <!-- Snow peak highlight -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M24,6 L18,17 L24,19 L30,17 Z" />
+    <!-- Mountain ridge shadow -->
+    <path
+        android:fillColor="#004C99"
+        android:pathData="M24,6 L24,38 L44,38 Z" />
+    <!-- Rescue cross accent in center -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M22,23 H26 V27 H30 V31 H26 V35 H22 V31 H18 V27 H22 Z" />
+</vector>

@@ -1,6 +1,7 @@
 package com.example.georescux.ui.sos
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
@@ -122,6 +123,25 @@ class SosActivity : AppCompatActivity() {
             locationPermissionLauncher.launch(LOCATION_PERMISSIONS)
         }
         
+        findViewById<View>(R.id.buttonSosBack)?.setOnClickListener {
+            finish()
+        }
+
+        findViewById<View>(R.id.buttonCancelSosModal)?.setOnClickListener {
+            if (viewModel.uiState.value.state == SosState.COUNTDOWN) {
+                viewModel.cancelCountdown()
+            }
+            finish()
+        }
+
+        findViewById<View>(R.id.buttonViewLocationOnMap)?.setOnClickListener {
+            startActivity(Intent(this, com.example.georescux.ui.routing.RouteActivity::class.java))
+        }
+
+        findViewById<View>(R.id.bannerSafeRoutePro)?.setOnClickListener {
+            startActivity(Intent(this, com.example.georescux.ui.routing.RouteActivity::class.java))
+        }
+
         val editNote = findViewById<EditText>(R.id.editNote)
         val textNoteCounter = findViewById<TextView>(R.id.textNoteCounter)
         

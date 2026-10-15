@@ -42,7 +42,8 @@ class RegisterActivity : AppCompatActivity() {
         val confirmPasswordInput = findViewById<EditText>(R.id.editTextConfirmPassword)
         val errorText = findViewById<TextView>(R.id.textViewError)
         val registerButton = findViewById<Button>(R.id.buttonRegister)
-        val backToLoginButton = findViewById<Button>(R.id.buttonBackToLogin)
+        val backToLoginButton = findViewById<View>(R.id.buttonBackToLogin)
+        val goToLoginButton = findViewById<View>(R.id.buttonGoToLogin)
 
         registerButton.setOnClickListener {
             val email = emailInput.text.toString().trim()
@@ -59,6 +60,10 @@ class RegisterActivity : AppCompatActivity() {
         }
 
         backToLoginButton.setOnClickListener {
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()
+        }
+        goToLoginButton?.setOnClickListener {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
         }

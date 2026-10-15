@@ -1,26 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One row of the emergency-contacts list (inflated per contact). -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardContact"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="10dp"
     app:cardBackgroundColor="@color/bg_card"
-    app:cardCornerRadius="14dp"
-    app:cardElevation="0dp"
-    app:strokeColor="@color/divider_subtle"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="1dp"
+    app:strokeColor="@color/border_subtle"
     app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:padding="14dp">
 
+        <!-- Avatar Initials Circle -->
+        <FrameLayout
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/bg_tab_container">
+
+            <TextView
+                android:id="@+id/textContactInitials"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="M"
+                android:textColor="@color/brand_primary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </FrameLayout>
+
+        <!-- Contact Info -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -34,6 +54,7 @@
                     android:id="@+id/textContactName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:text="Contact Name"
                     android:textColor="@color/text_primary"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -42,12 +63,13 @@
                     android:id="@+id/textContactPriority"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/bg_badge_pill"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_pill_high_priority"
                     android:paddingHorizontal="6dp"
                     android:paddingVertical="2dp"
-                    android:textColor="@color/violet_light"
-                    android:textSize="10sp"
+                    android:text="Primary"
+                    android:textColor="@color/sos_red"
+                    android:textSize="9sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -55,34 +77,42 @@
                 android:id="@+id/textContactPhone"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
+                android:layout_marginTop="2dp"
+                android:text="+91 98765 43210"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/textContactRelationship"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="@color/text_muted"
-                android:textSize="12sp" />
+                android:layout_marginTop="1dp"
+                android:text="Family"
+                android:textColor="@color/text_subtle"
+                android:textSize="11sp" />
         </LinearLayout>
 
-        <Button
+        <!-- Action Call Button -->
+        <ImageButton
+            android:id="@+id/buttonCallContact"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_pill_low_risk"
+            android:contentDescription="Call Contact"
+            android:padding="10dp"
+            android:src="@drawable/ic_phone_call"
+            app:tint="@color/brand_primary" />
+
+        <!-- Delete Action Button (visible or inside menu) -->
+        <ImageButton
             android:id="@+id/buttonDeleteContact"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_button_danger"
-            android:minHeight="0dp"
-            android:minWidth="0dp"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="8dp"
-            android:stateListAnimator="@null"
-            android:text="Delete"
-            android:textAllCaps="false"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            app:backgroundTint="@null" />
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Delete Contact"
+            android:padding="8dp"
+            android:src="@android:drawable/ic_menu_delete"
+            app:tint="@color/text_subtle" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
