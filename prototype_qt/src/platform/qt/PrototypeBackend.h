@@ -4,21 +4,31 @@
 #include <QObject>
 #include <QString>
 #include <QDateTime>
+#include <QVariantList>
 #include <memory>
 
 namespace georescux::telemetry {
 class KalmanFusedLocator;
 }
 
+namespace georescux::mesh {
+class EpidemicRouter;
+}
+
+namespace georescux::audio {
+class AcousticResonanceDetector;
+}
+
 /**
  * @brief Unified Native C++20 backend object exposing full GeoRescuX subsystems to QML.
  * 
  * Direct zero-copy C++ execution of:
- * 1. Routing Engine (A*, Bidirectional A*, Hazard Avoidance)
- * 2. Mesh Networking (Bit-packed packet codec, CRC-16, HMAC-SHA256 auth, Epidemic routing)
+ * 1. Routing Engine (A*, Bidirectional A*, Hazard Avoidance, Turn-by-turn guidance)
+ * 2. Mesh Networking (Bit-packed packet codec, CRC-16, HMAC-SHA256, Epidemic router, Bloom filter)
  * 3. MCI Medical Triage (START protocol, urgency scoring, casualty survival analytics)
- * 4. Spatial Intelligence (KD-Tree safe haven search, geodesic polygons)
+ * 4. Spatial Intelligence (KD-Tree safe haven search, geodesic polygons, coordinate projection)
  * 5. Telemetry & Sensor Fusion (6-State Extended Kalman Filter)
+ * 6. Acoustic Search & Rescue (FFT spectral resonance, rubble tapping, Morse SOS detection)
  */
 class PrototypeBackend : public QObject {
     Q_OBJECT
@@ -29,6 +39,7 @@ class PrototypeBackend : public QObject {
     Q_PROPERTY(QString meshSummary READ meshSummary NOTIFY meshSummaryChanged)
     Q_PROPERTY(QString triageSummary READ triageSummary NOTIFY triageSummaryChanged)
     Q_PROPERTY(QString spatialSummary READ spatialSummary NOTIFY spatialSummaryChanged)
+    Q_PROPERTY(QString acousticSummary READ acousticSummary NOTIFY acousticSummaryChanged)
 
 public:
     explicit PrototypeBackend(QObject *parent = nullptr);
@@ -41,13 +52,15 @@ public:
     QString meshSummary() const noexcept;
     QString triageSummary() const noexcept;
     QString spatialSummary() const noexcept;
+    QString acousticSummary() const noexcept;
 
-    // Subsystem 1: Geodesic & A* Evacuation Routing
+    // Subsystem 1: Geodesic & A* Evacuation Routing with Navigation Cues
     Q_INVOKABLE void runGeodesicBenchmark();
     Q_INVOKABLE void runAStarRoutingBenchmark(bool avoidHazards = true);
 
-    // Subsystem 2: BLE Mesh Packet Codec & Cryptographic Authenticator
+    // Subsystem 2: BLE Mesh Packet Codec, HMAC Authenticator & Epidemic DTN Router
     Q_INVOKABLE void runMeshPacketBenchmark(int urgency = 3, int battery = 85, int peopleCount = 4);
+    Q_INVOKABLE void runEpidemicMeshRelayBenchmark();
 
     // Subsystem 3: MCI Disaster Triage & Survival Analytics
     Q_INVOKABLE void runTriageAssessment(
@@ -59,11 +72,17 @@ public:
         bool trapped
     );
 
-    // Subsystem 4: Spatial KD-Tree Shelter Lookup & Hazard Geometry
+    // Subsystem 4: Spatial KD-Tree Shelter Lookup & Map Waypoint Retrieval
     Q_INVOKABLE void runSpatialShelterQuery(double lat = 30.3165, double lon = 78.0322);
+    Q_INVOKABLE QVariantList getMapWaypoints() const;
+    Q_INVOKABLE QVariantList getMapShelters() const;
+    Q_INVOKABLE QVariantMap getActiveHazardZone() const;
 
     // Subsystem 5: Sensor Fusion Extended Kalman Filter
     Q_INVOKABLE void runKalmanFusionStep(double gpsLat = 30.3165, double gpsLon = 78.0322, float accelX = 0.5f, float accelY = 0.2f);
+
+    // Subsystem 6: Acoustic Resonance & Rubble Tapping Detector
+    Q_INVOKABLE void runAcousticDetectionBenchmark(bool simulateWhistle = true);
 
     // Lifecycle logging
     Q_INVOKABLE void notifyAppLifecycleState(const QString &state);
@@ -76,12 +95,15 @@ signals:
     void meshSummaryChanged(const QString &summary);
     void triageSummaryChanged(const QString &summary);
     void spatialSummaryChanged(const QString &summary);
+    void acousticSummaryChanged(const QString &summary);
 
-    void routeCalculated(const QString &nodePath, double distanceMeters, double costMeters, int durationSeconds, const QString &warnings);
+    void routeCalculated(const QString &nodePath, double distanceMeters, double costMeters, int durationSeconds, const QString &warnings, const QVariantList &stepInstructions);
     void meshPacketProcessed(const QString &packetHex, int sizeBytes, bool crcValid, const QString &hmacDigest, const QString &decodedSummary);
+    void meshRelayUpdated(int queueSize, int forwardCount, int bloomFiltersCount, const QString &relayReport);
     void triageEvaluated(const QString &category, int score, const QString &reason, const QString &intervention, double survivalProb);
     void shelterFound(const QString &shelterName, double lat, double lon, double distanceMeters);
     void locationFused(double lat, double lon, double speedMps, double accuracyMeters);
+    void acousticPatternDetected(bool isRhythmic, bool isMorse, double periodMs, double regularityScore, const QString &peaksSummary);
     void logMessageEmitted(const QString &formattedMessage);
 
 private:
@@ -92,8 +114,11 @@ private:
     QString m_meshSummary;
     QString m_triageSummary;
     QString m_spatialSummary;
+    QString m_acousticSummary;
 
     std::unique_ptr<georescux::telemetry::KalmanFusedLocator> m_kalmanLocator;
+    std::unique_ptr<georescux::mesh::EpidemicRouter> m_epidemicRouter;
+    std::unique_ptr<georescux::audio::AcousticResonanceDetector> m_acousticDetector;
 
     void appendLog(const QString &msg);
 };
