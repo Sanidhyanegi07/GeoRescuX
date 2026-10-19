@@ -11,6 +11,8 @@ function(georescux_configure_android_target TARGET_NAME)
             QT_ANDROID_PACKAGE_VERSION_NAME "1.0.0"
             QT_ANDROID_MIN_SDK_VERSION "28"
             QT_ANDROID_TARGET_SDK_VERSION "35"
+            QT_ANDROID_COMPILE_SDK_VERSION "35"
+            QT_ANDROID_SDK_BUILD_TOOLS_REVISION "35.0.0"
             QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/platform/android"
         )
     endif()
