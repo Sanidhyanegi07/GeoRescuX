@@ -1,0 +1,51 @@
+# ==============================================================================
+# GeoRescuX Qt Prototype — Git Ignore Rules
+# ==============================================================================
+
+# Build directories & generator caches
+build*/
+cmake-build-*/
+.build/
+.ninja*
+*.ninja
+*.ninja_deps
+*.ninja_log
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CMakeScripts/
+Makefile
+compile_commands.json
+
+# Qt MOC, RCC, QML cache & autogen files
+.qt/
+.rcc/
+*_autogen/
+*.qmlc
+*.jsc
+*.aotstats
+*.moc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# Qt Creator & IDE project settings
+*.user
+*.user.*
+*.autosave
+.vscode/
+.idea/
+
+# Binaries, libraries & packages
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.apk
+*.aab
+
+# Logs & diagnostics
+*.log
+out.log
