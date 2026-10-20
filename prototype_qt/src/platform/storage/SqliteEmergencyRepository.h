@@ -26,13 +26,14 @@ public:
 
     georescux::domain::EmergencyResult<georescux::domain::EmergencyRecord>
     updateLocation(
+        const QString &userId,
         const QString &emergencyId,
         const georescux::domain::EmergencyLocation &location,
         georescux::domain::EmergencyLocationStatus status
     ) override;
 
     georescux::domain::EmergencyResult<georescux::domain::EmergencyRecord>
-    updateNote(const QString &emergencyId, const QString &note) override;
+    updateNote(const QString &userId, const QString &emergencyId, const QString &note) override;
 
     georescux::domain::EmergencyResult<georescux::domain::EmergencyRecord>
     completeEmergency(const QString &userId, const QString &emergencyId) override;

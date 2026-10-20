@@ -35,8 +35,10 @@ public:
 
     /**
      * @brief Updates the location of an existing emergency record.
+     * Enforces user ownership: caller must match user_id on active record.
      */
     virtual EmergencyResult<EmergencyRecord> updateLocation(
+        const QString &userId,
         const QString &emergencyId,
         const EmergencyLocation &location,
         EmergencyLocationStatus status
@@ -44,8 +46,10 @@ public:
 
     /**
      * @brief Updates the optional emergency note (capped at 120 characters).
+     * Enforces user ownership: caller must match user_id on active record.
      */
     virtual EmergencyResult<EmergencyRecord> updateNote(
+        const QString &userId,
         const QString &emergencyId,
         const QString &note
     ) = 0;

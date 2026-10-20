@@ -80,14 +80,22 @@ public:
     Q_INVOKABLE bool navigateTo(const QString &destination);
 
     /**
-     * @brief Activates a real persistent SOS emergency for the currently authenticated user.
+     * @brief Activates a real persistent SOS emergency for the currently authenticated Citizen user.
+     * Explicitly rejects Admin sessions.
      */
     Q_INVOKABLE bool activateSos(const QString &note = QString());
 
     /**
-     * @brief Completes and resolves the active SOS emergency for the authenticated user.
+     * @brief Completes and resolves the active SOS emergency for the authenticated Citizen user.
+     * Explicitly rejects Admin sessions.
      */
     Q_INVOKABLE bool resolveSos();
+
+    /**
+     * @brief Updates note on the active SOS emergency for the authenticated Citizen user.
+     * Explicitly rejects Admin sessions.
+     */
+    Q_INVOKABLE bool updateActiveNote(const QString &note);
 
     /**
      * @brief Visibly labeled test facility for role switching with session caching.

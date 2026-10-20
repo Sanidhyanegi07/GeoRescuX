@@ -267,6 +267,13 @@ bool LocalDatabase::executeSchemaV2() {
         return false;
     }
 
+    // Controlled failure test seam for transactional rollback verification
+    if (m_simulateMigrationFailure) {
+        db.rollback();
+        m_lastError = QStringLiteral("Simulated Schema V2 migration failure for rollback verification.");
+        return false;
+    }
+
     // 2. Partial unique index enforcing AT MOST ONE ACTIVE emergency per user
     const QString createActiveIndex = QStringLiteral(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_emergency_per_user "

@@ -58,8 +58,21 @@ public:
 
     /**
      * @brief Updates the note on the active emergency.
+     * Enforces authenticated user ownership.
      */
-    Q_INVOKABLE bool updateActiveNote(const QString &emergencyId, const QString &note);
+    Q_INVOKABLE bool updateActiveNote(const QString &userId, const QString &emergencyId, const QString &note);
+    Q_INVOKABLE bool updateActiveNote(const QString &note);
+
+    /**
+     * @brief Updates location on the active emergency.
+     * Enforces authenticated user ownership.
+     */
+    bool updateLocation(
+        const QString &userId,
+        const QString &emergencyId,
+        const EmergencyLocation &location,
+        EmergencyLocationStatus status
+    );
 
     /**
      * @brief Restores active emergency state from persistent SQLite for the authenticated user.

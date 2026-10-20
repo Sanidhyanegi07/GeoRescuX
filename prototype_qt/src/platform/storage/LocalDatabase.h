@@ -69,6 +69,10 @@ public:
 
     void close();
 
+    // Test seam: Simulates Schema V2 migration failure for transactional rollback verification
+    void setSimulateMigrationFailure(bool fail) noexcept { m_simulateMigrationFailure = fail; }
+    [[nodiscard]] bool simulateMigrationFailure() const noexcept { return m_simulateMigrationFailure; }
+
 private:
     bool applyMigrations();
     bool executeSchemaV1();
@@ -80,6 +84,7 @@ private:
     mutable QRecursiveMutex m_mutex;
     QThread *m_creatorThread{nullptr};
     bool m_isInitialized{false};
+    bool m_simulateMigrationFailure{false};
 };
 
 } // namespace georescux::storage

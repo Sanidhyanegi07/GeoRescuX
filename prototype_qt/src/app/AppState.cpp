@@ -189,6 +189,10 @@ bool AppState::activateSos(const QString &note) {
         qWarning() << "[AppState] Cannot activate SOS: user is not authenticated.";
         return false;
     }
+    if (m_session.isAdmin() || m_session.currentRole() != georescux::domain::UserRole::CitizenUser) {
+        qWarning() << "[AppState] Authorization failure: Admin sessions are not permitted to activate citizen SOS.";
+        return false;
+    }
     if (!m_emergencyService) {
         return false;
     }
@@ -200,11 +204,31 @@ bool AppState::resolveSos() {
         qWarning() << "[AppState] Cannot resolve SOS: user is not authenticated.";
         return false;
     }
+    if (m_session.isAdmin() || m_session.currentRole() != georescux::domain::UserRole::CitizenUser) {
+        qWarning() << "[AppState] Authorization failure: Admin sessions are not permitted to resolve citizen SOS.";
+        return false;
+    }
     if (!m_emergencyService || !m_emergencyService->hasActiveEmergency()) {
         qWarning() << "[AppState] No active SOS to resolve.";
         return false;
     }
     return m_emergencyService->completeEmergency(m_session.currentUserId(), m_emergencyService->activeEmergencyId());
+}
+
+bool AppState::updateActiveNote(const QString &note) {
+    if (!m_session.isAuthenticated() || m_session.currentUserId().isEmpty()) {
+        qWarning() << "[AppState] Cannot update SOS note: user is not authenticated.";
+        return false;
+    }
+    if (m_session.isAdmin() || m_session.currentRole() != georescux::domain::UserRole::CitizenUser) {
+        qWarning() << "[AppState] Authorization failure: Admin sessions are not permitted to mutate citizen SOS.";
+        return false;
+    }
+    if (!m_emergencyService || !m_emergencyService->hasActiveEmergency()) {
+        qWarning() << "[AppState] No active SOS to update note.";
+        return false;
+    }
+    return m_emergencyService->updateActiveNote(m_session.currentUserId(), m_emergencyService->activeEmergencyId(), note);
 }
 
 bool AppState::loginDevelopmentUser(const QString &name, const QString &email) {

@@ -612,34 +612,158 @@ ApplicationWindow {
                                     }
                                 }
 
-                                Button {
-                                    id: triggerSosBtn
+                                // -----------------------------------------------------
+                                // Two-Second Hold-to-Activate SOS Control (Phase 4 UX)
+                                // -----------------------------------------------------
+                                Rectangle {
+                                    id: sosHoldControl
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 46
-                                    background: Rectangle {
-                                        radius: 8
-                                        gradient: Gradient {
-                                            GradientStop { position: 0.0; color: "#DC2626" }
-                                            GradientStop { position: 1.0; color: "#991B1B" }
-                                        }
-                                        border.color: "#EF4444"
-                                        border.width: 1
+                                    Layout.preferredHeight: 56
+                                    radius: 10
+                                    color: isHolding ? "#450A0A" : "#1F0A0A"
+                                    border.color: isHolding ? "#EF4444" : "#991B1B"
+                                    border.width: isHolding ? 2 : 1
+                                    clip: true
+
+                                    property int holdDurationMs: 2000
+                                    property int holdElapsedMs: 0
+                                    property real holdProgress: 0.0
+                                    property bool isHolding: false
+                                    property bool activationFired: false
+
+                                    function startHold() {
+                                        if (emergencyService.hasActiveEmergency || activationFired) return;
+                                        isHolding = true;
+                                        holdElapsedMs = 0;
+                                        holdProgress = 0.0;
+                                        activationFired = false;
+                                        holdTimer.restart();
                                     }
-                                    contentItem: RowLayout {
-                                        anchors.centerIn: parent
-                                        spacing: 8
-                                        Text { text: "🚨"; font.pixelSize: 16 }
-                                        Text {
-                                            text: "ACTIVATE EMERGENCY SOS"
-                                            color: "#FFFFFF"
-                                            font.pixelSize: 13
-                                            font.weight: Font.Bold
-                                        }
+
+                                    function cancelHold() {
+                                        holdTimer.stop();
+                                        isHolding = false;
+                                        holdElapsedMs = 0;
+                                        holdProgress = 0.0;
+                                        activationFired = false;
                                     }
-                                    onClicked: {
+
+                                    function completeHold() {
+                                        holdTimer.stop();
+                                        isHolding = false;
+                                        activationFired = true;
+                                        holdProgress = 1.0;
                                         const note = sosNoteInput.text;
                                         appState.activateSos(note);
                                         sosNoteInput.text = "";
+                                        resetTimer.restart();
+                                    }
+
+                                    Timer {
+                                        id: holdTimer
+                                        interval: 25
+                                        repeat: true
+                                        onTriggered: {
+                                            if (!sosHoldControl.isHolding || emergencyService.hasActiveEmergency) {
+                                                stop();
+                                                return;
+                                            }
+                                            sosHoldControl.holdElapsedMs += 25;
+                                            sosHoldControl.holdProgress = Math.min(1.0, sosHoldControl.holdElapsedMs / sosHoldControl.holdDurationMs);
+
+                                            if (sosHoldControl.holdElapsedMs >= sosHoldControl.holdDurationMs) {
+                                                sosHoldControl.completeHold();
+                                            }
+                                        }
+                                    }
+
+                                    Timer {
+                                        id: resetTimer
+                                        interval: 400
+                                        repeat: false
+                                        onTriggered: {
+                                            sosHoldControl.holdProgress = 0.0;
+                                            sosHoldControl.holdElapsedMs = 0;
+                                            sosHoldControl.activationFired = false;
+                                        }
+                                    }
+
+                                    // Dynamic Animated Fill Bar
+                                    Rectangle {
+                                        id: progressFill
+                                        anchors.left: parent.left
+                                        anchors.top: parent.top
+                                        anchors.bottom: parent.bottom
+                                        width: parent.width * sosHoldControl.holdProgress
+                                        radius: parent.radius
+                                        gradient: Gradient {
+                                            GradientStop { position: 0.0; color: "#DC2626" }
+                                            GradientStop { position: 1.0; color: "#B91C1C" }
+                                        }
+                                        visible: sosHoldControl.holdProgress > 0.0
+                                    }
+
+                                    // Foreground Content
+                                    RowLayout {
+                                        anchors.centerIn: parent
+                                        spacing: 10
+
+                                        Text {
+                                            text: sosHoldControl.isHolding ? "⏳" : "🚨"
+                                            font.pixelSize: 18
+                                        }
+
+                                        ColumnLayout {
+                                            spacing: 1
+                                            Text {
+                                                text: {
+                                                    if (sosHoldControl.activationFired) return "SOS ACTIVATION INITIATED";
+                                                    if (sosHoldControl.isHolding) {
+                                                        const remaining = Math.max(0.0, (sosHoldControl.holdDurationMs - sosHoldControl.holdElapsedMs) / 1000.0);
+                                                        return "HOLDING... " + remaining.toFixed(1) + "s (RELEASE TO CANCEL)";
+                                                    }
+                                                    return "PRESS AND HOLD 2s TO ACTIVATE SOS";
+                                                }
+                                                color: "#FFFFFF"
+                                                font.pixelSize: 12
+                                                font.weight: Font.Bold
+                                            }
+                                            Text {
+                                                text: sosHoldControl.isHolding
+                                                    ? Math.round(sosHoldControl.holdProgress * 100) + "% complete — Release early to abort"
+                                                    : "Continuous 2.0-second press required to prevent accidental activation"
+                                                color: sosHoldControl.isHolding ? "#FECACA" : "#94A3B8"
+                                                font.pixelSize: 9
+                                            }
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: holdMouseArea
+                                        anchors.fill: parent
+                                        enabled: !emergencyService.hasActiveEmergency
+                                        cursorShape: Qt.PointingHandCursor
+                                        hoverEnabled: true
+
+                                        onPressed: sosHoldControl.startHold()
+                                        onReleased: {
+                                            if (!sosHoldControl.activationFired) {
+                                                sosHoldControl.cancelHold();
+                                            }
+                                        }
+                                        onCanceled: sosHoldControl.cancelHold()
+                                        onExited: {
+                                            if (sosHoldControl.isHolding && !sosHoldControl.activationFired) {
+                                                sosHoldControl.cancelHold();
+                                            }
+                                        }
+                                    }
+
+                                    // Cancel hold on navigation or state change
+                                    Connections {
+                                        target: appState
+                                        function onNavigationChanged() { sosHoldControl.cancelHold(); }
+                                        function onEmergencyStateChanged() { sosHoldControl.cancelHold(); }
                                     }
                                 }
                             }
@@ -893,17 +1017,49 @@ ApplicationWindow {
                         Text { text: "❓ GeoRescuX Help Center & FAQs"; color: "#F8FAFC"; font.pixelSize: 16; font.weight: Font.Bold }
                         Repeater {
                             model: [
-                                { q: "How does GeoRescuX work without cellular networks?", a: "GeoRescuX uses bundled offline topological road graphs and an autonomous peer-to-peer BLE mesh to communicate directly between nearby phones." },
-                                { q: "What is Safe Route?", a: "Safe Route calculates terrain-impedance and hazard-avoidance evacuation paths using local C++20 A* pathfinding." },
-                                { q: "How does the SOS activation countdown work?", a: "SOS requires a continuous 2-second hold to activate, preventing accidental triggers while enabling rapid deployment." },
-                                { q: "Is my personal data encrypted?", a: "Yes. All local state is persisted via structured SQLite tables, and BLE packets are signed using HMAC-SHA256." }
+                                {
+                                    q: "How do I activate an SOS emergency?",
+                                    a: "Press and hold the SOS button continuously for 2.0 seconds. A real-time progress bar and countdown display pending activation. If you release before 2 seconds, leave the screen, or cancel, the activation is immediately aborted without triggering an emergency."
+                                },
+                                {
+                                    q: "Why is a two-second hold required?",
+                                    a: "The two-second hold prevents accidental activations from unintended screen taps or pocket presses while still enabling rapid response during life-safety events. Releasing early resets the timer completely."
+                                },
+                                {
+                                    q: "Are live GPS, BLE mesh, and cloud sync operational?",
+                                    a: "Phase 4 implements the local emergency lifecycle and durable SQLite persistence. Live GPS tracking, BLE mesh radio relay, and Firebase cloud sync are explicitly deferred to subsequent phases and are not yet operational."
+                                },
+                                {
+                                    q: "How is my emergency data secured and persisted?",
+                                    a: "All emergency records and state transitions are durably recorded in local SQLite tables with strict authenticated user ownership validation and atomic transactions."
+                                }
                             ]
                             delegate: Rectangle {
-                                Layout.fillWidth: true; Layout.preferredHeight: 80; radius: 8; color: "#0F172A"; border.color: "#1E293B"
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Math.max(90, faqCol.implicitHeight + 20)
+                                radius: 8
+                                color: "#0F172A"
+                                border.color: "#1E293B"
                                 ColumnLayout {
-                                    anchors.fill: parent; anchors.margins: 10; spacing: 4
-                                    Text { text: modelData.q; color: "#38BDF8"; font.pixelSize: 11; font.weight: Font.Bold }
-                                    Text { text: modelData.a; color: "#CBD5E1"; font.pixelSize: 10; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                    id: faqCol
+                                    anchors.fill: parent
+                                    anchors.margins: 10
+                                    spacing: 4
+                                    Text {
+                                        text: modelData.q
+                                        color: "#38BDF8"
+                                        font.pixelSize: 11
+                                        font.weight: Font.Bold
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+                                    Text {
+                                        text: modelData.a
+                                        color: "#CBD5E1"
+                                        font.pixelSize: 10
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
                                 }
                             }
                         }

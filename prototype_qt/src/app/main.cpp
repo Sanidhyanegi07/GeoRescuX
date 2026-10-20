@@ -162,6 +162,13 @@ int main(int argc, char *argv[]) {
                     return;
                 }
 
+                // Phase 4 Check: Admin session must NOT be permitted to activate SOS
+                if (appState.activateSos(QStringLiteral("Admin unauthorized SOS attempt"))) {
+                    qCritical() << "[GeoRescuX Smoke Test] FAILED: Admin session was incorrectly permitted to activate SOS.";
+                    QCoreApplication::exit(14);
+                    return;
+                }
+
                 // G. Test C++ Algorithmic calculation signal
                 bool signalReceived = false;
                 double receivedDistance = 0.0;
@@ -176,11 +183,11 @@ int main(int argc, char *argv[]) {
 
                 if (!signalReceived || receivedDistance <= 0.0) {
                     qCritical() << "[GeoRescuX Smoke Test] FAILED: Geodesic calculation signal not received.";
-                    QCoreApplication::exit(14);
+                    QCoreApplication::exit(15);
                     return;
                 }
 
-                qInfo() << "[GeoRescuX Smoke Test] ALL PHASE 3 CHECKS PASSED: Session, Roles, Navigation, SQLite V2, Emergency Lifecycle, and C++ Engine verified.";
+                qInfo() << "[GeoRescuX Smoke Test] ALL PHASE 4 CHECKS PASSED: Session, Roles, Navigation, SQLite V2, Hardened Emergency Lifecycle, Admin Rejection, and C++ Engine verified.";
                 QCoreApplication::exit(0);
             });
         }

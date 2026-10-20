@@ -229,14 +229,18 @@ SqliteEmergencyRepository::activateEmergency(const QString &userId, const QStrin
 
 EmergencyResult<EmergencyRecord>
 SqliteEmergencyRepository::updateLocation(
+    const QString &userId,
     const QString &emergencyId,
     const EmergencyLocation &location,
     EmergencyLocationStatus status
 ) {
-    if (emergencyId.trimmed().isEmpty()) {
+    const QString trimmedUid = userId.trimmed();
+    const QString trimmedEid = emergencyId.trimmed();
+
+    if (trimmedUid.isEmpty() || trimmedEid.isEmpty()) {
         return EmergencyResult<EmergencyRecord>::fail(
             EmergencyErrorCode::InvalidInput,
-            QStringLiteral("Emergency ID must not be empty.")
+            QStringLiteral("User ID and Emergency ID must not be empty.")
         );
     }
 
@@ -256,6 +260,38 @@ SqliteEmergencyRepository::updateLocation(
     }
 
     QSqlDatabase db = QSqlDatabase::database(m_database->connectionName());
+
+    // Check ownership and state to distinguish NotFound from InvalidState without leaking foreign records
+    QSqlQuery checkQ(db);
+    checkQ.prepare(QStringLiteral(
+        "SELECT status, user_id FROM emergency_records WHERE emergency_id = :id;"
+    ));
+    checkQ.bindValue(QStringLiteral(":id"), trimmedEid);
+
+    if (!checkQ.exec() || !checkQ.next()) {
+        return EmergencyResult<EmergencyRecord>::fail(
+            EmergencyErrorCode::NotFound,
+            QStringLiteral("Emergency not found: ") + trimmedEid
+        );
+    }
+
+    const QString recordUid = checkQ.value(1).toString();
+    if (recordUid != trimmedUid) {
+        // Do not reveal another user's emergency details
+        return EmergencyResult<EmergencyRecord>::fail(
+            EmergencyErrorCode::NotFound,
+            QStringLiteral("Emergency record not found for user: ") + trimmedUid
+        );
+    }
+
+    const QString recordStatus = checkQ.value(0).toString();
+    if (recordStatus != QStringLiteral("ACTIVE")) {
+        return EmergencyResult<EmergencyRecord>::fail(
+            EmergencyErrorCode::InvalidState,
+            QStringLiteral("Emergency is not active: ") + trimmedEid
+        );
+    }
+
     const qint64 nowUtcMs = QDateTime::currentMSecsSinceEpoch();
 
     QSqlQuery q(db);
@@ -267,7 +303,7 @@ SqliteEmergencyRepository::updateLocation(
         "  location_timestamp_utc_ms = :lts, "
         "  location_status = :lst, "
         "  updated_at_utc_ms = :ts "
-        "WHERE emergency_id = :id AND status = 'ACTIVE';"
+        "WHERE emergency_id = :id AND user_id = :uid AND status = 'ACTIVE';"
     ));
     if (location.isValid()) {
         q.bindValue(QStringLiteral(":lat"), location.latitude);
@@ -282,19 +318,13 @@ SqliteEmergencyRepository::updateLocation(
     }
     q.bindValue(QStringLiteral(":lst"), locationStatusToString(status));
     q.bindValue(QStringLiteral(":ts"), nowUtcMs);
-    q.bindValue(QStringLiteral(":id"), emergencyId.trimmed());
+    q.bindValue(QStringLiteral(":id"), trimmedEid);
+    q.bindValue(QStringLiteral(":uid"), trimmedUid);
 
-    if (!q.exec()) {
+    if (!q.exec() || q.numRowsAffected() == 0) {
         return EmergencyResult<EmergencyRecord>::fail(
             EmergencyErrorCode::StorageFailure,
             QStringLiteral("Failed to update location: ") + q.lastError().text()
-        );
-    }
-
-    if (q.numRowsAffected() == 0) {
-        return EmergencyResult<EmergencyRecord>::fail(
-            EmergencyErrorCode::NotFound,
-            QStringLiteral("Active emergency not found or already completed: ") + emergencyId
         );
     }
 
@@ -304,9 +334,10 @@ SqliteEmergencyRepository::updateLocation(
         "SELECT emergency_id, user_id, status, started_at_utc_ms, completed_at_utc_ms, "
         "       latitude, longitude, location_accuracy_meters, location_timestamp_utc_ms, "
         "       location_status, note, created_at_utc_ms, updated_at_utc_ms, sync_status, schema_version "
-        "FROM emergency_records WHERE emergency_id = :id;"
+        "FROM emergency_records WHERE emergency_id = :id AND user_id = :uid;"
     ));
-    fetchQ.bindValue(QStringLiteral(":id"), emergencyId.trimmed());
+    fetchQ.bindValue(QStringLiteral(":id"), trimmedEid);
+    fetchQ.bindValue(QStringLiteral(":uid"), trimmedUid);
     if (fetchQ.exec() && fetchQ.next()) {
         return EmergencyResult<EmergencyRecord>::ok(recordFromQuery(fetchQ));
     }
@@ -315,11 +346,14 @@ SqliteEmergencyRepository::updateLocation(
 }
 
 EmergencyResult<EmergencyRecord>
-SqliteEmergencyRepository::updateNote(const QString &emergencyId, const QString &note) {
-    if (emergencyId.trimmed().isEmpty()) {
+SqliteEmergencyRepository::updateNote(const QString &userId, const QString &emergencyId, const QString &note) {
+    const QString trimmedUid = userId.trimmed();
+    const QString trimmedEid = emergencyId.trimmed();
+
+    if (trimmedUid.isEmpty() || trimmedEid.isEmpty()) {
         return EmergencyResult<EmergencyRecord>::fail(
             EmergencyErrorCode::InvalidInput,
-            QStringLiteral("Emergency ID must not be empty.")
+            QStringLiteral("User ID and Emergency ID must not be empty.")
         );
     }
 
@@ -338,34 +372,60 @@ SqliteEmergencyRepository::updateNote(const QString &emergencyId, const QString 
         );
     }
 
+    QSqlDatabase db = QSqlDatabase::database(m_database->connectionName());
+
+    // Check ownership and state to distinguish NotFound from InvalidState without leaking foreign records
+    QSqlQuery checkQ(db);
+    checkQ.prepare(QStringLiteral(
+        "SELECT status, user_id FROM emergency_records WHERE emergency_id = :id;"
+    ));
+    checkQ.bindValue(QStringLiteral(":id"), trimmedEid);
+
+    if (!checkQ.exec() || !checkQ.next()) {
+        return EmergencyResult<EmergencyRecord>::fail(
+            EmergencyErrorCode::NotFound,
+            QStringLiteral("Emergency not found: ") + trimmedEid
+        );
+    }
+
+    const QString recordUid = checkQ.value(1).toString();
+    if (recordUid != trimmedUid) {
+        // Do not reveal another user's emergency details
+        return EmergencyResult<EmergencyRecord>::fail(
+            EmergencyErrorCode::NotFound,
+            QStringLiteral("Emergency record not found for user: ") + trimmedUid
+        );
+    }
+
+    const QString recordStatus = checkQ.value(0).toString();
+    if (recordStatus != QStringLiteral("ACTIVE")) {
+        return EmergencyResult<EmergencyRecord>::fail(
+            EmergencyErrorCode::InvalidState,
+            QStringLiteral("Emergency is not active: ") + trimmedEid
+        );
+    }
+
     QString sanitizedNote = note.trimmed();
     if (sanitizedNote.length() > 120) {
         sanitizedNote = sanitizedNote.left(120);
     }
 
-    QSqlDatabase db = QSqlDatabase::database(m_database->connectionName());
     const qint64 nowUtcMs = QDateTime::currentMSecsSinceEpoch();
 
     QSqlQuery q(db);
     q.prepare(QStringLiteral(
         "UPDATE emergency_records SET note = :note, updated_at_utc_ms = :ts "
-        "WHERE emergency_id = :id AND status = 'ACTIVE';"
+        "WHERE emergency_id = :id AND user_id = :uid AND status = 'ACTIVE';"
     ));
     q.bindValue(QStringLiteral(":note"), sanitizedNote.isEmpty() ? QVariant(QMetaType(QMetaType::QString)) : sanitizedNote);
     q.bindValue(QStringLiteral(":ts"), nowUtcMs);
-    q.bindValue(QStringLiteral(":id"), emergencyId.trimmed());
+    q.bindValue(QStringLiteral(":id"), trimmedEid);
+    q.bindValue(QStringLiteral(":uid"), trimmedUid);
 
-    if (!q.exec()) {
+    if (!q.exec() || q.numRowsAffected() == 0) {
         return EmergencyResult<EmergencyRecord>::fail(
             EmergencyErrorCode::StorageFailure,
             QStringLiteral("Failed to update note: ") + q.lastError().text()
-        );
-    }
-
-    if (q.numRowsAffected() == 0) {
-        return EmergencyResult<EmergencyRecord>::fail(
-            EmergencyErrorCode::NotFound,
-            QStringLiteral("Active emergency not found or already completed: ") + emergencyId
         );
     }
 
@@ -375,9 +435,10 @@ SqliteEmergencyRepository::updateNote(const QString &emergencyId, const QString 
         "SELECT emergency_id, user_id, status, started_at_utc_ms, completed_at_utc_ms, "
         "       latitude, longitude, location_accuracy_meters, location_timestamp_utc_ms, "
         "       location_status, note, created_at_utc_ms, updated_at_utc_ms, sync_status, schema_version "
-        "FROM emergency_records WHERE emergency_id = :id;"
+        "FROM emergency_records WHERE emergency_id = :id AND user_id = :uid;"
     ));
-    fetchQ.bindValue(QStringLiteral(":id"), emergencyId.trimmed());
+    fetchQ.bindValue(QStringLiteral(":id"), trimmedEid);
+    fetchQ.bindValue(QStringLiteral(":uid"), trimmedUid);
     if (fetchQ.exec() && fetchQ.next()) {
         return EmergencyResult<EmergencyRecord>::ok(recordFromQuery(fetchQ));
     }

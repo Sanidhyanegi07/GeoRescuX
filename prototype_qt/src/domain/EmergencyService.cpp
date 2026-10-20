@@ -108,14 +108,47 @@ bool EmergencyService::completeEmergency(const QString &userId, const QString &e
     return true;
 }
 
-bool EmergencyService::updateActiveNote(const QString &emergencyId, const QString &note) {
+bool EmergencyService::updateActiveNote(const QString &note) {
+    if (!m_activeRecord.has_value()) {
+        m_lastError = QStringLiteral("No active emergency to update.");
+        emit errorOccurred(m_lastError);
+        return false;
+    }
+    return updateActiveNote(m_activeRecord->userId, m_activeRecord->emergencyId, note);
+}
+
+bool EmergencyService::updateActiveNote(const QString &userId, const QString &emergencyId, const QString &note) {
     if (!m_repository) {
         m_lastError = QStringLiteral("Emergency repository is not available.");
         emit errorOccurred(m_lastError);
         return false;
     }
 
-    auto res = m_repository->updateNote(emergencyId, note);
+    auto res = m_repository->updateNote(userId, emergencyId, note);
+    if (!res.isSuccess) {
+        m_lastError = res.errorMessage;
+        emit errorOccurred(m_lastError);
+        return false;
+    }
+
+    m_lastError.clear();
+    setActiveRecord(res.data.value());
+    return true;
+}
+
+bool EmergencyService::updateLocation(
+    const QString &userId,
+    const QString &emergencyId,
+    const EmergencyLocation &location,
+    EmergencyLocationStatus status
+) {
+    if (!m_repository) {
+        m_lastError = QStringLiteral("Emergency repository is not available.");
+        emit errorOccurred(m_lastError);
+        return false;
+    }
+
+    auto res = m_repository->updateLocation(userId, emergencyId, location, status);
     if (!res.isSuccess) {
         m_lastError = res.errorMessage;
         emit errorOccurred(m_lastError);
