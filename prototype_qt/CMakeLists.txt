@@ -8,7 +8,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(MinGWConfig)
 include(AndroidConfig)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Quick)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Quick Sql)
 qt_standard_project_setup(REQUIRES 6.8)
 
 set(GEORESCUX_CORE_SOURCES
@@ -59,6 +59,12 @@ set(GEORESCUX_CORE_SOURCES
 # -----------------------------------------------------------------------------
 qt_add_executable(appGeoRescuXQtPrototype
     src/app/main.cpp
+    src/app/AppState.h
+    src/app/AppState.cpp
+    src/domain/SessionModel.h
+    src/domain/SessionModel.cpp
+    src/platform/storage/LocalDatabase.h
+    src/platform/storage/LocalDatabase.cpp
     src/platform/qt/PrototypeBackend.h
     src/platform/qt/PrototypeBackend.cpp
     ${GEORESCUX_CORE_SOURCES}
@@ -66,6 +72,9 @@ qt_add_executable(appGeoRescuXQtPrototype
 
 target_include_directories(appGeoRescuXQtPrototype PRIVATE
     src
+    src/app
+    src/domain
+    src/platform/storage
     src/platform/qt
     ../app/src/main/cpp/routing
     ../app/src/main/cpp/spatial
@@ -94,12 +103,13 @@ target_link_libraries(appGeoRescuXQtPrototype PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
+    Qt6::Sql
 )
 
 georescux_configure_android_target(appGeoRescuXQtPrototype)
 
 # -----------------------------------------------------------------------------
-# Unit Testing Target (Desktop Host Only)
+# Unit Testing Targets (Desktop Host Only)
 # -----------------------------------------------------------------------------
 if(NOT ANDROID)
     enable_testing()
@@ -114,4 +124,28 @@ if(NOT ANDROID)
     )
 
     add_test(NAME GeodesicMathTest COMMAND tst_geodesic)
+
+    add_executable(tst_foundation
+        tests/tst_foundation.cpp
+        src/domain/SessionModel.cpp
+        src/domain/SessionModel.h
+        src/platform/storage/LocalDatabase.cpp
+        src/platform/storage/LocalDatabase.h
+        src/app/AppState.cpp
+        src/app/AppState.h
+    )
+
+    target_include_directories(tst_foundation PRIVATE
+        src
+        src/app
+        src/domain
+        src/platform/storage
+    )
+
+    target_link_libraries(tst_foundation PRIVATE
+        Qt6::Core
+        Qt6::Sql
+    )
+
+    add_test(NAME FoundationTest COMMAND tst_foundation)
 endif()

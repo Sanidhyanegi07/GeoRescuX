@@ -68,7 +68,7 @@ The routing and telemetry subsystem is implemented directly in modern C++20 and 
 - **Dynamic Spatial Hazard Containment (`spatial/HazardPolygon.cpp`)**: Ray-casting point-in-polygon intersection to automatically avoid active landslides, flash flood corridors, and blocked roads.
 - **Zero-Copy JNI Bridges (`jni/GeoRescueNativeRoutingBridge.cpp`)**: High-throughput memory-safe JNI bridging with automatic fallback to pure Kotlin if native binary loading is unavailable.
 
-### 2. 📡 Peer-to-Peer Multi-Hop BLE Mesh (`app/src/main/java/.../ble/`)
+### 2. 📡 Peer-to-Peer Multi-Hop BLE Mesh (`app/src/main/kotlin/.../ble/`)
 When infrastructure goes dark, GeoRescuX forms a spontaneous, self-healing ad-hoc mesh network:
 - **Symmetric GATT Architecture**: Each device simultaneously operates as a BLE Central (Scanner) and Peripheral (Advertiser).
 - **Store-and-Forward Relay**: Emergency SOS packets travel up to 7 hops across intermediary devices with local duplicate packet caches (LRU) to eliminate broadcast storms.
