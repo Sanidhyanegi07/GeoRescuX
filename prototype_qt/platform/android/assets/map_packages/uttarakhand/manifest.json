@@ -1,0 +1,23 @@
+{
+  "regionId": "uttarakhand",
+  "displayName": "Uttarakhand",
+  "packageType": "regional_map",
+  "sourceProvider": "OpenStreetMap",
+  "sourceFile": "route_graph.json",
+  "renderingFormat": "GeoRescuX Vector",
+  "renderingFile": "boundary.geojson",
+  "routingFile": "route_graph.json",
+  "placesFile": "places.json",
+  "boundaryFile": "boundary.geojson",
+  "fileSizeBytes": 18114844,
+  "sha256": "f9f58648fc742591dae0e6b9fc689a42ec9f53d46876f950ae056f539fa1612a",
+  "sha256Checksum": "f9f58648fc742591dae0e6b9fc689a42ec9f53d46876f950ae056f539fa1612a",
+  "packageVersion": 1,
+  "routingDataVersion": 1,
+  "coverage": {
+    "minLatitude": 28.7,
+    "maxLatitude": 31.5,
+    "minLongitude": 77.5,
+    "maxLongitude": 81.1
+  }
+}

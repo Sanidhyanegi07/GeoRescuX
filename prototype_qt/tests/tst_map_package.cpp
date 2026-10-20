@@ -293,11 +293,73 @@ int main(int argc, char *argv[]) {
         std::cout << "  -> PASSED: Package metadata fully recovered on restart." << std::endl;
     }
 
+    // Test 13: Missing Manifest Rejection
+    {
+        std::cout << "[Test 13] Testing missing manifest file rejection..." << std::endl;
+        const QString nonExistentManifest = QDir(testTempDir).filePath("pkg_not_here/manifest.json");
+        MapPackage pkg;
+        QStringList errors;
+        assert(!manager.validatePackageManifest(nonExistentManifest, pkg, errors));
+        assert(!errors.isEmpty());
+        assert(errors.first().contains("does not exist"));
+
+        QString installErr;
+        assert(!manager.installPackage(nonExistentManifest, installErr));
+        assert(installErr.contains("does not exist"));
+        std::cout << "  -> PASSED: Non-existent manifest safely rejected." << std::endl;
+    }
+
+    // Test 14: Map Installed Without Routing Graph
+    {
+        std::cout << "[Test 14] Testing map installed without its routing graph..." << std::endl;
+        // Package has renderingFile (state.map) but NO routingFile
+        const QString mapOnlyManifest = createFixturePackage("pkg_map_only", "map_only_reg", "Map Only Region", 1, 15.0, 16.0, 75.0, 76.0, "state.map", "");
+        QString err;
+        assert(manager.installPackage(mapOnlyManifest, err));
+        auto pkg = manager.getPackage("map_only_reg");
+        assert(pkg.has_value());
+        assert(pkg->hasRenderingData);
+        assert(!pkg->hasRoutingData);
+        assert(manager.activateRegion("map_only_reg"));
+        assert(manager.activeHasRenderingData());
+        assert(!manager.activeHasRoutingData());
+        std::cout << "  -> PASSED: Map installed without routing graph operates cleanly." << std::endl;
+    }
+
+    // Test 15: Routing Graph Installed Without Map
+    {
+        std::cout << "[Test 15] Testing routing graph installed without its map..." << std::endl;
+        // Package has routingFile (graph.json) but NO renderingFile
+        const QString graphOnlyManifest = createFixturePackage("pkg_graph_only", "graph_only_reg", "Graph Only Region", 1, 18.0, 19.0, 78.0, 79.0, "", "graph.json");
+        QString err;
+        assert(manager.installPackage(graphOnlyManifest, err));
+        auto pkg = manager.getPackage("graph_only_reg");
+        assert(pkg.has_value());
+        assert(!pkg->hasRenderingData);
+        assert(pkg->hasRoutingData);
+        assert(manager.activateRegion("graph_only_reg"));
+        assert(!manager.activeHasRenderingData());
+        assert(manager.activeHasRoutingData());
+        std::cout << "  -> PASSED: Routing graph installed without map operates cleanly." << std::endl;
+    }
+
+    // Test 16: Windows Drive-Letter Path Traversal and Safe Staging
+    {
+        std::cout << "[Test 16] Testing Windows drive-letter path traversal rejection..." << std::endl;
+        assert(manager.isPathTraversal("C:/safe/path", "C:/escaped/secret.txt"));
+        assert(manager.isPathTraversal("C:/safe/path", "D:\\other\\drive\\map.bin"));
+
+        // Reactivate uttarakhand and verify it remains active
+        assert(manager.activateRegion("uttarakhand"));
+        assert(manager.activeRegionId() == "uttarakhand");
+        std::cout << "  -> PASSED: Windows absolute path traversals blocked and active status intact." << std::endl;
+    }
+
     // Clean up temporary test files
     QDir(testTempDir).removeRecursively();
 
     std::cout << "=================================================================" << std::endl;
-    std::cout << " [GeoRescuX Test] ALL 12 PHASE 5 MAP-PACKAGE TESTS PASSED!" << std::endl;
+    std::cout << " [GeoRescuX Test] ALL 16 PHASE 5 MAP-PACKAGE TESTS PASSED!" << std::endl;
     std::cout << "=================================================================" << std::endl;
 
     return 0;

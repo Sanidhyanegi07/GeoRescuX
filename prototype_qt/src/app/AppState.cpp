@@ -5,6 +5,31 @@
 #include <QFile>
 #include <QDebug>
 
+#include <QCoreApplication>
+#include <QDir>
+
+static QString resolveBundledAssetPath(const QString &relPath) {
+    if (QFile::exists(relPath)) return relPath;
+    const QString appDir = QCoreApplication::applicationDirPath();
+    const QStringList prefixes = {
+        QStringLiteral(""),
+        QStringLiteral("../"),
+        QStringLiteral("../../"),
+        QStringLiteral("../../../")
+    };
+    for (const auto &pfx : prefixes) {
+        const QString cand = pfx + relPath;
+        if (QFile::exists(cand)) return cand;
+        if (!appDir.isEmpty()) {
+            const QString candApp = QDir(appDir).filePath(cand);
+            if (QFile::exists(candApp)) return candApp;
+        }
+    }
+    const QString androidAsset = QStringLiteral("assets:/") + relPath;
+    if (QFile::exists(androidAsset)) return androidAsset;
+    return QString();
+}
+
 namespace georescux::app {
 
 AppState::AppState(
@@ -38,48 +63,77 @@ AppState::AppState(
     connect(m_packageManager.get(), &georescux::domain::MapPackageManager::activeRegionChanged,
             this, &AppState::activeRegionChanged);
 
-    // Register bundled packages if present
-    georescux::domain::MapPackage ukPkg;
-    ukPkg.regionId = QStringLiteral("uttarakhand");
-    ukPkg.displayName = QStringLiteral("Uttarakhand");
-    ukPkg.packageVersion = 1;
-    ukPkg.supportedFormat = QStringLiteral("Mapsforge MAP");
-    ukPkg.coverage.minLatitude = 28.7;
-    ukPkg.coverage.maxLatitude = 31.5;
-    ukPkg.coverage.minLongitude = 77.5;
-    ukPkg.coverage.maxLongitude = 81.1;
-
-    const QStringList mapCands = {
-        QStringLiteral("app/src/main/assets/maps/uttarakhand-state.map"),
-        QStringLiteral("../app/src/main/assets/maps/uttarakhand-state.map")
-    };
-    for (const auto &p : mapCands) {
-        if (QFile::exists(p)) { ukPkg.mapFilePath = p; ukPkg.hasRenderingData = true; break; }
-    }
-    const QStringList graphCands = {
-        QStringLiteral("app/src/main/assets/route_graph_uttarakhand"),
-        QStringLiteral("../app/src/main/assets/route_graph_uttarakhand")
-    };
-    for (const auto &p : graphCands) {
-        if (QFile::exists(p)) { ukPkg.graphFilePath = p; ukPkg.hasRoutingData = true; break; }
-    }
-    const QStringList boundaryCands = {
-        QStringLiteral("output/uttarakhand/boundary.geojson"),
-        QStringLiteral("../output/uttarakhand/boundary.geojson")
-    };
-    for (const auto &p : boundaryCands) {
-        if (QFile::exists(p)) { ukPkg.boundaryFilePath = p; break; }
-    }
-    const QStringList placesCands = {
-        QStringLiteral("app/src/main/assets/maps/uttarakhand-places.json"),
-        QStringLiteral("../app/src/main/assets/maps/uttarakhand-places.json")
-    };
-    for (const auto &p : placesCands) {
-        if (QFile::exists(p)) { ukPkg.placesFilePath = p; break; }
+    // Initialize package: first check if already installed in SQLite persistence
+    if (m_packageManager->hasActivePackage()) {
+        qInfo() << "[AppState] Restored active package from persistence:" << m_packageManager->activeRegionId();
+    } else {
+        auto installedUk = m_packageManager->getPackage(QStringLiteral("uttarakhand"));
+        if (installedUk && installedUk->status == georescux::domain::PackageStatus::Installed &&
+            (installedUk->hasRenderingData || installedUk->hasRoutingData)) {
+            m_packageManager->activateRegion(QStringLiteral("uttarakhand"));
+            qInfo() << "[AppState] Activated existing installed package from SQLite:" << installedUk->regionId;
+        }
     }
 
-    m_packageManager->registerExistingPackage(ukPkg);
-    m_packageManager->activateRegion(QStringLiteral("uttarakhand"));
+    // If no active package, attempt clean installation from bundled manifest
+    if (!m_packageManager->hasActivePackage()) {
+        const QStringList manifestCandidates = {
+            QStringLiteral("assets:/map_packages/uttarakhand/manifest.json"),
+            resolveBundledAssetPath(QStringLiteral("prototype_qt/platform/android/assets/map_packages/uttarakhand/manifest.json")),
+            resolveBundledAssetPath(QStringLiteral("platform/android/assets/map_packages/uttarakhand/manifest.json")),
+            resolveBundledAssetPath(QStringLiteral("output/uttarakhand/manifest.json"))
+        };
+
+        QString bundledManifest;
+        for (const auto &cand : manifestCandidates) {
+            if (!cand.isEmpty() && QFile::exists(cand)) {
+                bundledManifest = cand;
+                break;
+            }
+        }
+
+        if (!bundledManifest.isEmpty()) {
+            QString installError;
+            if (m_packageManager->installPackage(bundledManifest, installError)) {
+                m_packageManager->activateRegion(QStringLiteral("uttarakhand"));
+                qInfo() << "[AppState] Clean installation successful from bundled manifest:" << bundledManifest;
+            } else {
+                qWarning() << "[AppState] Failed to install bundled package from" << bundledManifest << ":" << installError;
+            }
+        }
+    }
+
+    // In-situ development package fallback (for desktop development when assets are in repo root)
+    if (!m_packageManager->hasActivePackage()) {
+        const QString mapPath = resolveBundledAssetPath(QStringLiteral("app/src/main/assets/maps/uttarakhand-state.map"));
+        const QString graphPath = resolveBundledAssetPath(QStringLiteral("app/src/main/assets/route_graph_uttarakhand"));
+        const QString boundaryPath = resolveBundledAssetPath(QStringLiteral("output/uttarakhand/boundary.geojson"));
+        const QString placesPath = resolveBundledAssetPath(QStringLiteral("app/src/main/assets/maps/uttarakhand-places.json"));
+
+        if (!mapPath.isEmpty() || !graphPath.isEmpty()) {
+            georescux::domain::MapPackage ukPkg;
+            ukPkg.regionId = QStringLiteral("uttarakhand");
+            ukPkg.displayName = QStringLiteral("Uttarakhand");
+            ukPkg.packageVersion = 1;
+            ukPkg.supportedFormat = !mapPath.isEmpty() ? QStringLiteral("Mapsforge MAP") : QStringLiteral("GeoRescuX Vector");
+            ukPkg.coverage.minLatitude = 28.7;
+            ukPkg.coverage.maxLatitude = 31.5;
+            ukPkg.coverage.minLongitude = 77.5;
+            ukPkg.coverage.maxLongitude = 81.1;
+
+            if (!mapPath.isEmpty()) { ukPkg.mapFilePath = mapPath; ukPkg.hasRenderingData = true; }
+            if (!graphPath.isEmpty()) { ukPkg.graphFilePath = graphPath; ukPkg.hasRoutingData = true; }
+            if (!boundaryPath.isEmpty()) { ukPkg.boundaryFilePath = boundaryPath; }
+            if (!placesPath.isEmpty()) { ukPkg.placesFilePath = placesPath; }
+
+            if (m_packageManager->registerExistingPackage(ukPkg)) {
+                m_packageManager->activateRegion(QStringLiteral("uttarakhand"));
+                qInfo() << "[AppState] Registered in-situ development package for uttarakhand";
+            }
+        } else {
+            qWarning() << "[AppState] No valid offline map package found. No active region.";
+        }
+    }
 
     setupConnections();
 

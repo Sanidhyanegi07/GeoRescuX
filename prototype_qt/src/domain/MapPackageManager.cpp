@@ -8,6 +8,7 @@
 #include <QCryptographicHash>
 #include <QStandardPaths>
 #include <QDateTime>
+#include <QSet>
 #include <QDebug>
 
 namespace georescux::domain {
@@ -59,7 +60,9 @@ bool MapPackageManager::activeHasRoutingData() const {
 bool MapPackageManager::isPathTraversal(const QString &baseDir, const QString &targetPath) const {
     if (targetPath.contains(QStringLiteral("..")) ||
         targetPath.startsWith(QStringLiteral("/")) ||
-        targetPath.startsWith(QStringLiteral("\\"))) {
+        targetPath.startsWith(QStringLiteral("\\")) ||
+        QFileInfo(targetPath).isAbsolute() ||
+        targetPath.contains(QStringLiteral(":"))) {
         return true;
     }
     const QString cleanBase = QDir::cleanPath(baseDir);
@@ -250,9 +253,21 @@ bool MapPackageManager::copyPackageFiles(
         return false;
     }
 
+    QSet<QString> fileNames;
+    fileNames.insert(QStringLiteral("manifest.json"));
+    if (!pkg.mapFilePath.isEmpty()) fileNames.insert(QFileInfo(pkg.mapFilePath).fileName());
+    if (!pkg.graphFilePath.isEmpty()) fileNames.insert(QFileInfo(pkg.graphFilePath).fileName());
+    if (!pkg.boundaryFilePath.isEmpty()) fileNames.insert(QFileInfo(pkg.boundaryFilePath).fileName());
+    if (!pkg.placesFilePath.isEmpty()) fileNames.insert(QFileInfo(pkg.placesFilePath).fileName());
+
     const QStringList files = src.entryList(QDir::Files);
     for (const QString &f : files) {
+        fileNames.insert(f);
+    }
+
+    for (const QString &f : fileNames) {
         const QString srcFile = src.filePath(f);
+        if (!QFile::exists(srcFile)) continue;
         const QString dstFile = dst.filePath(f);
         if (QFile::exists(dstFile)) {
             QFile::remove(dstFile);
@@ -283,7 +298,7 @@ bool MapPackageManager::installPackage(const QString &manifestPath, QString &out
     }
 
     const QFileInfo manifestInfo(manifestPath);
-    const QString srcDir = manifestInfo.absolutePath();
+    const QString srcDir = manifestInfo.path();
 
     // Stage 3: Staging directory
     QDir baseDir(m_baseInstallDir);
@@ -341,10 +356,18 @@ bool MapPackageManager::installPackage(const QString &manifestPath, QString &out
 
     // Update paths to point to installed files
     QDir targetDir(targetPath);
-    stagedPkg.mapFilePath = targetDir.filePath(QFileInfo(stagedPkg.mapFilePath).fileName());
-    stagedPkg.graphFilePath = targetDir.filePath(QFileInfo(stagedPkg.graphFilePath).fileName());
-    stagedPkg.placesFilePath = targetDir.filePath(QFileInfo(stagedPkg.placesFilePath).fileName());
-    stagedPkg.boundaryFilePath = targetDir.filePath(QFileInfo(stagedPkg.boundaryFilePath).fileName());
+    if (!stagedPkg.mapFilePath.isEmpty()) {
+        stagedPkg.mapFilePath = targetDir.filePath(QFileInfo(stagedPkg.mapFilePath).fileName());
+    }
+    if (!stagedPkg.graphFilePath.isEmpty()) {
+        stagedPkg.graphFilePath = targetDir.filePath(QFileInfo(stagedPkg.graphFilePath).fileName());
+    }
+    if (!stagedPkg.placesFilePath.isEmpty()) {
+        stagedPkg.placesFilePath = targetDir.filePath(QFileInfo(stagedPkg.placesFilePath).fileName());
+    }
+    if (!stagedPkg.boundaryFilePath.isEmpty()) {
+        stagedPkg.boundaryFilePath = targetDir.filePath(QFileInfo(stagedPkg.boundaryFilePath).fileName());
+    }
     stagedPkg.installedAtUtcMs = QDateTime::currentMSecsSinceEpoch();
     stagedPkg.status = PackageStatus::Installed;
 
@@ -359,6 +382,10 @@ bool MapPackageManager::installPackage(const QString &manifestPath, QString &out
 
 bool MapPackageManager::registerExistingPackage(const MapPackage &pkg) {
     if (!m_repository) return false;
+    if (!pkg.hasRenderingData && !pkg.hasRoutingData) {
+        qWarning() << "[MapPackageManager] Rejecting package registration: neither rendering nor routing data available for:" << pkg.regionId;
+        return false;
+    }
     MapPackage copy = pkg;
     copy.installedAtUtcMs = QDateTime::currentMSecsSinceEpoch();
     copy.status = PackageStatus::Installed;
@@ -367,6 +394,15 @@ bool MapPackageManager::registerExistingPackage(const MapPackage &pkg) {
 
 bool MapPackageManager::activateRegion(const QString &regionId) {
     if (!m_repository) return false;
+    auto pkg = getPackage(regionId);
+    if (!pkg) {
+        qWarning() << "[MapPackageManager] Cannot activate non-existent region:" << regionId;
+        return false;
+    }
+    if (!pkg->hasRenderingData && !pkg->hasRoutingData) {
+        qWarning() << "[MapPackageManager] Cannot activate region with no rendering and no routing data:" << regionId;
+        return false;
+    }
     const bool ok = m_repository->setActivePackage(regionId);
     if (ok) {
         emit activeRegionChanged(regionId);

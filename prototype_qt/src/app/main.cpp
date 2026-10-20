@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QDebug>
 #include <memory>
+#include <iostream>
 
 #include "PrototypeBackend.h"
 #include "AppState.h"
@@ -20,11 +21,15 @@ int main(int argc, char *argv[]) {
     QGuiApplication::setApplicationVersion(QStringLiteral("1.0.0"));
 
     QGuiApplication app(argc, argv);
-    qInfo() << "[GeoRescuX] Starting Stage 2 Qt Prototype runtime. C++20 standard active.";
 
     const bool isSmokeTest = app.arguments().contains(QStringLiteral("--smoke-test"));
     if (isSmokeTest) {
+        qInstallMessageHandler([](QtMsgType, const QMessageLogContext &, const QString &msg) {
+            std::cout << msg.toStdString() << std::endl;
+        });
         qInfo() << "[GeoRescuX Smoke Test] Automated validation mode active.";
+    } else {
+        qInfo() << "[GeoRescuX] Starting Stage 2 Qt Prototype runtime. C++20 standard active.";
     }
 
     // 1. Initialize local SQLite persistence

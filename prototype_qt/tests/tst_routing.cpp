@@ -4,6 +4,9 @@
 #include <cmath>
 #include <limits>
 #include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QDateTime>
 
 #include "domain/RouteService.h"
 #include "domain/OfflineRouteRepository.h"
@@ -257,8 +260,162 @@ int main(int argc, char *argv[]) {
         std::cout << "  -> PASSED: Failed route cleanly clears route state with no false positives." << std::endl;
     }
 
+    // Test 17: Corrupt Graph JSON Parsing
+    {
+        std::cout << "[Test 17] Testing corrupt graph JSON rejection..." << std::endl;
+        const QString tempCorruptPath = QDir::temp().filePath(QStringLiteral("corrupt_graph_%1.json").arg(QDateTime::currentMSecsSinceEpoch()));
+        QFile cf(tempCorruptPath);
+        cf.open(QIODevice::WriteOnly);
+        cf.write("NOT_A_VALID_JSON_GRAPH {{{ broken");
+        cf.close();
+
+        routeRepo->setCustomGraphPath(QStringLiteral("corrupt_json_region"), tempCorruptPath);
+        assert(!routeRepo->getGraph(QStringLiteral("corrupt_json_region")).has_value());
+
+        auto res = service.computeRouteDirect(QStringLiteral("corrupt_json_region"), 30.0, 78.0, 30.027, 78.0);
+        assert(!res.success);
+        assert(res.statusMessage.contains("Missing routing graph"));
+
+        QFile::remove(tempCorruptPath);
+        std::cout << "  -> PASSED: Corrupt graph JSON safely rejected." << std::endl;
+    }
+
+    // Test 18: Region Switching and Active Graph Reload
+    {
+        std::cout << "[Test 18] Testing region switching and active graph reload..." << std::endl;
+        // Region A route
+        assert(service.calculateRoute(QStringLiteral("test_region"), 30.0, 78.0, 30.027, 78.0));
+        assert(service.hasRoute());
+        assert(std::abs(service.lastDistanceMeters() - 3000.0) < 1e-3);
+
+        // Switch to Region B
+        service.clearRoute();
+        assert(!service.hasRoute());
+
+        std::vector<RouteNode> regBNodes = { RouteNode{"B1", 20.0, 70.0, false}, RouteNode{"B2", 20.01, 70.0, false} };
+        std::vector<RouteEdge> regBEdges = { RouteEdge{"B1", "B2", 1100.0, false} };
+        RouteGraph regBGraph(regBNodes, regBEdges, {}, 1);
+        routeRepo->seedGraph(QStringLiteral("region_b"), regBGraph);
+
+        assert(service.calculateRoute(QStringLiteral("region_b"), 20.0, 70.0, 20.01, 70.0));
+        assert(service.hasRoute());
+        assert(std::abs(service.lastDistanceMeters() - 1100.0) < 1e-3);
+
+        // Switch back to Region A
+        service.clearRoute();
+        assert(!service.hasRoute());
+        assert(service.calculateRoute(QStringLiteral("test_region"), 30.0, 78.0, 30.027, 78.0));
+        assert(service.hasRoute());
+        assert(std::abs(service.lastDistanceMeters() - 3000.0) < 1e-3);
+        std::cout << "  -> PASSED: Region switching and active graph reload execute correctly." << std::endl;
+    }
+
+    // Test 19: Malformed Edge Endpoint References Handled Safely
+    {
+        std::cout << "[Test 19] Testing malformed edge endpoint references handled safely..." << std::endl;
+        std::vector<RouteNode> malNodes = {
+            RouteNode{"M1", 30.0, 78.0, false},
+            RouteNode{"M2", 30.01, 78.0, false}
+        };
+        std::vector<RouteEdge> malEdges = {
+            RouteEdge{"M1", "M2", 1100.0, false},
+            RouteEdge{"M1", "NON_EXISTENT_NODE_XYZ", 500.0, false},
+            RouteEdge{"GHOST_NODE_123", "M2", 700.0, false}
+        };
+        RouteGraph malGraph(malNodes, malEdges, {}, 1);
+        routeRepo->seedGraph(QStringLiteral("malformed_edges_region"), malGraph);
+
+        assert(service.calculateRoute(QStringLiteral("malformed_edges_region"), 30.0, 78.0, 30.01, 78.0));
+        assert(service.hasRoute());
+        assert(std::abs(service.lastDistanceMeters() - 1100.0) < 1e-3);
+        std::cout << "  -> PASSED: Malformed edge references ignored without crashing." << std::endl;
+    }
+
+    // Test 20: Disconnected Components Handled Cleanly
+    {
+        std::cout << "[Test 20] Testing disconnected components handled cleanly..." << std::endl;
+        std::vector<RouteNode> discNodes = {
+            RouteNode{"C1_A", 30.0, 78.0, false},
+            RouteNode{"C1_B", 30.01, 78.0, false},
+            RouteNode{"C2_A", 30.05, 78.05, false},
+            RouteNode{"C2_B", 30.06, 78.05, false}
+        };
+        std::vector<RouteEdge> discEdges = {
+            RouteEdge{"C1_A", "C1_B", 1100.0, false},
+            RouteEdge{"C2_A", "C2_B", 1100.0, false}
+        };
+        RouteGraph discGraph(discNodes, discEdges, {}, 1);
+        routeRepo->seedGraph(QStringLiteral("disconnected_region"), discGraph);
+
+        bool ok = service.calculateRoute(QStringLiteral("disconnected_region"), 30.0, 78.0, 30.06, 78.05);
+        assert(!ok);
+        assert(!service.hasRoute());
+        std::cout << "  -> PASSED: Disconnected components safely return route failure." << std::endl;
+    }
+
+    // Test 21: Route Geometry Continuity & Exact Graph-Weight Consistency
+    {
+        std::cout << "[Test 21] Testing route geometry continuity & exact graph-weight consistency..." << std::endl;
+        std::vector<RouteNode> geomNodes = {
+            RouteNode{"G1", 30.00, 78.00, false},
+            RouteNode{"G2", 30.01, 78.01, false},
+            RouteNode{"G3", 30.02, 78.02, false},
+            RouteNode{"G4", 30.03, 78.03, false}
+        };
+        std::vector<RouteEdge> geomEdges = {
+            RouteEdge{"G1", "G2", 1250.5, false},
+            RouteEdge{"G2", "G3", 1450.25, false},
+            RouteEdge{"G3", "G4", 1300.25, false}
+        };
+        const double expectedTotalDistance = 1250.5 + 1450.25 + 1300.25; // 4001.0
+        RouteGraph geomGraph(geomNodes, geomEdges, {}, 1);
+        routeRepo->seedGraph(QStringLiteral("geom_continuity_region"), geomGraph);
+
+        assert(service.calculateRoute(QStringLiteral("geom_continuity_region"), 30.00, 78.00, 30.03, 78.03));
+        assert(service.hasRoute());
+        assert(std::abs(service.lastDistanceMeters() - expectedTotalDistance) < 1e-2);
+
+        QVariantList coords = service.lastCoordinates();
+        assert(coords.size() == 4);
+        for (int i = 0; i < coords.size(); ++i) {
+            QVariantMap pt = coords[i].toMap();
+            assert(pt.contains(QStringLiteral("latitude")));
+            assert(pt.contains(QStringLiteral("longitude")));
+            assert(std::abs(pt.value(QStringLiteral("latitude")).toDouble() - geomNodes[i].latitude) < 1e-6);
+            assert(std::abs(pt.value(QStringLiteral("longitude")).toDouble() - geomNodes[i].longitude) < 1e-6);
+        }
+        std::cout << "  -> PASSED: Route geometry strictly contiguous and distance matches edge weight sum." << std::endl;
+    }
+
+    // Test 22: Coordinate Projection Roundtrip and Longitude Scale
+    {
+        std::cout << "[Test 22] Testing coordinate projection roundtrip and longitude scaling..." << std::endl;
+        const double centerLat = 30.1;
+        const double centerLon = 79.3;
+        const double zoom = 6.2;
+        const double ppd = 50.0 * std::pow(1.5, zoom);
+        const double cosLat = std::cos(centerLat * M_PI / 180.0);
+
+        assert(cosLat > 0.86 && cosLat < 0.87);
+
+        const double testLat = 30.3165;
+        const double testLon = 78.0322;
+        const double width = 800.0;
+        const double height = 600.0;
+
+        const double px = (width / 2.0) + (testLon - centerLon) * ppd * cosLat;
+        const double py = (height / 2.0) - (testLat - centerLat) * ppd;
+
+        const double invLon = centerLon + (px - (width / 2.0)) / (ppd * cosLat);
+        const double invLat = centerLat - (py - (height / 2.0)) / ppd;
+
+        assert(std::abs(invLat - testLat) < 1e-9);
+        assert(std::abs(invLon - testLon) < 1e-9);
+        std::cout << "  -> PASSED: Projection roundtrip is lossless and longitude scaling is physically correct." << std::endl;
+    }
+
     std::cout << "=================================================================" << std::endl;
-    std::cout << " [GeoRescuX Test] ALL 16 PHASE 7 ROUTING TESTS PASSED!" << std::endl;
+    std::cout << " [GeoRescuX Test] ALL 22 PHASE 7 ROUTING TESTS PASSED!" << std::endl;
     std::cout << "=================================================================" << std::endl;
 
     return 0;

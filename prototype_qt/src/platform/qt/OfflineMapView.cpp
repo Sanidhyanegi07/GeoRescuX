@@ -232,10 +232,17 @@ bool OfflineMapView::loadRegionData(
                 nodeCoords[nid] = QPointF(nlat, nlon);
             }
 
-            // Cap road segments to keep rendering extremely smooth
-            const int maxEdges = std::min(static_cast<int>(edges.size()), 12000);
+            // Cap road segments to keep rendering extremely smooth while sampling uniformly
+            // across the entire regional dataset to prevent district bias or starving eastern areas.
+            const int totalEdges = edges.size();
+            const int maxEdges = std::min(totalEdges, 12000);
+            const double stride = (totalEdges > maxEdges && maxEdges > 0)
+                ? static_cast<double>(totalEdges) / maxEdges
+                : 1.0;
+
             for (int i = 0; i < maxEdges; ++i) {
-                const QJsonObject eo = edges.at(i).toObject();
+                const int edgeIdx = std::min(static_cast<int>(i * stride), totalEdges - 1);
+                const QJsonObject eo = edges.at(edgeIdx).toObject();
                 const QString fromId = eo.value(QStringLiteral("fromNodeId")).toString();
                 const QString toId = eo.value(QStringLiteral("toNodeId")).toString();
 
@@ -255,25 +262,50 @@ bool OfflineMapView::loadRegionData(
         }
     }
 
-    // 3. Places / POIs parsing
+    // 3. Places / POIs parsing: prioritize safe havens and hospitals for emergency response
     if (!placesPath.isEmpty() && QFile::exists(placesPath)) {
         QFile pf(placesPath);
         if (pf.open(QIODevice::ReadOnly)) {
             const QJsonDocument doc = QJsonDocument::fromJson(pf.readAll());
             const QJsonArray places = doc.isArray() ? doc.array() : doc.object().value(QStringLiteral("places")).toArray();
 
-            const int maxPlaces = std::min(static_cast<int>(places.size()), 500);
-            for (int i = 0; i < maxPlaces; ++i) {
-                const QJsonObject po = places.at(i).toObject();
+            constexpr int maxPlaces = 500;
+            std::vector<MapPlaceMarker> safeHavens;
+            std::vector<MapPlaceMarker> hospitals;
+            std::vector<MapPlaceMarker> generalPlaces;
+
+            for (const auto &p : places) {
+                const QJsonObject po = p.toObject();
                 MapPlaceMarker marker;
                 marker.name = po.value(QStringLiteral("name")).toString();
                 marker.kind = po.value(QStringLiteral("kind")).toString();
                 marker.latitude = po.value(QStringLiteral("latitude")).toDouble();
                 marker.longitude = po.value(QStringLiteral("longitude")).toDouble();
                 marker.isSafeHaven = po.value(QStringLiteral("isSafeHaven")).toBool(false);
-                if (marker.latitude != 0.0 && marker.longitude != 0.0 && !marker.name.isEmpty()) {
-                    m_places.push_back(marker);
+                if (marker.latitude == 0.0 || marker.longitude == 0.0 || marker.name.isEmpty()) {
+                    continue;
                 }
+                if (marker.isSafeHaven) {
+                    safeHavens.push_back(marker);
+                } else if (marker.kind == QStringLiteral("hospital")) {
+                    hospitals.push_back(marker);
+                } else {
+                    generalPlaces.push_back(marker);
+                }
+            }
+
+            // Assemble prioritized places up to maxPlaces
+            for (const auto &sh : safeHavens) {
+                if (static_cast<int>(m_places.size()) >= maxPlaces) break;
+                m_places.push_back(sh);
+            }
+            for (const auto &h : hospitals) {
+                if (static_cast<int>(m_places.size()) >= maxPlaces) break;
+                m_places.push_back(h);
+            }
+            for (const auto &g : generalPlaces) {
+                if (static_cast<int>(m_places.size()) >= maxPlaces) break;
+                m_places.push_back(g);
             }
             pf.close();
         }
@@ -290,11 +322,16 @@ bool OfflineMapView::loadRegionData(
         m_zoom = 8.0;
     }
 
-    m_viewState = MapViewState::Ready;
-    m_statusMessage = QStringLiteral("Offline Map Active: %1 (%2 roads, %3 POIs)")
-        .arg(m_regionDisplayName)
-        .arg(m_roads.size())
-        .arg(m_places.size());
+    if (m_roads.empty() && m_boundaryPolygon.isEmpty() && m_places.empty()) {
+        m_viewState = MapViewState::InvalidData;
+        m_statusMessage = QStringLiteral("No geographic features could be loaded for region: ") + m_regionDisplayName;
+    } else {
+        m_viewState = MapViewState::Ready;
+        m_statusMessage = QStringLiteral("Offline Map Active: %1 (%2 roads, %3 POIs)")
+            .arg(m_regionDisplayName)
+            .arg(m_roads.size())
+            .arg(m_places.size());
+    }
 
     emit regionIdChanged();
     emit regionDisplayNameChanged();
