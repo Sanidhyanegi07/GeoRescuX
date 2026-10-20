@@ -16,6 +16,10 @@ import com.example.georescux.domain.admin.DistrictCatalog
 import com.example.georescux.domain.admin.EmergencyPriorityCalculator
 import com.example.georescux.domain.admin.EmergencyVerifiable
 import com.example.georescux.ui.common.OfflineMapSetup
+import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import com.example.georescux.data.auth.UserRole
+import kotlinx.coroutines.launch
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -57,6 +61,16 @@ class AdminMapActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        lifecycleScope.launch {
+            val role = container.roleResolver.resolveRole()
+            if (role != UserRole.ADMIN) {
+                Toast.makeText(this@AdminMapActivity, "Access Denied: Admin authorization required", Toast.LENGTH_LONG).show()
+                finish()
+                return@launch
+            }
+        }
+
         OfflineMapSetup.prepareOsmdroid(this)
         setContentView(R.layout.activity_admin_map)
 

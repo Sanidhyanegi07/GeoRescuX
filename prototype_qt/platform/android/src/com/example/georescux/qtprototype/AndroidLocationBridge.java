@@ -71,32 +71,46 @@ public class AndroidLocationBridge implements LocationListener {
 
         try {
             mLocationManager.removeUpdates(this);
+        } catch (Exception ignored) {
+        }
 
-            // Immediately dispatch last known location if fresh and available
-            Location lastGps = null;
-            Location lastNet = null;
-            try {
-                if (mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                    lastGps = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                }
-                if (mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                    lastNet = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                }
-            } catch (SecurityException se) {
-                Log.w(TAG, "SecurityException reading last known location: " + se.getMessage());
+        // 1. Immediately query last known location if fresh and available
+        Location lastGps = null;
+        Location lastNet = null;
+        try {
+            if (mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                lastGps = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             }
+        } catch (SecurityException se) {
+            Log.w(TAG, "SecurityException reading GPS last known location (approximate-only permission): " + se.getMessage());
+        } catch (Exception e) {
+            Log.w(TAG, "Exception reading GPS last known location: " + e.getMessage());
+        }
 
-            Location best = lastGps;
-            if (best == null || (lastNet != null && lastNet.getTime() > best.getTime())) {
-                best = lastNet;
+        try {
+            if (mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                lastNet = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
             }
+        } catch (SecurityException se) {
+            Log.w(TAG, "SecurityException reading Network last known location: " + se.getMessage());
+        } catch (Exception e) {
+            Log.w(TAG, "Exception reading Network last known location: " + e.getMessage());
+        }
 
-            if (best != null) {
-                onLocationChanged(best);
-            }
+        Location best = lastGps;
+        if (best == null || (lastNet != null && lastNet.getTime() > best.getTime())) {
+            best = lastNet;
+        }
 
-            // Register for updates on Main Looper
-            boolean registeredAny = false;
+        if (best != null) {
+            onLocationChanged(best);
+        }
+
+        // 2. Register for updates on Main Looper independently for GPS and Network providers
+        boolean gpsRegistered = false;
+        boolean netRegistered = false;
+
+        try {
             if (mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 mLocationManager.requestLocationUpdates(
                         LocationManager.GPS_PROVIDER,
@@ -105,10 +119,16 @@ public class AndroidLocationBridge implements LocationListener {
                         this,
                         Looper.getMainLooper()
                 );
-                registeredAny = true;
+                gpsRegistered = true;
                 Log.i(TAG, "Registered GPS_PROVIDER listener (interval: " + minTimeMs + "ms, minDistance: " + minDistanceM + "m)");
             }
+        } catch (SecurityException se) {
+            Log.w(TAG, "GPS_PROVIDER not permitted (user granted approximate-only location): " + se.getMessage());
+        } catch (Exception e) {
+            Log.w(TAG, "Could not register GPS_PROVIDER: " + e.getMessage());
+        }
 
+        try {
             if (mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
                 mLocationManager.requestLocationUpdates(
                         LocationManager.NETWORK_PROVIDER,
@@ -117,38 +137,41 @@ public class AndroidLocationBridge implements LocationListener {
                         this,
                         Looper.getMainLooper()
                 );
-                registeredAny = true;
+                netRegistered = true;
                 Log.i(TAG, "Registered NETWORK_PROVIDER listener (interval: " + minTimeMs + "ms, minDistance: " + minDistanceM + "m)");
             }
+        } catch (SecurityException se) {
+            Log.w(TAG, "NETWORK_PROVIDER not permitted: " + se.getMessage());
+        } catch (Exception e) {
+            Log.w(TAG, "Could not register NETWORK_PROVIDER: " + e.getMessage());
+        }
 
-            if (!registeredAny) {
+        if (!gpsRegistered && !netRegistered) {
+            if (!isLocationServicesEnabled()) {
                 Log.w(TAG, "No location providers enabled on system.");
                 onNativeStateChanged(3); // LocationServicesDisabled
             } else {
-                mIsTracking = true;
-                if (best == null) {
-                    onNativeStateChanged(4); // AcquisitionPending
-                }
+                Log.w(TAG, "All location providers failed or denied permission.");
+                onNativeStateChanged(2); // PermissionDenied
             }
-        } catch (SecurityException se) {
-            Log.e(TAG, "SecurityException requesting location updates: permission denied", se);
-            onNativeStateChanged(2); // PermissionDenied
-        } catch (Exception e) {
-            Log.e(TAG, "Exception starting location updates: " + e.getMessage(), e);
-            onNativeStateChanged(7); // LocationUnavailable
+        } else {
+            mIsTracking = true;
+            if (best == null) {
+                onNativeStateChanged(4); // AcquisitionPending
+            }
         }
     }
 
     public synchronized void stopLocationUpdates() {
-        if (mLocationManager != null && mIsTracking) {
+        if (mLocationManager != null) {
             try {
                 mLocationManager.removeUpdates(this);
                 Log.i(TAG, "Unregistered Android location updates.");
             } catch (Exception e) {
                 Log.e(TAG, "Error removing location updates: " + e.getMessage());
             }
-            mIsTracking = false;
         }
+        mIsTracking = false;
     }
 
     @Override
@@ -179,6 +202,24 @@ public class AndroidLocationBridge implements LocationListener {
     @Override
     public void onProviderEnabled(String provider) {
         Log.i(TAG, "Provider enabled: " + provider);
+        if (mIsTracking && mLocationManager != null) {
+            try {
+                if (LocationManager.GPS_PROVIDER.equals(provider)) {
+                    mLocationManager.requestLocationUpdates(
+                            LocationManager.GPS_PROVIDER,
+                            2000,
+                            2.0f,
+                            this,
+                            Looper.getMainLooper()
+                    );
+                    Log.i(TAG, "Re-registered GPS_PROVIDER after provider was re-enabled");
+                }
+            } catch (SecurityException se) {
+                Log.w(TAG, "Cannot register re-enabled GPS provider: " + se.getMessage());
+            } catch (Exception e) {
+                Log.w(TAG, "Error registering re-enabled GPS provider: " + e.getMessage());
+            }
+        }
     }
 
     @Override

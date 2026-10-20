@@ -2,6 +2,7 @@
 #define GEORESCUX_QT_LOCATION_PROVIDER_H
 
 #include <QObject>
+#include <QPointer>
 #include <QTimer>
 #include "domain/ILocationProvider.h"
 

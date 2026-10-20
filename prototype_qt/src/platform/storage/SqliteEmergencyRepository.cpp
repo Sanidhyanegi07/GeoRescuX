@@ -264,7 +264,8 @@ SqliteEmergencyRepository::updateLocation(
     // Check ownership and state to distinguish NotFound from InvalidState without leaking foreign records
     QSqlQuery checkQ(db);
     checkQ.prepare(QStringLiteral(
-        "SELECT status, user_id FROM emergency_records WHERE emergency_id = :id;"
+        "SELECT status, user_id, latitude, longitude, location_accuracy_meters, location_timestamp_utc_ms "
+        "FROM emergency_records WHERE emergency_id = :id;"
     ));
     checkQ.bindValue(QStringLiteral(":id"), trimmedEid);
 
@@ -292,6 +293,12 @@ SqliteEmergencyRepository::updateLocation(
         );
     }
 
+    const bool hasExistingLoc = !checkQ.value(2).isNull() && !checkQ.value(3).isNull();
+    const double existingLat = checkQ.value(2).toDouble();
+    const double existingLon = checkQ.value(3).toDouble();
+    const double existingAcc = checkQ.value(4).toDouble();
+    const qint64 existingLts = checkQ.value(5).toLongLong();
+
     const qint64 nowUtcMs = QDateTime::currentMSecsSinceEpoch();
 
     QSqlQuery q(db);
@@ -311,10 +318,19 @@ SqliteEmergencyRepository::updateLocation(
         q.bindValue(QStringLiteral(":acc"), location.accuracyMeters);
         q.bindValue(QStringLiteral(":lts"), location.timestampUtcMs > 0 ? location.timestampUtcMs : nowUtcMs);
     } else {
-        q.bindValue(QStringLiteral(":lat"), QVariant(QMetaType(QMetaType::Double)));
-        q.bindValue(QStringLiteral(":lon"), QVariant(QMetaType(QMetaType::Double)));
-        q.bindValue(QStringLiteral(":acc"), QVariant(QMetaType(QMetaType::Double)));
-        q.bindValue(QStringLiteral(":lts"), QVariant(QMetaType(QMetaType::LongLong)));
+        // If the update does not provide valid coordinates (e.g. temporary signal loss),
+        // preserve existing valid coordinates so temporary GPS dropouts do not erase location telemetry.
+        if (hasExistingLoc) {
+            q.bindValue(QStringLiteral(":lat"), existingLat);
+            q.bindValue(QStringLiteral(":lon"), existingLon);
+            q.bindValue(QStringLiteral(":acc"), existingAcc);
+            q.bindValue(QStringLiteral(":lts"), existingLts);
+        } else {
+            q.bindValue(QStringLiteral(":lat"), QVariant(QMetaType(QMetaType::Double)));
+            q.bindValue(QStringLiteral(":lon"), QVariant(QMetaType(QMetaType::Double)));
+            q.bindValue(QStringLiteral(":acc"), QVariant(QMetaType(QMetaType::Double)));
+            q.bindValue(QStringLiteral(":lts"), QVariant(QMetaType(QMetaType::LongLong)));
+        }
     }
     q.bindValue(QStringLiteral(":lst"), locationStatusToString(status));
     q.bindValue(QStringLiteral(":ts"), nowUtcMs);

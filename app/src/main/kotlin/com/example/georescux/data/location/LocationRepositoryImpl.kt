@@ -56,6 +56,10 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
     }
 
     private fun deliver(location: Location) {
+        if (location.latitude == 0.0 && location.longitude == 0.0) return
+        if (location.latitude < -90.0 || location.latitude > 90.0) return
+        if (location.longitude < -180.0 || location.longitude > 180.0) return
+
         onLocation?.invoke(
             SosLocation(
                 latitude = location.latitude,

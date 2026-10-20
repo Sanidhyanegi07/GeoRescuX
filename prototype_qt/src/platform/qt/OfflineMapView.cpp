@@ -584,6 +584,13 @@ void OfflineMapView::paint(QPainter *painter) {
 }
 
 void OfflineMapView::setUserPosition(double lat, double lon, double accuracyMeters, bool isLive, bool isStale) {
+    if (!std::isfinite(lat) || !std::isfinite(lon) ||
+        lat < -90.0 || lat > 90.0 || lon < -180.0 || lon > 180.0 ||
+        (lat == 0.0 && lon == 0.0)) {
+        clearUserPosition();
+        return;
+    }
+
     const bool posChanged = !m_hasUserPos ||
         std::abs(m_userLat - lat) > 0.00001 ||
         std::abs(m_userLon - lon) > 0.00001 ||

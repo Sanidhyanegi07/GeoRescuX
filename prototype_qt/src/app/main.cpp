@@ -70,6 +70,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("emergencyService"), appState.emergencyService());
     engine.rootContext()->setContextProperty(QStringLiteral("packageManager"), appState.packageManager());
     engine.rootContext()->setContextProperty(QStringLiteral("routeService"), appState.routeService());
+    engine.rootContext()->setContextProperty(QStringLiteral("locationService"), appState.locationService());
     engine.rootContext()->setContextProperty(QStringLiteral("prototypeBackend"), &backend);
 
     const QUrl url(QStringLiteral("qrc:/qt/qml/GeoRescuX/Prototype/ui/qml/Main.qml"));

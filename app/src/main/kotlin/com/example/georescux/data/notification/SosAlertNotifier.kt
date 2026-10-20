@@ -38,13 +38,15 @@ object SosAlertNotifier {
 
         if (!hasNotificationPermission(appContext)) return
 
+        val notificationId = 1000 + (originId.hashCode() and 0x7FFFFFFF) % 50000
+
         // Tapping the notification opens the Alerts screen.
         val intent = Intent(appContext, AlertsActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
             appContext,
-            notifIdCounter.get(),
+            notificationId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -85,7 +87,7 @@ object SosAlertNotifier {
         }
 
         NotificationManagerCompat.from(appContext)
-            .notify(notifIdCounter.getAndIncrement(), notification)
+            .notify(notificationId, notification)
     }
 
     private fun ensureChannel(context: Context) {

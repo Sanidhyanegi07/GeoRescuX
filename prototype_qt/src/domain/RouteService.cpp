@@ -197,8 +197,12 @@ RouteServiceResult RouteService::computeRouteDirect(
         return res;
     }
 
-    // 5. A* Pathfinding execution
-    auto routeOpt = georescux::routing::AStarPathfinder::findRoute(graph, startId, destId);
+    // 5. A* Pathfinding execution (Safe Route Pro actively avoids hazards and blocked roads)
+    georescux::routing::RouteGraph routingGraph = graph;
+    if (!avoidHazards) {
+        routingGraph.hazards.clear();
+    }
+    auto routeOpt = georescux::routing::AStarPathfinder::findRoute(routingGraph, startId, destId);
     if (!routeOpt || routeOpt->empty()) {
         res.statusMessage = QStringLiteral("Destination is unreachable via the available road network.");
         return res;
@@ -318,7 +322,11 @@ bool RouteService::calculateRouteByNodes(
         return true;
     }
 
-    auto routeOpt = georescux::routing::AStarPathfinder::findRoute(graph, sId, dId);
+    georescux::routing::RouteGraph routingGraph = graph;
+    if (!avoidHazards) {
+        routingGraph.hazards.clear();
+    }
+    auto routeOpt = georescux::routing::AStarPathfinder::findRoute(routingGraph, sId, dId);
     if (!routeOpt || routeOpt->empty()) {
         res.statusMessage = QStringLiteral("Destination is unreachable via the available road network.");
         m_lastResult = res;

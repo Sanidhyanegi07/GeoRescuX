@@ -232,7 +232,18 @@ int main(int argc, char *argv[]) {
         // Clear user position
         mapView.clearUserPosition();
         assert(!mapView.hasUserPosition());
-        std::cout << "  -> PASSED: Map view marker states updated and cleared without redraw leaks." << std::endl;
+
+        // Test rejection of (0,0) placeholder and out-of-bounds coordinates
+        mapView.setUserPosition(0.0, 0.0, 5.0, true, false);
+        assert(!mapView.hasUserPosition());
+
+        mapView.setUserPosition(95.0, 78.0, 5.0, true, false);
+        assert(!mapView.hasUserPosition());
+
+        mapView.setUserPosition(30.0, 190.0, 5.0, true, false);
+        assert(!mapView.hasUserPosition());
+
+        std::cout << "  -> PASSED: Map view marker states updated and cleared, invalid/(0,0) rejected." << std::endl;
     }
 
     // Test 10: SOS Activation Without Location

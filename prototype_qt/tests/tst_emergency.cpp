@@ -196,6 +196,16 @@ int main(int argc, char *argv[]) {
         assert(updateRes.data->location->longitude == 78.0322);
         assert(updateRes.data->locationStatus == EmergencyLocationStatus::Available);
 
+        // Temporary GPS signal loss (invalid coordinates with Unavailable status) must preserve last valid fix
+        EmergencyLocation invalidLoc;
+        assert(!invalidLoc.isValid());
+        auto tempLossRes = repo->updateLocation("user_loc", eid, invalidLoc, EmergencyLocationStatus::Unavailable);
+        assert(tempLossRes.isSuccess);
+        assert(tempLossRes.data->locationStatus == EmergencyLocationStatus::Unavailable);
+        assert(tempLossRes.data->location.has_value());
+        assert(tempLossRes.data->location->latitude == 30.3165);
+        assert(tempLossRes.data->location->longitude == 78.0322);
+
         // Empty emergency ID update must be rejected
         auto badRes = repo->updateLocation("user_loc", "", validLoc, EmergencyLocationStatus::Available);
         assert(!badRes.isSuccess);
@@ -205,7 +215,7 @@ int main(int argc, char *argv[]) {
         auto badUserRes = repo->updateLocation("", eid, validLoc, EmergencyLocationStatus::Available);
         assert(!badUserRes.isSuccess);
         assert(badUserRes.errorCode == EmergencyErrorCode::InvalidInput);
-        std::cout << "  -> PASSED: Location updates verified and validated." << std::endl;
+        std::cout << "  -> PASSED: Location updates verified and validated (including temporary signal loss preservation)." << std::endl;
     }
 
     // Test 7: Note update validation and 120-char truncation

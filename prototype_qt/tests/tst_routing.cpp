@@ -414,8 +414,79 @@ int main(int argc, char *argv[]) {
         std::cout << "  -> PASSED: Projection roundtrip is lossless and longitude scaling is physically correct." << std::endl;
     }
 
+    // Test 23: Safe Route Pro Excludes Blocked Edge and Selects Detour Corridor
+    {
+        std::cout << "[Test 23] Testing Safe Route Pro excludes blocked edge in actual RouteService..." << std::endl;
+        std::vector<RouteNode> blockNodes = {
+            RouteNode{"PB_START", 30.00, 78.00, false},
+            RouteNode{"PB_DEST", 30.01, 78.00, false},
+            RouteNode{"PB_DETOUR", 30.00, 78.01, false}
+        };
+        // Direct road PB_START -> PB_DEST is 1000m but blocked
+        // Alternative PB_START -> PB_DETOUR -> PB_DEST is 800m + 800m = 1600m
+        std::vector<RouteEdge> blockEdges = {
+            RouteEdge{"PB_START", "PB_DEST", 1000.0, true}, // BLOCKED
+            RouteEdge{"PB_START", "PB_DETOUR", 800.0, false},
+            RouteEdge{"PB_DETOUR", "PB_DEST", 800.0, false}
+        };
+        RouteGraph blockGraph(blockNodes, blockEdges, {}, 1);
+        routeRepo->seedGraph(QStringLiteral("blocked_edge_region"), blockGraph);
+
+        auto res = service.computeRouteDirect(QStringLiteral("blocked_edge_region"), 30.00, 78.00, 30.01, 78.00, true);
+        assert(res.success);
+        assert(res.nodeIds.size() == 3);
+        assert(res.nodeIds.at(0) == "PB_START");
+        assert(res.nodeIds.at(1) == "PB_DETOUR");
+        assert(res.nodeIds.at(2) == "PB_DEST");
+        assert(std::abs(res.totalDistanceMeters - 1600.0) < 1e-3);
+        std::cout << "  -> PASSED: Blocked edge (1000m) excluded; A* selected viable detour (1600m)." << std::endl;
+    }
+
+    // Test 24: Active Hazard Penalty Diverts Route in Safe Route Pro vs Standard Mode
+    {
+        std::cout << "[Test 24] Testing hazard penalty route diversion in Safe Route Pro vs Standard..." << std::endl;
+        // Nodes 0.005 deg (~555m) apart: edge distances >= 600m are admissible
+        std::vector<RouteNode> hzNodes = {
+            RouteNode{"HZ_START", 30.000, 78.000, false},
+            RouteNode{"HZ_DEST", 30.005, 78.000, false},
+            RouteNode{"HZ_ALT", 30.0025, 78.004, false}
+        };
+        // Direct road is 600m
+        // Alternative detour is 450m + 450m = 900m
+        std::vector<RouteEdge> hzEdges = {
+            RouteEdge{"HZ_START", "HZ_DEST", 600.0, false},
+            RouteEdge{"HZ_START", "HZ_ALT", 450.0, false},
+            RouteEdge{"HZ_ALT", "HZ_DEST", 450.0, false}
+        };
+        // Hazard on direct road with +500m penalty (cost becomes 600m + 500m = 1100m > 900m)
+        std::vector<RoadHazard> hazards = {
+            RoadHazard{"HAZ_01", "HZ_START", "HZ_DEST", 500.0}
+        };
+        RouteGraph hzGraph(hzNodes, hzEdges, hazards, 1);
+        routeRepo->seedGraph(QStringLiteral("hazard_penalty_region"), hzGraph);
+
+        // Case A: Standard Route (avoidHazards = false) ignores hazard penalties and takes direct road (600m)
+        auto resStd = service.computeRouteDirect(QStringLiteral("hazard_penalty_region"), 30.000, 78.000, 30.005, 78.000, false);
+        assert(resStd.success);
+        assert(resStd.nodeIds.size() == 2);
+        assert(resStd.nodeIds.at(0) == "HZ_START");
+        assert(resStd.nodeIds.at(1) == "HZ_DEST");
+        assert(std::abs(resStd.totalDistanceMeters - 600.0) < 1e-3);
+
+        // Case B: Safe Route Pro (avoidHazards = true) applies hazard penalty and diverts to lower-cost alternative (900m)
+        auto resPro = service.computeRouteDirect(QStringLiteral("hazard_penalty_region"), 30.000, 78.000, 30.005, 78.000, true);
+        assert(resPro.success);
+        assert(resPro.nodeIds.size() == 3);
+        assert(resPro.nodeIds.at(0) == "HZ_START");
+        assert(resPro.nodeIds.at(1) == "HZ_ALT");
+        assert(resPro.nodeIds.at(2) == "HZ_DEST");
+        assert(std::abs(resPro.totalDistanceMeters - 900.0) < 1e-3);
+        assert(std::abs(resPro.totalCostMeters - 900.0) < 1e-3);
+        std::cout << "  -> PASSED: Standard mode selected direct road (600m); Safe Route Pro successfully diverted to safe alternative (900m) due to +500m hazard penalty." << std::endl;
+    }
+
     std::cout << "=================================================================" << std::endl;
-    std::cout << " [GeoRescuX Test] ALL 22 PHASE 7 ROUTING TESTS PASSED!" << std::endl;
+    std::cout << " [GeoRescuX Test] ALL 24 PHASE 7 ROUTING TESTS PASSED!" << std::endl;
     std::cout << "=================================================================" << std::endl;
 
     return 0;

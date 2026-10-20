@@ -32,9 +32,10 @@ class SosRepositoryImpl(private val store: LocalSosStore) : SosRepository {
 
     override fun updateActiveEmergencyLocation(location: SosLocation?, status: SosLocationStatus) {
         // Updates the existing record in place — never creates a new
-        // emergency or a history entry.
+        // emergency or a history entry. Preserves last valid coordinates if current is null.
         val active = store.loadActive() ?: return
-        store.saveActive(active.copy(location = location, locationStatus = status))
+        val resolvedLocation = location ?: active.location
+        store.saveActive(active.copy(location = resolvedLocation, locationStatus = status))
     }
 
     override fun updateActiveEmergencyNote(note: String?) {

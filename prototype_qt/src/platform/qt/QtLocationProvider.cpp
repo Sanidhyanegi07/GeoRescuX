@@ -20,10 +20,10 @@ QtLocationProvider::QtLocationProvider(QObject *parent)
 }
 
 QtLocationProvider::~QtLocationProvider() {
-    stopUpdates();
     if (s_activeInstance == this) {
         s_activeInstance = nullptr;
     }
+    stopUpdates();
 }
 
 georescux::domain::LocationPermissionStatus QtLocationProvider::permissionStatus() const {
@@ -35,7 +35,16 @@ void QtLocationProvider::querySystemPermission() {
     perm.setAccuracy(QLocationPermission::Precise);
     perm.setAvailability(QLocationPermission::WhenInUse);
 
-    const Qt::PermissionStatus status = qApp ? qApp->checkPermission(perm) : Qt::PermissionStatus::Undetermined;
+    Qt::PermissionStatus status = qApp ? qApp->checkPermission(perm) : Qt::PermissionStatus::Undetermined;
+    if (status != Qt::PermissionStatus::Granted && qApp) {
+        QLocationPermission coarsePerm;
+        coarsePerm.setAccuracy(QLocationPermission::Approximate);
+        coarsePerm.setAvailability(QLocationPermission::WhenInUse);
+        if (qApp->checkPermission(coarsePerm) == Qt::PermissionStatus::Granted) {
+            status = Qt::PermissionStatus::Granted;
+        }
+    }
+
     switch (status) {
         case Qt::PermissionStatus::Granted:
             m_permission = georescux::domain::LocationPermissionStatus::Granted;
@@ -60,7 +69,16 @@ void QtLocationProvider::requestPermission() {
     perm.setAvailability(QLocationPermission::WhenInUse);
 
     qApp->requestPermission(perm, [this](const QPermission &p) {
-        const auto status = p.status();
+        auto status = p.status();
+        if (status != Qt::PermissionStatus::Granted && qApp) {
+            QLocationPermission coarsePerm;
+            coarsePerm.setAccuracy(QLocationPermission::Approximate);
+            coarsePerm.setAvailability(QLocationPermission::WhenInUse);
+            if (qApp->checkPermission(coarsePerm) == Qt::PermissionStatus::Granted) {
+                status = Qt::PermissionStatus::Granted;
+            }
+        }
+
         if (status == Qt::PermissionStatus::Granted) {
             m_permission = georescux::domain::LocationPermissionStatus::Granted;
             qInfo() << "[QtLocationProvider] Location permission GRANTED by system.";
@@ -229,8 +247,9 @@ void QtLocationProvider::handleAndroidLocation(
     double lat, double lon, double alt, float acc, float speed, qint64 timestampUtcMs
 ) {
     // Thread safety: forward to provider's QObject event loop thread
-    QMetaObject::invokeMethod(this, [this, lat, lon, alt, acc, speed, timestampUtcMs]() {
-        if (!m_isUpdating) {
+    QPointer<QtLocationProvider> weakThis(this);
+    QMetaObject::invokeMethod(this, [weakThis, lat, lon, alt, acc, speed, timestampUtcMs]() {
+        if (!weakThis || !weakThis->m_isUpdating) {
             return;
         }
 
@@ -244,17 +263,21 @@ void QtLocationProvider::handleAndroidLocation(
             .isValidCoordinates = true
         };
 
-        if (m_onPositionChanged) {
-            m_onPositionChanged(pos);
+        if (weakThis->m_onPositionChanged) {
+            weakThis->m_onPositionChanged(pos);
         }
     }, Qt::QueuedConnection);
 }
 
 void QtLocationProvider::handleAndroidState(int stateCode) {
-    QMetaObject::invokeMethod(this, [this, stateCode]() {
+    QPointer<QtLocationProvider> weakThis(this);
+    QMetaObject::invokeMethod(this, [weakThis, stateCode]() {
+        if (!weakThis) {
+            return;
+        }
         auto state = static_cast<georescux::domain::LocationTrackingState>(stateCode);
-        if (m_onStateChanged) {
-            m_onStateChanged(state);
+        if (weakThis->m_onStateChanged) {
+            weakThis->m_onStateChanged(state);
         }
     }, Qt::QueuedConnection);
 }

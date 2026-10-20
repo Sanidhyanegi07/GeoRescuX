@@ -7,15 +7,20 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.widget.addTextChangedListener
+import androidx.lifecycle.lifecycleScope
+import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
+import com.example.georescux.data.auth.UserRole
 import com.example.georescux.data.maps.MapRegionCatalog
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import kotlinx.coroutines.launch
 
 /**
  * Administrative user directory (spec §51).
@@ -49,6 +54,17 @@ class AdminUsersActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val appContainer = (application as GeoRescuXApplication).appContainer
+        lifecycleScope.launch {
+            val role = appContainer.roleResolver.resolveRole()
+            if (role != UserRole.ADMIN) {
+                Toast.makeText(this@AdminUsersActivity, "Access Denied: Admin authorization required", Toast.LENGTH_LONG).show()
+                finish()
+                return@launch
+            }
+        }
+
         setContentView(R.layout.activity_admin_users)
 
         listContainer = findViewById(R.id.usersListContainer)
