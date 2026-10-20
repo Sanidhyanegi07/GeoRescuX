@@ -130,9 +130,16 @@ bool LocalDatabase::applyMigrations() {
         return false;
     }
 
-    const int currentVer = schemaVersion();
+    int currentVer = schemaVersion();
     if (currentVer < 1) {
         if (!executeSchemaV1()) {
+            return false;
+        }
+        currentVer = schemaVersion();
+    }
+
+    if (currentVer < 2) {
+        if (!executeSchemaV2()) {
             return false;
         }
     }
@@ -182,7 +189,7 @@ bool LocalDatabase::executeSchemaV1() {
         return false;
     }
 
-    // 3. Local emergency records (Phase 3 schema preparation)
+    // 3. Local emergency records (Phase 2 legacy table)
     const QString createEmergency = QStringLiteral(
         "CREATE TABLE IF NOT EXISTS local_emergency_records ("
         "  emergency_id TEXT PRIMARY KEY,"
@@ -222,6 +229,88 @@ bool LocalDatabase::executeSchemaV1() {
         return false;
     }
 
+    return true;
+}
+
+bool LocalDatabase::executeSchemaV2() {
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    if (!db.transaction()) {
+        m_lastError = QStringLiteral("Failed to begin transaction for Schema V2.");
+        return false;
+    }
+
+    QSqlQuery q(db);
+
+    // 1. Production Emergency Records table with full typed lifecycle
+    const QString createEmergencyTable = QStringLiteral(
+        "CREATE TABLE IF NOT EXISTS emergency_records ("
+        "  emergency_id TEXT PRIMARY KEY,"
+        "  user_id TEXT NOT NULL,"
+        "  status TEXT NOT NULL,"
+        "  started_at_utc_ms INTEGER NOT NULL,"
+        "  completed_at_utc_ms INTEGER,"
+        "  latitude REAL,"
+        "  longitude REAL,"
+        "  location_accuracy_meters REAL,"
+        "  location_timestamp_utc_ms INTEGER,"
+        "  location_status TEXT NOT NULL,"
+        "  note TEXT,"
+        "  created_at_utc_ms INTEGER NOT NULL,"
+        "  updated_at_utc_ms INTEGER NOT NULL,"
+        "  sync_status TEXT NOT NULL,"
+        "  schema_version INTEGER NOT NULL"
+        ");"
+    );
+    if (!q.exec(createEmergencyTable)) {
+        db.rollback();
+        m_lastError = QStringLiteral("Failed to create emergency_records table: ") + q.lastError().text();
+        return false;
+    }
+
+    // 2. Partial unique index enforcing AT MOST ONE ACTIVE emergency per user
+    const QString createActiveIndex = QStringLiteral(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_emergency_per_user "
+        "ON emergency_records (user_id) WHERE status = 'ACTIVE';"
+    );
+    if (!q.exec(createActiveIndex)) {
+        db.rollback();
+        m_lastError = QStringLiteral("Failed to create idx_one_active_emergency_per_user: ") + q.lastError().text();
+        return false;
+    }
+
+    // 3. Reverse chronological history index
+    const QString createHistoryIndex = QStringLiteral(
+        "CREATE INDEX IF NOT EXISTS idx_emergency_user_history "
+        "ON emergency_records (user_id, started_at_utc_ms DESC);"
+    );
+    if (!q.exec(createHistoryIndex)) {
+        db.rollback();
+        m_lastError = QStringLiteral("Failed to create idx_emergency_user_history: ") + q.lastError().text();
+        return false;
+    }
+
+    // Record migration in schema_migrations
+    q.prepare(QStringLiteral(
+        "INSERT INTO schema_migrations (version, applied_at_ms, description) "
+        "VALUES (:ver, :ts, :desc);"
+    ));
+    q.bindValue(QStringLiteral(":ver"), 2);
+    q.bindValue(QStringLiteral(":ts"), QDateTime::currentMSecsSinceEpoch());
+    q.bindValue(QStringLiteral(":desc"), QStringLiteral("Schema V2: Multi-user emergency lifecycle with partial unique active index"));
+
+    if (!q.exec()) {
+        db.rollback();
+        m_lastError = QStringLiteral("Failed to record migration V2: ") + q.lastError().text();
+        return false;
+    }
+
+    if (!db.commit()) {
+        db.rollback();
+        m_lastError = QStringLiteral("Failed to commit transaction for Schema V2: ") + db.lastError().text();
+        return false;
+    }
+
+    qInfo() << "[LocalDatabase] Applied Schema Migration V2: Emergency lifecycle & partial unique index.";
     return true;
 }
 

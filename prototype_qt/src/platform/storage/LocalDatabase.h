@@ -24,7 +24,7 @@ namespace georescux::storage {
  */
 class LocalDatabase {
 public:
-    static constexpr int CURRENT_SCHEMA_VERSION = 1;
+    static constexpr int CURRENT_SCHEMA_VERSION = 2;
 
     LocalDatabase();
     ~LocalDatabase();
@@ -45,6 +45,9 @@ public:
     [[nodiscard]] int schemaVersion() const;
     [[nodiscard]] QString databasePath() const noexcept { return m_dbPath; }
     [[nodiscard]] QString lastError() const noexcept { return m_lastError; }
+    [[nodiscard]] QString connectionName() const noexcept { return m_connectionName; }
+    [[nodiscard]] QRecursiveMutex &mutex() const noexcept { return m_mutex; }
+    [[nodiscard]] bool checkThreadAffinity() const;
 
     // Key-Value App Preferences
     bool setPreference(const QString &key, const QString &value);
@@ -69,7 +72,7 @@ public:
 private:
     bool applyMigrations();
     bool executeSchemaV1();
-    bool checkThreadAffinity() const;
+    bool executeSchemaV2();
 
     QString m_connectionName;
     QString m_dbPath;

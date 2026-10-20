@@ -5,6 +5,7 @@
 #include <QString>
 #include <memory>
 #include "domain/SessionModel.h"
+#include "domain/EmergencyService.h"
 #include "platform/storage/LocalDatabase.h"
 
 namespace georescux::app {
@@ -38,6 +39,7 @@ enum class PersistenceStatus {
 class AppState : public QObject {
     Q_OBJECT
     Q_PROPERTY(georescux::domain::SessionModel* session READ session CONSTANT)
+    Q_PROPERTY(georescux::domain::EmergencyService* emergencyService READ emergencyService CONSTANT)
     Q_PROPERTY(QString currentNavigation READ currentNavigation NOTIFY navigationChanged)
     Q_PROPERTY(QString connectivityStatusName READ connectivityStatusName NOTIFY connectivityChanged)
     Q_PROPERTY(QString emergencyStatusName READ emergencyStatusName NOTIFY emergencyStateChanged)
@@ -51,9 +53,15 @@ public:
         std::shared_ptr<georescux::storage::LocalDatabase> database,
         QObject *parent = nullptr
     );
+    AppState(
+        std::shared_ptr<georescux::storage::LocalDatabase> database,
+        std::shared_ptr<georescux::domain::IEmergencyRepository> emergencyRepository,
+        QObject *parent = nullptr
+    );
     ~AppState() override = default;
 
     [[nodiscard]] georescux::domain::SessionModel* session() noexcept { return &m_session; }
+    [[nodiscard]] georescux::domain::EmergencyService* emergencyService() noexcept { return m_emergencyService.get(); }
     [[nodiscard]] QString currentNavigation() const noexcept { return m_currentNavigation; }
     [[nodiscard]] ConnectivityState connectivity() const noexcept { return m_connectivity; }
     [[nodiscard]] QString connectivityStatusName() const noexcept;
@@ -70,6 +78,16 @@ public:
      * Rejects unauthorized portal transitions.
      */
     Q_INVOKABLE bool navigateTo(const QString &destination);
+
+    /**
+     * @brief Activates a real persistent SOS emergency for the currently authenticated user.
+     */
+    Q_INVOKABLE bool activateSos(const QString &note = QString());
+
+    /**
+     * @brief Completes and resolves the active SOS emergency for the authenticated user.
+     */
+    Q_INVOKABLE bool resolveSos();
 
     /**
      * @brief Visibly labeled test facility for role switching with session caching.
@@ -96,6 +114,8 @@ private:
     bool isDestinationAllowed(const QString &destination) const;
 
     std::shared_ptr<georescux::storage::LocalDatabase> m_database;
+    std::shared_ptr<georescux::domain::IEmergencyRepository> m_emergencyRepository;
+    std::shared_ptr<georescux::domain::EmergencyService> m_emergencyService;
     georescux::domain::SessionModel m_session;
     QString m_currentNavigation{QStringLiteral("Welcome")};
     ConnectivityState m_connectivity{ConnectivityState::Unknown};

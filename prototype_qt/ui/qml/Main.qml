@@ -264,6 +264,121 @@ ApplicationWindow {
             color: "#1E293B"
         }
 
+        // ---------------------------------------------------------------------
+        // Persistent Active SOS Emergency Banner
+        // Authoritative: Drives all Citizen User screens while emergency is active
+        // ---------------------------------------------------------------------
+        Rectangle {
+            id: activeSosBanner
+            visible: sessionModel.isAuthenticated && !sessionModel.isAdmin && emergencyService.hasActiveEmergency
+            Layout.fillWidth: true
+            Layout.preferredHeight: bannerContentCol.implicitHeight + 16
+            color: "#7F1D1D" // Urgency red
+            border.color: "#EF4444"
+            border.width: 1
+
+            ColumnLayout {
+                id: bannerContentCol
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 4
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Rectangle {
+                        width: 28
+                        height: 28
+                        radius: 14
+                        color: "#DC2626"
+                        Text {
+                            anchors.centerIn: parent
+                            text: "🚨"
+                            font.pixelSize: 14
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+
+                        RowLayout {
+                            spacing: 6
+                            Text {
+                                text: "SOS EMERGENCY ACTIVE"
+                                color: "#FFFFFF"
+                                font.pixelSize: 11
+                                font.weight: Font.Bold
+                            }
+                            Rectangle {
+                                height: 16
+                                width: emergencyIdText.contentWidth + 8
+                                radius: 4
+                                color: "#991B1B"
+                                Text {
+                                    id: emergencyIdText
+                                    anchors.centerIn: parent
+                                    text: emergencyService.activeEmergencyId
+                                    color: "#FECACA"
+                                    font.pixelSize: 9
+                                    font.family: "monospace"
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: "Started: " + emergencyService.activeStartedTimeString + " | " + emergencyService.activeLocationString
+                            color: "#FCA5A5"
+                            font.pixelSize: 10
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    Button {
+                        id: resolveSosBtn
+                        Layout.preferredHeight: 30
+                        background: Rectangle {
+                            radius: 6
+                            color: "#991B1B"
+                            border.color: "#F87171"
+                            border.width: 1
+                        }
+                        contentItem: Text {
+                            text: "Resolve SOS"
+                            color: "#FFFFFF"
+                            font.pixelSize: 10
+                            font.weight: Font.Bold
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        onClicked: confirmResolveDialog.open()
+                    }
+                }
+
+                // Optional note preview in banner if present
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: emergencyService.activeNote.length > 0
+                    spacing: 4
+                    Text {
+                        text: "Note:"
+                        color: "#FECACA"
+                        font.pixelSize: 10
+                        font.weight: Font.Bold
+                    }
+                    Text {
+                        text: emergencyService.activeNote
+                        color: "#FEE2E2"
+                        font.pixelSize: 10
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+        }
+
         // Active Screen View Container
         StackLayout {
             id: mainStack
@@ -427,6 +542,199 @@ ApplicationWindow {
                             }
                         }
 
+                        // -----------------------------------------------------
+                        // Life-Safety Emergency SOS Engine Card
+                        // -----------------------------------------------------
+                        Rectangle {
+                            visible: !emergencyService.hasActiveEmergency
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: sosActiveCol.implicitHeight + 24
+                            radius: 12
+                            color: "#181014"
+                            border.color: "#7F1D1D"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: sosActiveCol
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 10
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text {
+                                        text: "🚨 Life-Safety Emergency SOS Engine"
+                                        color: "#F8FAFC"
+                                        font.pixelSize: 14
+                                        font.weight: Font.Bold
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    Text {
+                                        text: "Local SQLite V2"
+                                        color: "#34D399"
+                                        font.pixelSize: 10
+                                        font.weight: Font.Bold
+                                    }
+                                }
+
+                                Text {
+                                    text: "Triggering SOS generates an immutable emergency record in local SQLite storage. Single-active-emergency invariant is enforced by SQLite partial unique index."
+                                    color: "#94A3B8"
+                                    font.pixelSize: 11
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    TextField {
+                                        id: sosNoteInput
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 38
+                                        placeholderText: "Emergency Note (Optional, e.g. Injury, Flood - max 120 chars)"
+                                        maximumLength: 120
+                                        color: "#F8FAFC"
+                                        placeholderTextColor: "#64748B"
+                                        background: Rectangle {
+                                            radius: 6
+                                            color: "#0F172A"
+                                            border.color: sosNoteInput.activeFocus ? "#EF4444" : "#334155"
+                                            border.width: 1
+                                        }
+                                        font.pixelSize: 11
+                                    }
+
+                                    Text {
+                                        text: (120 - sosNoteInput.text.length) + " left"
+                                        color: "#64748B"
+                                        font.pixelSize: 10
+                                    }
+                                }
+
+                                Button {
+                                    id: triggerSosBtn
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 46
+                                    background: Rectangle {
+                                        radius: 8
+                                        gradient: Gradient {
+                                            GradientStop { position: 0.0; color: "#DC2626" }
+                                            GradientStop { position: 1.0; color: "#991B1B" }
+                                        }
+                                        border.color: "#EF4444"
+                                        border.width: 1
+                                    }
+                                    contentItem: RowLayout {
+                                        anchors.centerIn: parent
+                                        spacing: 8
+                                        Text { text: "🚨"; font.pixelSize: 16 }
+                                        Text {
+                                            text: "ACTIVATE EMERGENCY SOS"
+                                            color: "#FFFFFF"
+                                            font.pixelSize: 13
+                                            font.weight: Font.Bold
+                                        }
+                                    }
+                                    onClicked: {
+                                        const note = sosNoteInput.text;
+                                        appState.activateSos(note);
+                                        sosNoteInput.text = "";
+                                    }
+                                }
+                            }
+                        }
+
+                        // Active Emergency Card in UserHome
+                        Rectangle {
+                            visible: emergencyService.hasActiveEmergency
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: activeCardCol.implicitHeight + 24
+                            radius: 12
+                            color: "#3B0D0D"
+                            border.color: "#EF4444"
+                            border.width: 1.5
+
+                            ColumnLayout {
+                                id: activeCardCol
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 10
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text {
+                                        text: "🚨 ACTIVE EMERGENCY IN PROGRESS"
+                                        color: "#FEE2E2"
+                                        font.pixelSize: 13
+                                        font.weight: Font.Bold
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    Rectangle {
+                                        height: 20
+                                        width: actBadgeText.contentWidth + 12
+                                        radius: 10
+                                        color: "#7F1D1D"
+                                        border.color: "#DC2626"
+                                        border.width: 1
+                                        Text {
+                                            id: actBadgeText
+                                            anchors.centerIn: parent
+                                            text: "PERSISTED"
+                                            color: "#FECACA"
+                                            font.pixelSize: 9
+                                            font.weight: Font.Bold
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 1
+                                    color: "#7F1D1D"
+                                }
+
+                                GridLayout {
+                                    columns: 2
+                                    Layout.fillWidth: true
+                                    columnSpacing: 10
+                                    rowSpacing: 6
+
+                                    Text { text: "Emergency ID:"; color: "#FCA5A5"; font.pixelSize: 11; font.weight: Font.Bold }
+                                    Text { text: emergencyService.activeEmergencyId; color: "#FFFFFF"; font.pixelSize: 11; font.family: "monospace" }
+
+                                    Text { text: "Started UTC:"; color: "#FCA5A5"; font.pixelSize: 11; font.weight: Font.Bold }
+                                    Text { text: emergencyService.activeStartedTimeString; color: "#FFFFFF"; font.pixelSize: 11 }
+
+                                    Text { text: "Location:"; color: "#FCA5A5"; font.pixelSize: 11; font.weight: Font.Bold }
+                                    Text { text: emergencyService.activeLocationString; color: "#FDE68A"; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+
+                                    Text { text: "Note:"; color: "#FCA5A5"; font.pixelSize: 11; font.weight: Font.Bold }
+                                    Text { text: emergencyService.activeNote.length > 0 ? emergencyService.activeNote : "None provided"; color: "#FFFFFF"; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                }
+
+                                Button {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 40
+                                    background: Rectangle {
+                                        radius: 8
+                                        color: "#1E293B"
+                                        border.color: "#F87171"
+                                        border.width: 1
+                                    }
+                                    contentItem: Text {
+                                        text: "Resolve & Complete Emergency"
+                                        color: "#FECACA"
+                                        font.pixelSize: 12
+                                        font.weight: Font.Bold
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    onClicked: confirmResolveDialog.open()
+                                }
+                            }
+                        }
+
                         // Readiness Overview Grid
                         GridLayout {
                             columns: 2
@@ -450,7 +758,7 @@ ApplicationWindow {
                                     anchors.fill: parent; anchors.margins: 10; spacing: 2
                                     Text { text: "💾 Local Storage"; color: "#94A3B8"; font.pixelSize: 11 }
                                     Text { text: appState.persistenceStatusName; color: "#F8FAFC"; font.pixelSize: 12; font.weight: Font.Bold }
-                                    Text { text: "Schema V1 Active"; color: "#38BDF8"; font.pixelSize: 10 }
+                                    Text { text: "Schema V2 Active"; color: "#38BDF8"; font.pixelSize: 10 }
                                 }
                             }
 
@@ -732,6 +1040,62 @@ ApplicationWindow {
                     }
                 }
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Emergency Resolution Confirmation Dialog
+    // Requires explicit confirmation before resolving active emergency
+    // -------------------------------------------------------------------------
+    Dialog {
+        id: confirmResolveDialog
+        title: qsTr("Confirm Emergency Resolution")
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 40, 420)
+        modal: true
+        standardButtons: Dialog.Yes | Dialog.No
+
+        background: Rectangle {
+            color: "#0F172A"
+            border.color: "#334155"
+            border.width: 1
+            radius: 12
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 12
+            Text {
+                text: "Are you sure you want to resolve and complete this emergency?"
+                color: "#F8FAFC"
+                font.pixelSize: 13
+                font.weight: Font.Bold
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            Text {
+                text: "This will transition emergency record '" + emergencyService.activeEmergencyId +
+                      "' to Completed in local SQLite storage. The record will remain archived in emergency history."
+                color: "#94A3B8"
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: "#1E293B"
+            }
+            Text {
+                text: "⚠️ Hardware GPS, BLE Mesh broadcast, and Cloud sync were deferred per Phase 3 specifications."
+                color: "#F59E0B"
+                font.pixelSize: 10
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+        }
+
+        onAccepted: {
+            appState.resolveSos();
         }
     }
 }

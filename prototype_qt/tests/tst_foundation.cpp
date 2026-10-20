@@ -92,13 +92,13 @@ int main(int argc, char *argv[]) {
 
     // Test 6: LocalDatabase SQLite initialization & schema versioning
     {
-        std::cout << "[Test 6] Testing LocalDatabase in-memory initialization & schema V1..." << std::endl;
+        std::cout << "[Test 6] Testing LocalDatabase in-memory initialization & schema V2..." << std::endl;
         LocalDatabase db;
         bool ok = db.initialize(":memory:");
         assert(ok);
         assert(db.isOpen());
-        assert(db.schemaVersion() == 1);
-        std::cout << "  -> PASSED: SQLite initialized in-memory with verified Schema V1." << std::endl;
+        assert(db.schemaVersion() == LocalDatabase::CURRENT_SCHEMA_VERSION);
+        std::cout << "  -> PASSED: SQLite initialized in-memory with verified Schema V2." << std::endl;
     }
 
     // Test 7: LocalDatabase repeated initialization idempotency
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
         assert(db.initialize(":memory:"));
         assert(db.initialize(":memory:")); // Repeated call must not crash or corrupt
         assert(db.isOpen());
-        assert(db.schemaVersion() == 1);
+        assert(db.schemaVersion() == LocalDatabase::CURRENT_SCHEMA_VERSION);
         std::cout << "  -> PASSED: Repeated initialization is safe and idempotent." << std::endl;
     }
 

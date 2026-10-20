@@ -63,8 +63,15 @@ qt_add_executable(appGeoRescuXQtPrototype
     src/app/AppState.cpp
     src/domain/SessionModel.h
     src/domain/SessionModel.cpp
+    src/domain/EmergencyModel.h
+    src/domain/EmergencyModel.cpp
+    src/domain/IEmergencyRepository.h
+    src/domain/EmergencyService.h
+    src/domain/EmergencyService.cpp
     src/platform/storage/LocalDatabase.h
     src/platform/storage/LocalDatabase.cpp
+    src/platform/storage/SqliteEmergencyRepository.h
+    src/platform/storage/SqliteEmergencyRepository.cpp
     src/platform/qt/PrototypeBackend.h
     src/platform/qt/PrototypeBackend.cpp
     ${GEORESCUX_CORE_SOURCES}
@@ -129,8 +136,15 @@ if(NOT ANDROID)
         tests/tst_foundation.cpp
         src/domain/SessionModel.cpp
         src/domain/SessionModel.h
+        src/domain/EmergencyModel.cpp
+        src/domain/EmergencyModel.h
+        src/domain/IEmergencyRepository.h
+        src/domain/EmergencyService.cpp
+        src/domain/EmergencyService.h
         src/platform/storage/LocalDatabase.cpp
         src/platform/storage/LocalDatabase.h
+        src/platform/storage/SqliteEmergencyRepository.cpp
+        src/platform/storage/SqliteEmergencyRepository.h
         src/app/AppState.cpp
         src/app/AppState.h
     )
@@ -148,4 +162,35 @@ if(NOT ANDROID)
     )
 
     add_test(NAME FoundationTest COMMAND tst_foundation)
+
+    add_executable(tst_emergency
+        tests/tst_emergency.cpp
+        src/domain/EmergencyModel.cpp
+        src/domain/EmergencyModel.h
+        src/domain/IEmergencyRepository.h
+        src/domain/EmergencyService.cpp
+        src/domain/EmergencyService.h
+        src/domain/SessionModel.cpp
+        src/domain/SessionModel.h
+        src/platform/storage/LocalDatabase.cpp
+        src/platform/storage/LocalDatabase.h
+        src/platform/storage/SqliteEmergencyRepository.cpp
+        src/platform/storage/SqliteEmergencyRepository.h
+        src/app/AppState.cpp
+        src/app/AppState.h
+    )
+
+    target_include_directories(tst_emergency PRIVATE
+        src
+        src/app
+        src/domain
+        src/platform/storage
+    )
+
+    target_link_libraries(tst_emergency PRIVATE
+        Qt6::Core
+        Qt6::Sql
+    )
+
+    add_test(NAME EmergencyLifecycleTest COMMAND tst_emergency)
 endif()
