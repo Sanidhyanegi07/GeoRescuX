@@ -1,7 +1,7 @@
 #include "AppState.h"
 #include "platform/storage/SqliteEmergencyRepository.h"
 #include "platform/storage/SqliteMapPackageRepository.h"
-#include "domain/OfflineRouteRepository.h"
+#include "platform/storage/OfflineRouteRepository.h"
 #include <QFile>
 #include <QDebug>
 

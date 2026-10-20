@@ -9,7 +9,7 @@
 #include <QDateTime>
 
 #include "domain/RouteService.h"
-#include "domain/OfflineRouteRepository.h"
+#include "platform/storage/OfflineRouteRepository.h"
 #include "domain/MapPackageManager.h"
 #include "platform/storage/LocalDatabase.h"
 #include "platform/storage/SqliteMapPackageRepository.h"

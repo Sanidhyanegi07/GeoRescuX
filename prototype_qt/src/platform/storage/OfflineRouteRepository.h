@@ -8,11 +8,17 @@
 #include "domain/IRouteRepository.h"
 #include "domain/MapPackageManager.h"
 
-namespace georescux::domain {
+namespace georescux::storage {
 
-class OfflineRouteRepository : public IRouteRepository {
+/**
+ * @brief Zero-network, offline-first implementation of IRouteRepository.
+ *
+ * Resolves regional road network JSON graphs from application-private storage,
+ * bundled assets (assets:/ on Android), or in-situ repository paths.
+ */
+class OfflineRouteRepository : public georescux::domain::IRouteRepository {
 public:
-    explicit OfflineRouteRepository(std::shared_ptr<MapPackageManager> packageManager = nullptr);
+    explicit OfflineRouteRepository(std::shared_ptr<georescux::domain::MapPackageManager> packageManager = nullptr);
     ~OfflineRouteRepository() override = default;
 
     std::optional<georescux::routing::RouteGraph> getGraph(const QString &regionId) override;
@@ -25,7 +31,7 @@ public:
     void seedGraph(const QString &regionId, const georescux::routing::RouteGraph &graph);
 
 private:
-    std::shared_ptr<MapPackageManager> m_packageManager;
+    std::shared_ptr<georescux::domain::MapPackageManager> m_packageManager;
     mutable QMutex m_mutex;
     std::unordered_map<std::string, georescux::routing::RouteGraph> m_cache;
     std::unordered_map<std::string, std::string> m_customPaths;
@@ -33,6 +39,11 @@ private:
     QString resolveGraphFilePath(const QString &regionId) const;
 };
 
+} // namespace georescux::storage
+
+namespace georescux::domain {
+    // Backward-compatibility alias for domain callers
+    using OfflineRouteRepository = georescux::storage::OfflineRouteRepository;
 } // namespace georescux::domain
 
 #endif // GEORESCUX_OFFLINE_ROUTE_REPOSITORY_H

@@ -63,3 +63,9 @@ tools/osmosis/
 tools/osmosis.zip
 tools/libs/
 state/
+
+# Qt prototype build outputs
+prototype_qt/build*/
+prototype_qt/.qt/
+prototype_qt/cmake-build-*/
+

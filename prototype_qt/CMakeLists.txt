@@ -81,8 +81,8 @@ qt_add_executable(appGeoRescuXQtPrototype
     src/platform/storage/SqliteMapPackageRepository.h
     src/platform/storage/SqliteMapPackageRepository.cpp
     src/domain/IRouteRepository.h
-    src/domain/OfflineRouteRepository.h
-    src/domain/OfflineRouteRepository.cpp
+    src/platform/storage/OfflineRouteRepository.h
+    src/platform/storage/OfflineRouteRepository.cpp
     src/domain/RouteService.h
     src/domain/RouteService.cpp
     src/platform/qt/OfflineMapView.h
@@ -159,8 +159,8 @@ if(NOT ANDROID)
         src/domain/MapPackageManager.h
         src/domain/MapPackageManager.cpp
         src/domain/IRouteRepository.h
-        src/domain/OfflineRouteRepository.h
-        src/domain/OfflineRouteRepository.cpp
+        src/platform/storage/OfflineRouteRepository.h
+        src/platform/storage/OfflineRouteRepository.cpp
         src/domain/RouteService.h
         src/domain/RouteService.cpp
         src/platform/storage/LocalDatabase.cpp
@@ -207,8 +207,8 @@ if(NOT ANDROID)
         src/domain/MapPackageManager.h
         src/domain/MapPackageManager.cpp
         src/domain/IRouteRepository.h
-        src/domain/OfflineRouteRepository.h
-        src/domain/OfflineRouteRepository.cpp
+        src/platform/storage/OfflineRouteRepository.h
+        src/platform/storage/OfflineRouteRepository.cpp
         src/domain/RouteService.h
         src/domain/RouteService.cpp
         src/platform/storage/LocalDatabase.cpp
@@ -273,8 +273,8 @@ if(NOT ANDROID)
         src/domain/RouteService.h
         src/domain/RouteService.cpp
         src/domain/IRouteRepository.h
-        src/domain/OfflineRouteRepository.h
-        src/domain/OfflineRouteRepository.cpp
+        src/platform/storage/OfflineRouteRepository.h
+        src/platform/storage/OfflineRouteRepository.cpp
         src/domain/MapPackageModel.h
         src/domain/IMapPackageRepository.h
         src/domain/MapPackageManager.h

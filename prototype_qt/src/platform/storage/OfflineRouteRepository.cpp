@@ -6,9 +6,9 @@
 #include <QDebug>
 #include <QCoreApplication>
 
-namespace georescux::domain {
+namespace georescux::storage {
 
-OfflineRouteRepository::OfflineRouteRepository(std::shared_ptr<MapPackageManager> packageManager)
+OfflineRouteRepository::OfflineRouteRepository(std::shared_ptr<georescux::domain::MapPackageManager> packageManager)
     : m_packageManager(std::move(packageManager)) {
 }
 
@@ -130,4 +130,4 @@ void OfflineRouteRepository::clearCache() {
     m_cache.clear();
 }
 
-} // namespace georescux::domain
+} // namespace georescux::storage
