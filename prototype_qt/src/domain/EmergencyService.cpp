@@ -37,7 +37,15 @@ QString EmergencyService::activeNote() const noexcept {
 
 QString EmergencyService::activeLocationString() const noexcept {
     if (!m_activeRecord.has_value() || !m_activeRecord->location.has_value()) {
-        return QStringLiteral("Coordinates Pending (Hardware GPS deferred to Phase 4)");
+        if (m_activeRecord.has_value()) {
+            if (m_activeRecord->locationStatus == EmergencyLocationStatus::PermissionDenied) {
+                return QStringLiteral("Location Permission Denied (SOS Active)");
+            }
+            if (m_activeRecord->locationStatus == EmergencyLocationStatus::Unavailable) {
+                return QStringLiteral("Coordinates Unavailable (GPS Pending / Signal Lost)");
+            }
+        }
+        return QStringLiteral("Coordinates Pending (Acquiring Hardware GPS...)");
     }
     const auto &loc = m_activeRecord->location.value();
     return QStringLiteral("Lat: %1, Lon: %2 (±%3m)")
@@ -47,17 +55,10 @@ QString EmergencyService::activeLocationString() const noexcept {
 }
 
 void EmergencyService::setActiveRecord(const std::optional<EmergencyRecord> &record) {
-    const bool wasActive = m_activeRecord.has_value();
-    const bool nowActive = record.has_value();
-    const QString oldId = wasActive ? m_activeRecord->emergencyId : QString();
-    const QString newId = nowActive ? record->emergencyId : QString();
-
     m_activeRecord = record;
-
-    if (wasActive != nowActive || oldId != newId) {
-        emit activeEmergencyChanged();
-    }
+    emit activeEmergencyChanged();
 }
+
 
 bool EmergencyService::activateEmergency(const QString &userId, const QString &note) {
     if (!m_repository) {

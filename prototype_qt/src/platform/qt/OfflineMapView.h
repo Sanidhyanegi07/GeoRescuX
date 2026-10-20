@@ -53,10 +53,18 @@ class OfflineMapView : public QQuickPaintedItem {
     Q_PROPERTY(bool hasRouteOverlay READ hasRouteOverlay NOTIFY routeOverlayChanged)
     Q_PROPERTY(double routeDistanceMeters READ routeDistanceMeters NOTIFY routeOverlayChanged)
     Q_PROPERTY(QString routeDistanceFormatted READ routeDistanceFormatted NOTIFY routeOverlayChanged)
+    Q_PROPERTY(bool hasUserPosition READ hasUserPosition NOTIFY userPositionChanged)
+    Q_PROPERTY(double userLatitude READ userLatitude NOTIFY userPositionChanged)
+    Q_PROPERTY(double userLongitude READ userLongitude NOTIFY userPositionChanged)
+    Q_PROPERTY(double userAccuracyMeters READ userAccuracyMeters NOTIFY userPositionChanged)
+    Q_PROPERTY(bool isUserPositionLive READ isUserPositionLive NOTIFY userPositionChanged)
+    Q_PROPERTY(bool isUserPositionStale READ isUserPositionStale NOTIFY userPositionChanged)
+    Q_PROPERTY(bool isUserOutsideCoverage READ isUserOutsideCoverage NOTIFY userCoverageChanged)
 
 public:
     explicit OfflineMapView(QQuickItem *parent = nullptr);
     ~OfflineMapView() override = default;
+
 
     void paint(QPainter *painter) override;
 
@@ -78,6 +86,18 @@ public:
     [[nodiscard]] bool hasRouteOverlay() const { return !m_routePolyline.empty(); }
     [[nodiscard]] double routeDistanceMeters() const { return m_routeDistanceMeters; }
     [[nodiscard]] QString routeDistanceFormatted() const;
+
+    [[nodiscard]] bool hasUserPosition() const noexcept { return m_hasUserPos; }
+    [[nodiscard]] double userLatitude() const noexcept { return m_userLat; }
+    [[nodiscard]] double userLongitude() const noexcept { return m_userLon; }
+    [[nodiscard]] double userAccuracyMeters() const noexcept { return m_userAcc; }
+    [[nodiscard]] bool isUserPositionLive() const noexcept { return m_userLive; }
+    [[nodiscard]] bool isUserPositionStale() const noexcept { return m_userStale; }
+    [[nodiscard]] bool isUserOutsideCoverage() const noexcept { return m_isUserOutsideCoverage; }
+
+    // User position overlay
+    Q_INVOKABLE void setUserPosition(double lat, double lon, double accuracyMeters, bool isLive = true, bool isStale = false);
+    Q_INVOKABLE void clearUserPosition();
 
     // Interactive operations
     Q_INVOKABLE void zoomIn();
@@ -115,6 +135,8 @@ signals:
     void statusMessageChanged();
     void contentMetricsChanged();
     void routeOverlayChanged();
+    void userPositionChanged();
+    void userCoverageChanged(bool isOutside);
     void mapClicked(double lat, double lon);
 
 protected:
@@ -129,6 +151,16 @@ private:
     double m_centerLat{30.3165};
     double m_centerLon{78.0322};
     double m_zoom{10.0}; // Zoom scale factor
+
+    // Live User Position Marker (Phase 8)
+    bool m_hasUserPos{false};
+    double m_userLat{0.0};
+    double m_userLon{0.0};
+    double m_userAcc{0.0};
+    bool m_userLive{false};
+    bool m_userStale{false};
+    bool m_isUserOutsideCoverage{false};
+
 
     georescux::domain::GeographicCoverage m_coverage;
     MapViewState m_viewState{MapViewState::NoPackageInstalled};

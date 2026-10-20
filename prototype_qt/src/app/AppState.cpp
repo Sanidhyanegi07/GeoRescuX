@@ -2,6 +2,7 @@
 #include "platform/storage/SqliteEmergencyRepository.h"
 #include "platform/storage/SqliteMapPackageRepository.h"
 #include "platform/storage/OfflineRouteRepository.h"
+#include "platform/qt/QtLocationProvider.h"
 #include <QFile>
 #include <QDebug>
 
@@ -36,13 +37,23 @@ AppState::AppState(
     std::shared_ptr<georescux::storage::LocalDatabase> database,
     QObject *parent
 )
-    : AppState(std::move(database), nullptr, parent)
+    : AppState(std::move(database), nullptr, nullptr, parent)
 {
 }
 
 AppState::AppState(
     std::shared_ptr<georescux::storage::LocalDatabase> database,
     std::shared_ptr<georescux::domain::IEmergencyRepository> emergencyRepository,
+    QObject *parent
+)
+    : AppState(std::move(database), std::move(emergencyRepository), nullptr, parent)
+{
+}
+
+AppState::AppState(
+    std::shared_ptr<georescux::storage::LocalDatabase> database,
+    std::shared_ptr<georescux::domain::IEmergencyRepository> emergencyRepository,
+    std::shared_ptr<georescux::domain::ILocationProvider> locationProvider,
     QObject *parent
 )
     : QObject(parent)
@@ -59,6 +70,12 @@ AppState::AppState(
     m_packageManager = std::make_shared<georescux::domain::MapPackageManager>(pkgRepo, QString(), this);
     m_routeRepository = std::make_shared<georescux::domain::OfflineRouteRepository>(m_packageManager);
     m_routeService = std::make_shared<georescux::domain::RouteService>(m_routeRepository, m_packageManager, this);
+
+    // Initialize Location Provider & Service
+    if (!locationProvider) {
+        locationProvider = std::make_shared<georescux::platform::QtLocationProvider>();
+    }
+    m_locationService = std::make_shared<georescux::domain::LocationService>(locationProvider, m_packageManager, nullptr, this);
 
     connect(m_packageManager.get(), &georescux::domain::MapPackageManager::activeRegionChanged,
             this, &AppState::activeRegionChanged);
@@ -165,6 +182,24 @@ void AppState::setupConnections() {
             }
         });
     }
+
+    if (m_locationService && m_emergencyService) {
+        connect(m_locationService.get(), &georescux::domain::LocationService::positionChanged,
+                this, [this](const georescux::domain::GeoPosition &pos) {
+            if (m_emergencyService->hasActiveEmergency()) {
+                const QString userId = m_session.currentUserId();
+                const QString emergencyId = m_emergencyService->activeEmergencyId();
+                if (!userId.isEmpty() && !emergencyId.isEmpty()) {
+                    georescux::domain::EmergencyLocation loc;
+                    loc.latitude = pos.latitude;
+                    loc.longitude = pos.longitude;
+                    loc.accuracyMeters = pos.accuracyMeters;
+                    loc.timestampUtcMs = pos.timestampUtcMs;
+                    m_emergencyService->updateLocation(userId, emergencyId, loc, georescux::domain::EmergencyLocationStatus::Available);
+                }
+            }
+        });
+    }
 }
 
 QString AppState::connectivityStatusName() const noexcept {
@@ -262,6 +297,10 @@ void AppState::handleSessionStateChanged(georescux::domain::SessionState newStat
     switch (newState) {
         case georescux::domain::SessionState::Unauthenticated:
         case georescux::domain::SessionState::SessionError:
+            if (m_locationService) {
+                m_locationService->setEmergencyMode(false);
+                m_locationService->stopTracking();
+            }
             if (m_emergencyService) {
                 m_emergencyService->clearActive();
             }
@@ -276,11 +315,20 @@ void AppState::handleSessionStateChanged(georescux::domain::SessionState newStat
             if (m_emergencyService) {
                 m_emergencyService->loadActiveForUser(m_session.currentUserId());
             }
+            if (m_locationService) {
+                if (m_emergencyService && m_emergencyService->hasActiveEmergency()) {
+                    m_locationService->setEmergencyMode(true);
+                }
+                m_locationService->startTracking();
+            }
             m_currentNavigation = QStringLiteral("UserHome");
             emit navigationChanged(m_currentNavigation);
             break;
 
         case georescux::domain::SessionState::AuthenticatedAdmin:
+            if (m_locationService) {
+                m_locationService->setEmergencyMode(false);
+            }
             if (m_emergencyService) {
                 m_emergencyService->clearActive();
             }
@@ -305,7 +353,33 @@ bool AppState::activateSos(const QString &note) {
     if (!m_emergencyService) {
         return false;
     }
-    return m_emergencyService->activateEmergency(m_session.currentUserId(), note);
+
+    const bool activated = m_emergencyService->activateEmergency(m_session.currentUserId(), note);
+    if (activated && m_locationService) {
+        // Switch location service to high-frequency emergency tracking mode (2s / 2m)
+        m_locationService->setEmergencyMode(true);
+        if (!m_locationService->isTracking()) {
+            m_locationService->startTracking();
+        }
+
+        // Attach current location fix if already valid, or record permission/acquisition state
+        const QString userId = m_session.currentUserId();
+        const QString emergencyId = m_emergencyService->activeEmergencyId();
+        if (m_locationService->hasValidFix()) {
+            const auto &fix = m_locationService->lastValidPosition().value();
+            georescux::domain::EmergencyLocation loc;
+            loc.latitude = fix.latitude;
+            loc.longitude = fix.longitude;
+            loc.accuracyMeters = fix.accuracyMeters;
+            loc.timestampUtcMs = fix.timestampUtcMs;
+            m_emergencyService->updateLocation(userId, emergencyId, loc, georescux::domain::EmergencyLocationStatus::Available);
+        } else if (m_locationService->permissionStatus() == georescux::domain::LocationPermissionStatus::Denied) {
+            m_emergencyService->updateLocation(userId, emergencyId, {}, georescux::domain::EmergencyLocationStatus::PermissionDenied);
+        } else {
+            m_emergencyService->updateLocation(userId, emergencyId, {}, georescux::domain::EmergencyLocationStatus::Unavailable);
+        }
+    }
+    return activated;
 }
 
 bool AppState::resolveSos() {
@@ -321,7 +395,13 @@ bool AppState::resolveSos() {
         qWarning() << "[AppState] No active SOS to resolve.";
         return false;
     }
-    return m_emergencyService->completeEmergency(m_session.currentUserId(), m_emergencyService->activeEmergencyId());
+
+    const bool resolved = m_emergencyService->completeEmergency(m_session.currentUserId(), m_emergencyService->activeEmergencyId());
+    if (resolved && m_locationService) {
+        // Revert to normal tracking policy (5s / 5m)
+        m_locationService->setEmergencyMode(false);
+    }
+    return resolved;
 }
 
 bool AppState::updateActiveNote(const QString &note) {
@@ -367,6 +447,10 @@ bool AppState::loginDevelopmentAdmin(const QString &name, const QString &email) 
 }
 
 void AppState::logout() {
+    if (m_locationService) {
+        m_locationService->setEmergencyMode(false);
+        m_locationService->stopTracking();
+    }
     m_session.logout();
     if (m_emergencyService) {
         m_emergencyService->clearActive();
@@ -395,6 +479,12 @@ bool AppState::initializeSessionFromPersistence() {
         if (m_session.restoreSession(cached.value())) {
             if (m_emergencyService) {
                 m_emergencyService->loadActiveForUser(m_session.currentUserId());
+            }
+            if (m_locationService) {
+                if (m_emergencyService && m_emergencyService->hasActiveEmergency()) {
+                    m_locationService->setEmergencyMode(true);
+                }
+                m_locationService->startTracking();
             }
             return true;
         }

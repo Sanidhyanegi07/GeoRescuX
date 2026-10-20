@@ -9,6 +9,8 @@
 #include "domain/MapPackageManager.h"
 #include "domain/RouteService.h"
 #include "domain/IRouteRepository.h"
+#include "domain/LocationService.h"
+#include "domain/ILocationProvider.h"
 #include "platform/storage/LocalDatabase.h"
 
 namespace georescux::app {
@@ -45,6 +47,7 @@ class AppState : public QObject {
     Q_PROPERTY(georescux::domain::EmergencyService* emergencyService READ emergencyService CONSTANT)
     Q_PROPERTY(georescux::domain::MapPackageManager* packageManager READ packageManager CONSTANT)
     Q_PROPERTY(georescux::domain::RouteService* routeService READ routeService CONSTANT)
+    Q_PROPERTY(georescux::domain::LocationService* locationService READ locationService CONSTANT)
     Q_PROPERTY(QString currentNavigation READ currentNavigation NOTIFY navigationChanged)
     Q_PROPERTY(QString connectivityStatusName READ connectivityStatusName NOTIFY connectivityChanged)
     Q_PROPERTY(QString emergencyStatusName READ emergencyStatusName NOTIFY emergencyStateChanged)
@@ -69,12 +72,19 @@ public:
         std::shared_ptr<georescux::domain::IEmergencyRepository> emergencyRepository,
         QObject *parent = nullptr
     );
+    AppState(
+        std::shared_ptr<georescux::storage::LocalDatabase> database,
+        std::shared_ptr<georescux::domain::IEmergencyRepository> emergencyRepository,
+        std::shared_ptr<georescux::domain::ILocationProvider> locationProvider,
+        QObject *parent = nullptr
+    );
     ~AppState() override = default;
 
     [[nodiscard]] georescux::domain::SessionModel* session() noexcept { return &m_session; }
     [[nodiscard]] georescux::domain::EmergencyService* emergencyService() noexcept { return m_emergencyService.get(); }
     [[nodiscard]] georescux::domain::MapPackageManager* packageManager() noexcept { return m_packageManager.get(); }
     [[nodiscard]] georescux::domain::RouteService* routeService() noexcept { return m_routeService.get(); }
+    [[nodiscard]] georescux::domain::LocationService* locationService() noexcept { return m_locationService.get(); }
     [[nodiscard]] QString activeRegionId() const;
     [[nodiscard]] QString activeRegionDisplayName() const;
     [[nodiscard]] bool hasActiveMapPackage() const;
@@ -162,6 +172,7 @@ private:
     std::shared_ptr<georescux::domain::MapPackageManager> m_packageManager;
     std::shared_ptr<georescux::domain::IRouteRepository> m_routeRepository;
     std::shared_ptr<georescux::domain::RouteService> m_routeService;
+    std::shared_ptr<georescux::domain::LocationService> m_locationService;
     georescux::domain::SessionModel m_session;
     QString m_currentNavigation{QStringLiteral("Welcome")};
     ConnectivityState m_connectivity{ConnectivityState::Unknown};

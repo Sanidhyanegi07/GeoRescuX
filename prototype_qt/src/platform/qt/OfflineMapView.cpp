@@ -535,6 +535,92 @@ void OfflineMapView::paint(QPainter *painter) {
         .arg(m_zoom, 0, 'f', 1);
     painter->setPen(QColor(0x64, 0x74, 0x8B));
     painter->drawText(14, height() - 14, coordStr);
+
+    // 9. Draw Live GPS User Position Marker (Phase 8)
+    if (m_hasUserPos) {
+        const QPointF userPt = geoToPixel(m_userLat, m_userLon);
+
+        // Accuracy halo: calculate radius in screen pixels
+        const double ppd = pixelsPerDegree();
+        const double metersPerDegree = 111319.5;
+        const double radiusPixels = std::clamp((m_userAcc / metersPerDegree) * ppd, 8.0, 180.0);
+
+        // Translucent accuracy circle
+        if (m_userStale) {
+            painter->setBrush(QColor(0xD9, 0x77, 0x06, 35)); // Translucent amber
+            painter->setPen(QPen(QColor(0xF5, 0x9E, 0x0B, 180), 1.2, Qt::DashLine));
+        } else {
+            painter->setBrush(QColor(0x02, 0x84, 0xC7, 45)); // Translucent cyan/blue
+            painter->setPen(QPen(QColor(0x38, 0xBD, 0xF8, 180), 1.2, Qt::SolidLine));
+        }
+        painter->drawEllipse(userPt, radiusPixels, radiusPixels);
+
+        // Outer pulse ring
+        painter->setBrush(Qt::NoBrush);
+        painter->setPen(QPen(m_userStale ? QColor(0xF5, 0x9E, 0x0B, 140) : QColor(0x38, 0xBD, 0xF8, 160), 2.0));
+        painter->drawEllipse(userPt, 11.0, 11.0);
+
+        // Solid location core dot
+        painter->setBrush(m_userStale ? QColor(0xD9, 0x77, 0x06) : QColor(0x02, 0x84, 0xC7));
+        painter->setPen(QPen(Qt::white, 2.0));
+        painter->drawEllipse(userPt, 6.0, 6.0);
+
+        // Center highlight
+        painter->setBrush(Qt::white);
+        painter->setPen(Qt::NoPen);
+        painter->drawEllipse(userPt, 2.0, 2.0);
+
+        // Marker label
+        QFont userFont = painter->font();
+        userFont.setPixelSize(10);
+        userFont.setBold(true);
+        painter->setFont(userFont);
+        painter->setPen(m_userStale ? QColor(0xFD, 0xE6, 0x8A) : QColor(0xBA, 0xE6, 0xFD));
+        const QString label = m_userStale
+            ? QStringLiteral("You (Last Known ±%1m)").arg(m_userAcc, 0, 'f', 0)
+            : QStringLiteral("You (±%1m)").arg(m_userAcc, 0, 'f', 1);
+        painter->drawText(static_cast<int>(userPt.x()) + 14, static_cast<int>(userPt.y()) + 4, label);
+    }
+}
+
+void OfflineMapView::setUserPosition(double lat, double lon, double accuracyMeters, bool isLive, bool isStale) {
+    const bool posChanged = !m_hasUserPos ||
+        std::abs(m_userLat - lat) > 0.00001 ||
+        std::abs(m_userLon - lon) > 0.00001 ||
+        std::abs(m_userAcc - accuracyMeters) > 1.0 ||
+        m_userLive != isLive ||
+        m_userStale != isStale;
+
+    m_hasUserPos = true;
+    m_userLat = lat;
+    m_userLon = lon;
+    m_userAcc = accuracyMeters;
+    m_userLive = isLive;
+    m_userStale = isStale;
+
+    if (m_viewState == MapViewState::Ready && m_coverage.isValid()) {
+        const bool outside = (lat < m_coverage.minLatitude || lat > m_coverage.maxLatitude ||
+                              lon < m_coverage.minLongitude || lon > m_coverage.maxLongitude);
+        if (m_isUserOutsideCoverage != outside) {
+            m_isUserOutsideCoverage = outside;
+            emit userCoverageChanged(m_isUserOutsideCoverage);
+        }
+    }
+
+    if (posChanged) {
+        emit userPositionChanged();
+        update();
+    }
+}
+
+void OfflineMapView::clearUserPosition() {
+    if (m_hasUserPos) {
+        m_hasUserPos = false;
+        m_isUserOutsideCoverage = false;
+        emit userPositionChanged();
+        emit userCoverageChanged(false);
+        update();
+    }
 }
 
 void OfflineMapView::mousePressEvent(QMouseEvent *event) {

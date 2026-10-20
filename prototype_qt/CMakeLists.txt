@@ -85,6 +85,13 @@ qt_add_executable(appGeoRescuXQtPrototype
     src/platform/storage/OfflineRouteRepository.cpp
     src/domain/RouteService.h
     src/domain/RouteService.cpp
+    src/domain/LocationModel.h
+    src/domain/ILocationProvider.h
+    src/domain/FakeLocationProvider.h
+    src/domain/LocationService.h
+    src/domain/LocationService.cpp
+    src/platform/qt/QtLocationProvider.h
+    src/platform/qt/QtLocationProvider.cpp
     src/platform/qt/OfflineMapView.h
     src/platform/qt/OfflineMapView.cpp
     ${GEORESCUX_CORE_SOURCES}
@@ -117,6 +124,10 @@ qt_add_qml_module(appGeoRescuXQtPrototype
     VERSION 1.0
     QML_FILES
         ui/qml/Main.qml
+        ui/qml/CitizenHomeView.qml
+        ui/qml/CitizenMapView.qml
+        ui/qml/CitizenSafeRouteView.qml
+        ui/qml/PrototypeLabView.qml
 )
 
 target_link_libraries(appGeoRescuXQtPrototype PRIVATE
@@ -171,6 +182,13 @@ if(NOT ANDROID)
         src/platform/storage/SqliteMapPackageRepository.cpp
         src/app/AppState.cpp
         src/app/AppState.h
+        src/domain/LocationModel.h
+        src/domain/ILocationProvider.h
+        src/domain/FakeLocationProvider.h
+        src/domain/LocationService.h
+        src/domain/LocationService.cpp
+        src/platform/qt/QtLocationProvider.h
+        src/platform/qt/QtLocationProvider.cpp
         ../app/src/main/cpp/routing/RouteGraph.cpp
         ../app/src/main/cpp/routing/AStarPathfinder.cpp
         ../app/src/main/cpp/routing/GraphJsonParser.cpp
@@ -182,6 +200,7 @@ if(NOT ANDROID)
         src/app
         src/domain
         src/platform/storage
+        src/platform/qt
         ../app/src/main/cpp/routing
         ../app/src/main/cpp/spatial
     )
@@ -219,6 +238,13 @@ if(NOT ANDROID)
         src/platform/storage/SqliteMapPackageRepository.cpp
         src/app/AppState.cpp
         src/app/AppState.h
+        src/domain/LocationModel.h
+        src/domain/ILocationProvider.h
+        src/domain/FakeLocationProvider.h
+        src/domain/LocationService.h
+        src/domain/LocationService.cpp
+        src/platform/qt/QtLocationProvider.h
+        src/platform/qt/QtLocationProvider.cpp
         ../app/src/main/cpp/routing/RouteGraph.cpp
         ../app/src/main/cpp/routing/AStarPathfinder.cpp
         ../app/src/main/cpp/routing/GraphJsonParser.cpp
@@ -230,6 +256,7 @@ if(NOT ANDROID)
         src/app
         src/domain
         src/platform/storage
+        src/platform/qt
         ../app/src/main/cpp/routing
         ../app/src/main/cpp/spatial
     )
@@ -305,4 +332,64 @@ if(NOT ANDROID)
     )
 
     add_test(NAME RoutingTest COMMAND tst_routing)
+
+    add_executable(tst_location
+        tests/tst_location.cpp
+        src/domain/LocationModel.h
+        src/domain/ILocationProvider.h
+        src/domain/FakeLocationProvider.h
+        src/domain/LocationService.h
+        src/domain/LocationService.cpp
+        src/platform/qt/QtLocationProvider.h
+        src/platform/qt/QtLocationProvider.cpp
+        src/domain/EmergencyModel.cpp
+        src/domain/EmergencyModel.h
+        src/domain/IEmergencyRepository.h
+        src/domain/EmergencyService.cpp
+        src/domain/EmergencyService.h
+        src/domain/SessionModel.cpp
+        src/domain/SessionModel.h
+        src/domain/MapPackageModel.h
+        src/domain/IMapPackageRepository.h
+        src/domain/MapPackageManager.h
+        src/domain/MapPackageManager.cpp
+        src/domain/IRouteRepository.h
+        src/platform/storage/OfflineRouteRepository.h
+        src/platform/storage/OfflineRouteRepository.cpp
+        src/domain/RouteService.h
+        src/domain/RouteService.cpp
+        src/platform/storage/LocalDatabase.cpp
+        src/platform/storage/LocalDatabase.h
+        src/platform/storage/SqliteEmergencyRepository.cpp
+        src/platform/storage/SqliteEmergencyRepository.h
+        src/platform/storage/SqliteMapPackageRepository.h
+        src/platform/storage/SqliteMapPackageRepository.cpp
+        src/platform/qt/OfflineMapView.h
+        src/platform/qt/OfflineMapView.cpp
+        src/app/AppState.cpp
+        src/app/AppState.h
+        ../app/src/main/cpp/routing/RouteGraph.cpp
+        ../app/src/main/cpp/routing/AStarPathfinder.cpp
+        ../app/src/main/cpp/routing/GraphJsonParser.cpp
+        ../app/src/main/cpp/spatial/GeodesicMath.cpp
+    )
+
+    target_include_directories(tst_location PRIVATE
+        src
+        src/app
+        src/domain
+        src/platform/storage
+        src/platform/qt
+        ../app/src/main/cpp/routing
+        ../app/src/main/cpp/spatial
+    )
+
+    target_link_libraries(tst_location PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
+        Qt6::Sql
+    )
+
+    add_test(NAME LocationTest COMMAND tst_location)
 endif()
