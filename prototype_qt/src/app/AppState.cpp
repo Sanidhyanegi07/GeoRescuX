@@ -1,5 +1,8 @@
 #include "AppState.h"
 #include "platform/storage/SqliteEmergencyRepository.h"
+#include "platform/storage/SqliteMapPackageRepository.h"
+#include "domain/OfflineRouteRepository.h"
+#include <QFile>
 #include <QDebug>
 
 namespace georescux::app {
@@ -25,6 +28,58 @@ AppState::AppState(
         m_emergencyRepository = std::make_shared<georescux::storage::SqliteEmergencyRepository>(m_database);
     }
     m_emergencyService = std::make_shared<georescux::domain::EmergencyService>(m_emergencyRepository, this);
+
+    // Initialize Map Package and Routing Infrastructure
+    auto pkgRepo = std::make_shared<georescux::storage::SqliteMapPackageRepository>(m_database);
+    m_packageManager = std::make_shared<georescux::domain::MapPackageManager>(pkgRepo, QString(), this);
+    m_routeRepository = std::make_shared<georescux::domain::OfflineRouteRepository>(m_packageManager);
+    m_routeService = std::make_shared<georescux::domain::RouteService>(m_routeRepository, m_packageManager, this);
+
+    connect(m_packageManager.get(), &georescux::domain::MapPackageManager::activeRegionChanged,
+            this, &AppState::activeRegionChanged);
+
+    // Register bundled packages if present
+    georescux::domain::MapPackage ukPkg;
+    ukPkg.regionId = QStringLiteral("uttarakhand");
+    ukPkg.displayName = QStringLiteral("Uttarakhand");
+    ukPkg.packageVersion = 1;
+    ukPkg.supportedFormat = QStringLiteral("Mapsforge MAP");
+    ukPkg.coverage.minLatitude = 28.7;
+    ukPkg.coverage.maxLatitude = 31.5;
+    ukPkg.coverage.minLongitude = 77.5;
+    ukPkg.coverage.maxLongitude = 81.1;
+
+    const QStringList mapCands = {
+        QStringLiteral("app/src/main/assets/maps/uttarakhand-state.map"),
+        QStringLiteral("../app/src/main/assets/maps/uttarakhand-state.map")
+    };
+    for (const auto &p : mapCands) {
+        if (QFile::exists(p)) { ukPkg.mapFilePath = p; ukPkg.hasRenderingData = true; break; }
+    }
+    const QStringList graphCands = {
+        QStringLiteral("app/src/main/assets/route_graph_uttarakhand"),
+        QStringLiteral("../app/src/main/assets/route_graph_uttarakhand")
+    };
+    for (const auto &p : graphCands) {
+        if (QFile::exists(p)) { ukPkg.graphFilePath = p; ukPkg.hasRoutingData = true; break; }
+    }
+    const QStringList boundaryCands = {
+        QStringLiteral("output/uttarakhand/boundary.geojson"),
+        QStringLiteral("../output/uttarakhand/boundary.geojson")
+    };
+    for (const auto &p : boundaryCands) {
+        if (QFile::exists(p)) { ukPkg.boundaryFilePath = p; break; }
+    }
+    const QStringList placesCands = {
+        QStringLiteral("app/src/main/assets/maps/uttarakhand-places.json"),
+        QStringLiteral("../app/src/main/assets/maps/uttarakhand-places.json")
+    };
+    for (const auto &p : placesCands) {
+        if (QFile::exists(p)) { ukPkg.placesFilePath = p; break; }
+    }
+
+    m_packageManager->registerExistingPackage(ukPkg);
+    m_packageManager->activateRegion(QStringLiteral("uttarakhand"));
 
     setupConnections();
 
@@ -291,6 +346,64 @@ bool AppState::initializeSessionFromPersistence() {
         }
     }
     return false;
+}
+
+QString AppState::activeRegionId() const {
+    return m_packageManager ? m_packageManager->activeRegionId() : QString();
+}
+
+QString AppState::activeRegionDisplayName() const {
+    return m_packageManager ? m_packageManager->activeRegionDisplayName() : QString();
+}
+
+bool AppState::hasActiveMapPackage() const {
+    return m_packageManager && m_packageManager->hasActivePackage();
+}
+
+QString AppState::activeBoundaryPath() const {
+    if (!m_packageManager) return {};
+    auto pkg = m_packageManager->getActivePackage();
+    return pkg ? pkg->boundaryFilePath : QString();
+}
+
+QString AppState::activeGraphPath() const {
+    if (!m_packageManager) return {};
+    auto pkg = m_packageManager->getActivePackage();
+    return pkg ? pkg->graphFilePath : QString();
+}
+
+QString AppState::activePlacesPath() const {
+    if (!m_packageManager) return {};
+    auto pkg = m_packageManager->getActivePackage();
+    return pkg ? pkg->placesFilePath : QString();
+}
+
+bool AppState::selectRegion(const QString &regionId) {
+    if (!m_packageManager) return false;
+    const bool ok = m_packageManager->activateRegion(regionId);
+    if (ok) {
+        if (m_routeService) {
+            m_routeService->clearRoute();
+        }
+        emit activeRegionChanged(regionId);
+    }
+    return ok;
+}
+
+bool AppState::calculateRoute(double startLat, double startLon, double destLat, double destLon, bool avoidHazards) {
+    if (!m_routeService) return false;
+    const QString rId = activeRegionId();
+    if (rId.isEmpty()) {
+        qWarning() << "[AppState] Cannot calculate route: no active region selected.";
+        return false;
+    }
+    return m_routeService->calculateRoute(rId, startLat, startLon, destLat, destLon, avoidHazards);
+}
+
+void AppState::clearRoute() {
+    if (m_routeService) {
+        m_routeService->clearRoute();
+    }
 }
 
 } // namespace georescux::app

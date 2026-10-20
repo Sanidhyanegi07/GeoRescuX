@@ -74,6 +74,19 @@ qt_add_executable(appGeoRescuXQtPrototype
     src/platform/storage/SqliteEmergencyRepository.cpp
     src/platform/qt/PrototypeBackend.h
     src/platform/qt/PrototypeBackend.cpp
+    src/domain/MapPackageModel.h
+    src/domain/IMapPackageRepository.h
+    src/domain/MapPackageManager.h
+    src/domain/MapPackageManager.cpp
+    src/platform/storage/SqliteMapPackageRepository.h
+    src/platform/storage/SqliteMapPackageRepository.cpp
+    src/domain/IRouteRepository.h
+    src/domain/OfflineRouteRepository.h
+    src/domain/OfflineRouteRepository.cpp
+    src/domain/RouteService.h
+    src/domain/RouteService.cpp
+    src/platform/qt/OfflineMapView.h
+    src/platform/qt/OfflineMapView.cpp
     ${GEORESCUX_CORE_SOURCES}
 )
 
@@ -141,12 +154,27 @@ if(NOT ANDROID)
         src/domain/IEmergencyRepository.h
         src/domain/EmergencyService.cpp
         src/domain/EmergencyService.h
+        src/domain/MapPackageModel.h
+        src/domain/IMapPackageRepository.h
+        src/domain/MapPackageManager.h
+        src/domain/MapPackageManager.cpp
+        src/domain/IRouteRepository.h
+        src/domain/OfflineRouteRepository.h
+        src/domain/OfflineRouteRepository.cpp
+        src/domain/RouteService.h
+        src/domain/RouteService.cpp
         src/platform/storage/LocalDatabase.cpp
         src/platform/storage/LocalDatabase.h
         src/platform/storage/SqliteEmergencyRepository.cpp
         src/platform/storage/SqliteEmergencyRepository.h
+        src/platform/storage/SqliteMapPackageRepository.h
+        src/platform/storage/SqliteMapPackageRepository.cpp
         src/app/AppState.cpp
         src/app/AppState.h
+        ../app/src/main/cpp/routing/RouteGraph.cpp
+        ../app/src/main/cpp/routing/AStarPathfinder.cpp
+        ../app/src/main/cpp/routing/GraphJsonParser.cpp
+        ../app/src/main/cpp/spatial/GeodesicMath.cpp
     )
 
     target_include_directories(tst_foundation PRIVATE
@@ -154,6 +182,8 @@ if(NOT ANDROID)
         src/app
         src/domain
         src/platform/storage
+        ../app/src/main/cpp/routing
+        ../app/src/main/cpp/spatial
     )
 
     target_link_libraries(tst_foundation PRIVATE
@@ -172,12 +202,27 @@ if(NOT ANDROID)
         src/domain/EmergencyService.h
         src/domain/SessionModel.cpp
         src/domain/SessionModel.h
+        src/domain/MapPackageModel.h
+        src/domain/IMapPackageRepository.h
+        src/domain/MapPackageManager.h
+        src/domain/MapPackageManager.cpp
+        src/domain/IRouteRepository.h
+        src/domain/OfflineRouteRepository.h
+        src/domain/OfflineRouteRepository.cpp
+        src/domain/RouteService.h
+        src/domain/RouteService.cpp
         src/platform/storage/LocalDatabase.cpp
         src/platform/storage/LocalDatabase.h
         src/platform/storage/SqliteEmergencyRepository.cpp
         src/platform/storage/SqliteEmergencyRepository.h
+        src/platform/storage/SqliteMapPackageRepository.h
+        src/platform/storage/SqliteMapPackageRepository.cpp
         src/app/AppState.cpp
         src/app/AppState.h
+        ../app/src/main/cpp/routing/RouteGraph.cpp
+        ../app/src/main/cpp/routing/AStarPathfinder.cpp
+        ../app/src/main/cpp/routing/GraphJsonParser.cpp
+        ../app/src/main/cpp/spatial/GeodesicMath.cpp
     )
 
     target_include_directories(tst_emergency PRIVATE
@@ -185,6 +230,8 @@ if(NOT ANDROID)
         src/app
         src/domain
         src/platform/storage
+        ../app/src/main/cpp/routing
+        ../app/src/main/cpp/spatial
     )
 
     target_link_libraries(tst_emergency PRIVATE
@@ -193,4 +240,69 @@ if(NOT ANDROID)
     )
 
     add_test(NAME EmergencyLifecycleTest COMMAND tst_emergency)
+
+    add_executable(tst_map_package
+        tests/tst_map_package.cpp
+        src/domain/MapPackageModel.h
+        src/domain/IMapPackageRepository.h
+        src/domain/MapPackageManager.h
+        src/domain/MapPackageManager.cpp
+        src/platform/storage/LocalDatabase.h
+        src/platform/storage/LocalDatabase.cpp
+        src/platform/storage/SqliteMapPackageRepository.h
+        src/platform/storage/SqliteMapPackageRepository.cpp
+        src/domain/SessionModel.h
+        src/domain/SessionModel.cpp
+    )
+
+    target_include_directories(tst_map_package PRIVATE
+        src
+        src/domain
+        src/platform/storage
+    )
+
+    target_link_libraries(tst_map_package PRIVATE
+        Qt6::Core
+        Qt6::Sql
+    )
+
+    add_test(NAME MapPackageTest COMMAND tst_map_package)
+
+    add_executable(tst_routing
+        tests/tst_routing.cpp
+        src/domain/RouteService.h
+        src/domain/RouteService.cpp
+        src/domain/IRouteRepository.h
+        src/domain/OfflineRouteRepository.h
+        src/domain/OfflineRouteRepository.cpp
+        src/domain/MapPackageModel.h
+        src/domain/IMapPackageRepository.h
+        src/domain/MapPackageManager.h
+        src/domain/MapPackageManager.cpp
+        src/platform/storage/LocalDatabase.h
+        src/platform/storage/LocalDatabase.cpp
+        src/platform/storage/SqliteMapPackageRepository.h
+        src/platform/storage/SqliteMapPackageRepository.cpp
+        src/domain/SessionModel.h
+        src/domain/SessionModel.cpp
+        ../app/src/main/cpp/routing/RouteGraph.cpp
+        ../app/src/main/cpp/routing/AStarPathfinder.cpp
+        ../app/src/main/cpp/routing/GraphJsonParser.cpp
+        ../app/src/main/cpp/spatial/GeodesicMath.cpp
+    )
+
+    target_include_directories(tst_routing PRIVATE
+        src
+        src/domain
+        src/platform/storage
+        ../app/src/main/cpp/routing
+        ../app/src/main/cpp/spatial
+    )
+
+    target_link_libraries(tst_routing PRIVATE
+        Qt6::Core
+        Qt6::Sql
+    )
+
+    add_test(NAME RoutingTest COMMAND tst_routing)
 endif()

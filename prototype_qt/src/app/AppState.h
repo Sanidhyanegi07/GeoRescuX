@@ -6,6 +6,9 @@
 #include <memory>
 #include "domain/SessionModel.h"
 #include "domain/EmergencyService.h"
+#include "domain/MapPackageManager.h"
+#include "domain/RouteService.h"
+#include "domain/IRouteRepository.h"
 #include "platform/storage/LocalDatabase.h"
 
 namespace georescux::app {
@@ -40,6 +43,8 @@ class AppState : public QObject {
     Q_OBJECT
     Q_PROPERTY(georescux::domain::SessionModel* session READ session CONSTANT)
     Q_PROPERTY(georescux::domain::EmergencyService* emergencyService READ emergencyService CONSTANT)
+    Q_PROPERTY(georescux::domain::MapPackageManager* packageManager READ packageManager CONSTANT)
+    Q_PROPERTY(georescux::domain::RouteService* routeService READ routeService CONSTANT)
     Q_PROPERTY(QString currentNavigation READ currentNavigation NOTIFY navigationChanged)
     Q_PROPERTY(QString connectivityStatusName READ connectivityStatusName NOTIFY connectivityChanged)
     Q_PROPERTY(QString emergencyStatusName READ emergencyStatusName NOTIFY emergencyStateChanged)
@@ -47,6 +52,12 @@ class AppState : public QObject {
     Q_PROPERTY(bool isPersistenceReady READ isPersistenceReady NOTIFY persistenceStatusChanged)
     Q_PROPERTY(QString activePortalName READ activePortalName NOTIFY navigationChanged)
     Q_PROPERTY(bool isEmergencyActive READ isEmergencyActive NOTIFY emergencyStateChanged)
+    Q_PROPERTY(QString activeRegionId READ activeRegionId NOTIFY activeRegionChanged)
+    Q_PROPERTY(QString activeRegionDisplayName READ activeRegionDisplayName NOTIFY activeRegionChanged)
+    Q_PROPERTY(bool hasActiveMapPackage READ hasActiveMapPackage NOTIFY activeRegionChanged)
+    Q_PROPERTY(QString activeBoundaryPath READ activeBoundaryPath NOTIFY activeRegionChanged)
+    Q_PROPERTY(QString activeGraphPath READ activeGraphPath NOTIFY activeRegionChanged)
+    Q_PROPERTY(QString activePlacesPath READ activePlacesPath NOTIFY activeRegionChanged)
 
 public:
     explicit AppState(
@@ -62,6 +73,14 @@ public:
 
     [[nodiscard]] georescux::domain::SessionModel* session() noexcept { return &m_session; }
     [[nodiscard]] georescux::domain::EmergencyService* emergencyService() noexcept { return m_emergencyService.get(); }
+    [[nodiscard]] georescux::domain::MapPackageManager* packageManager() noexcept { return m_packageManager.get(); }
+    [[nodiscard]] georescux::domain::RouteService* routeService() noexcept { return m_routeService.get(); }
+    [[nodiscard]] QString activeRegionId() const;
+    [[nodiscard]] QString activeRegionDisplayName() const;
+    [[nodiscard]] bool hasActiveMapPackage() const;
+    [[nodiscard]] QString activeBoundaryPath() const;
+    [[nodiscard]] QString activeGraphPath() const;
+    [[nodiscard]] QString activePlacesPath() const;
     [[nodiscard]] QString currentNavigation() const noexcept { return m_currentNavigation; }
     [[nodiscard]] ConnectivityState connectivity() const noexcept { return m_connectivity; }
     [[nodiscard]] QString connectivityStatusName() const noexcept;
@@ -98,6 +117,21 @@ public:
     Q_INVOKABLE bool updateActiveNote(const QString &note);
 
     /**
+     * @brief Selects and activates an installed regional map and routing package.
+     */
+    Q_INVOKABLE bool selectRegion(const QString &regionId);
+
+    /**
+     * @brief Calculates an offline evacuation route within the active region.
+     */
+    Q_INVOKABLE bool calculateRoute(double startLat, double startLon, double destLat, double destLon, bool avoidHazards = true);
+
+    /**
+     * @brief Clears active calculated route overlay.
+     */
+    Q_INVOKABLE void clearRoute();
+
+    /**
      * @brief Visibly labeled test facility for role switching with session caching.
      */
     Q_INVOKABLE bool loginDevelopmentUser(const QString &name, const QString &email);
@@ -115,6 +149,7 @@ signals:
     void emergencyStateChanged(EmergencyLifecycleState newState);
     void persistenceStatusChanged(PersistenceStatus newStatus);
     void navigationDenied(const QString &requestedDestination, const QString &reason);
+    void activeRegionChanged(const QString &regionId);
 
 private:
     void setupConnections();
@@ -124,6 +159,9 @@ private:
     std::shared_ptr<georescux::storage::LocalDatabase> m_database;
     std::shared_ptr<georescux::domain::IEmergencyRepository> m_emergencyRepository;
     std::shared_ptr<georescux::domain::EmergencyService> m_emergencyService;
+    std::shared_ptr<georescux::domain::MapPackageManager> m_packageManager;
+    std::shared_ptr<georescux::domain::IRouteRepository> m_routeRepository;
+    std::shared_ptr<georescux::domain::RouteService> m_routeService;
     georescux::domain::SessionModel m_session;
     QString m_currentNavigation{QStringLiteral("Welcome")};
     ConnectivityState m_connectivity{ConnectivityState::Unknown};

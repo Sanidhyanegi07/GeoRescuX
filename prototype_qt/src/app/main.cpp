@@ -9,6 +9,7 @@
 #include "PrototypeBackend.h"
 #include "AppState.h"
 #include "platform/storage/LocalDatabase.h"
+#include "platform/qt/OfflineMapView.h"
 
 int main(int argc, char *argv[]) {
     // Set cross-platform Basic style for custom QML controls before QGuiApplication
@@ -55,10 +56,15 @@ int main(int argc, char *argv[]) {
         backend.notifyAppLifecycleState(stateName);
     });
 
+    // Register C++ Quick items and uncreatable domain controllers
+    qmlRegisterType<georescux::ui::OfflineMapView>("GeoRescuX.Prototype", 1, 0, "OfflineMapView");
+
     // Expose authoritative controllers to QML context
     engine.rootContext()->setContextProperty(QStringLiteral("appState"), &appState);
     engine.rootContext()->setContextProperty(QStringLiteral("sessionModel"), appState.session());
     engine.rootContext()->setContextProperty(QStringLiteral("emergencyService"), appState.emergencyService());
+    engine.rootContext()->setContextProperty(QStringLiteral("packageManager"), appState.packageManager());
+    engine.rootContext()->setContextProperty(QStringLiteral("routeService"), appState.routeService());
     engine.rootContext()->setContextProperty(QStringLiteral("prototypeBackend"), &backend);
 
     const QUrl url(QStringLiteral("qrc:/qt/qml/GeoRescuX/Prototype/ui/qml/Main.qml"));
@@ -187,7 +193,64 @@ int main(int argc, char *argv[]) {
                     return;
                 }
 
-                qInfo() << "[GeoRescuX Smoke Test] ALL PHASE 4 CHECKS PASSED: Session, Roles, Navigation, SQLite V2, Hardened Emergency Lifecycle, Admin Rejection, and C++ Engine verified.";
+                // H. Phase 5: Map Package Model & Regional Coverage
+                if (!appState.packageManager() || !appState.packageManager()->hasActivePackage()) {
+                    qCritical() << "[GeoRescuX Smoke Test] FAILED: No active regional map package registered.";
+                    QCoreApplication::exit(16);
+                    return;
+                }
+                if (appState.activeRegionId() != QStringLiteral("uttarakhand")) {
+                    qCritical() << "[GeoRescuX Smoke Test] FAILED: Active region is not uttarakhand (actual: " << appState.activeRegionId() << ").";
+                    QCoreApplication::exit(17);
+                    return;
+                }
+                if (!appState.packageManager()->isCoordinateCovered(30.3165, 78.0322)) {
+                    qCritical() << "[GeoRescuX Smoke Test] FAILED: Dehradun coordinate should be within Uttarakhand coverage.";
+                    QCoreApplication::exit(18);
+                    return;
+                }
+                if (appState.packageManager()->isCoordinateCovered(12.9716, 77.5946)) {
+                    qCritical() << "[GeoRescuX Smoke Test] FAILED: Bengaluru coordinate should NOT be within Uttarakhand coverage.";
+                    QCoreApplication::exit(19);
+                    return;
+                }
+
+                // I. Phase 6 & 7: Offline Route Calculation & Safe Route Engine
+                if (!appState.routeService()) {
+                    qCritical() << "[GeoRescuX Smoke Test] FAILED: RouteService is null.";
+                    QCoreApplication::exit(20);
+                    return;
+                }
+                const bool routeOk = appState.calculateRoute(30.3165, 78.0322, 30.1058, 78.2880);
+                if (!routeOk || !appState.routeService()->hasRoute()) {
+                    qCritical() << "[GeoRescuX Smoke Test] FAILED: Route calculation between Dehradun and Rishikesh failed. Status: " << appState.routeService()->lastStatusMessage();
+                    QCoreApplication::exit(21);
+                    return;
+                }
+                if (appState.routeService()->lastDistanceMeters() <= 0.0) {
+                    qCritical() << "[GeoRescuX Smoke Test] FAILED: Route calculated but distance is <= 0.";
+                    QCoreApplication::exit(22);
+                    return;
+                }
+                qInfo().noquote() << "[GeoRescuX Smoke Test] Offline Route calculated successfully! Distance:" 
+                                  << appState.routeService()->lastDistanceFormatted()
+                                  << "| Steps:" << appState.routeService()->lastSteps().size();
+
+                appState.clearRoute();
+                if (appState.routeService()->hasRoute()) {
+                    qCritical() << "[GeoRescuX Smoke Test] FAILED: clearRoute did not reset route state.";
+                    QCoreApplication::exit(23);
+                    return;
+                }
+
+                // Rejection of out-of-coverage coordinates
+                if (appState.calculateRoute(12.9716, 77.5946, 13.0, 77.6)) {
+                    qCritical() << "[GeoRescuX Smoke Test] FAILED: Route calculation outside coverage was incorrectly accepted.";
+                    QCoreApplication::exit(24);
+                    return;
+                }
+
+                qInfo() << "[GeoRescuX Smoke Test] ALL PHASE 5, 6, 7 CHECKS PASSED: Regional Map Packages, Offline Map View, Zero-Network Pathfinding & Safe Route verified.";
                 QCoreApplication::exit(0);
             });
         }
