@@ -17,6 +17,7 @@
 
         <Button
             android:id="@+id/buttonAlertsBack"
+            style="@style/Widget.GeoRescuX.Button.Icon"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
@@ -37,6 +38,7 @@
 
         <Button
             android:id="@+id/buttonAlertsRefresh"
+            style="@style/Widget.GeoRescuX.Button.Icon"
             android:layout_width="38dp"
             android:layout_height="38dp"
             android:background="?attr/selectableItemBackgroundBorderless"
@@ -84,7 +86,7 @@
                         android:gravity="center"
                         android:paddingHorizontal="16dp"
                         android:text="All"
-                        android:textColor="@color/brand_primary"
+                        android:textColor="@color/white"
                         android:textSize="13sp"
                         android:textStyle="bold" />
 

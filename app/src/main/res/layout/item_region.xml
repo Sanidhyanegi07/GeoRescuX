@@ -66,6 +66,7 @@
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:background="@drawable/bg_button_white"
+            app:backgroundTint="@null"
             android:minWidth="0dp"
             android:minHeight="0dp"
             android:paddingHorizontal="14dp"

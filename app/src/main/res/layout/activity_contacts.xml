@@ -17,11 +17,10 @@
 
         <Button
             android:id="@+id/buttonContactsBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            style="@style/Widget.GeoRescuX.Button.Icon"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:text="←"
-            android:textColor="@color/text_primary"
             android:textSize="22sp" />
 
         <TextView
@@ -70,7 +69,7 @@
                     android:background="@drawable/bg_tab_active"
                     android:gravity="center"
                     android:text="My Contacts"
-                    android:textColor="@color/brand_primary"
+                    android:textColor="@color/white"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
@@ -144,15 +143,13 @@
             <!-- Add Contact Button -->
             <Button
                 android:id="@+id/buttonOpenAddContact"
+                style="@style/Widget.GeoRescuX.Button"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/bg_button_primary"
                 android:text="+ Add Contact"
-                android:textColor="@color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textSize="14sp" />
 
         </LinearLayout>
     </ScrollView>

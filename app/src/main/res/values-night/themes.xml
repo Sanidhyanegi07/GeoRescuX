@@ -1,22 +1,29 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Dark theme styled with D:\UI design system. -->
-    <style name="Theme.GeoRescuX" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/violet_accent</item>
-        <item name="colorPrimaryVariant">@color/bg_app</item>
+    <!-- GeoRescuX Theme (consistent blue-and-light-background identity across day/night) -->
+    <style name="Theme.GeoRescuX" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Primary brand color -->
+        <item name="colorPrimary">@color/brand_primary</item>
+        <item name="colorPrimaryVariant">@color/brand_primary_dark</item>
         <item name="colorOnPrimary">@color/white</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/violet_light</item>
-        <item name="colorSecondaryVariant">@color/violet_dim</item>
+        
+        <!-- Secondary brand color -->
+        <item name="colorSecondary">@color/brand_accent</item>
+        <item name="colorSecondaryVariant">@color/brand_primary_light</item>
         <item name="colorOnSecondary">@color/white</item>
+        
         <!-- Backgrounds and Surfaces -->
         <item name="android:windowBackground">@color/bg_app</item>
         <item name="colorSurface">@color/bg_surface</item>
         <item name="colorOnSurface">@color/text_primary</item>
-        <!-- Status bar and navigation bar. -->
+        
+        <!-- Status bar and navigation bar insets -->
         <item name="android:statusBarColor">@color/bg_app</item>
-        <item name="android:navigationBarColor">@color/bg_app</item>
-        <!-- Material Card Styling Defaults -->
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:navigationBarColor">@color/bg_surface</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+        
+        <!-- Material Card and Button Styling Defaults -->
         <item name="materialCardViewStyle">@style/Widget.GeoRescuX.Card</item>
+        <item name="materialButtonStyle">@style/Widget.GeoRescuX.Button</item>
     </style>
 </resources>

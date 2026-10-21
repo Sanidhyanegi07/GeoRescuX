@@ -18,11 +18,10 @@
 
         <Button
             android:id="@+id/buttonRouteBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            style="@style/Widget.GeoRescuX.Button.Icon"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:text="←"
-            android:textColor="@color/text_primary"
             android:textSize="22sp" />
 
         <TextView
@@ -107,7 +106,7 @@
                         <AutoCompleteTextView
                             android:id="@+id/editTextStartNode"
                             android:layout_width="match_parent"
-                            android:layout_height="44dp"
+                            android:layout_height="48dp"
                             android:layout_marginStart="10dp"
                             android:background="@drawable/bg_input_field"
                             android:completionThreshold="1"
@@ -115,7 +114,7 @@
                             android:inputType="text"
                             android:paddingHorizontal="12dp"
                             android:textColor="@color/text_primary"
-                            android:textColorHint="@color/text_subtle"
+                            android:textColorHint="@color/text_muted"
                             android:textSize="13sp" />
                     </LinearLayout>
 
@@ -137,7 +136,7 @@
                         <AutoCompleteTextView
                             android:id="@+id/editTextDestinationNode"
                             android:layout_width="match_parent"
-                            android:layout_height="44dp"
+                            android:layout_height="48dp"
                             android:layout_marginStart="10dp"
                             android:background="@drawable/bg_input_field"
                             android:completionThreshold="1"
@@ -145,7 +144,7 @@
                             android:inputType="text"
                             android:paddingHorizontal="12dp"
                             android:textColor="@color/text_primary"
-                            android:textColorHint="@color/text_subtle"
+                            android:textColorHint="@color/text_muted"
                             android:textSize="13sp" />
                     </LinearLayout>
 
@@ -157,27 +156,23 @@
 
                         <Button
                             android:id="@+id/buttonFindRoute"
+                            style="@style/Widget.GeoRescuX.Button"
                             android:layout_width="0dp"
-                            android:layout_height="44dp"
+                            android:layout_height="48dp"
                             android:layout_weight="1"
                             android:layout_marginEnd="6dp"
-                            android:background="@drawable/bg_button_primary"
                             android:text="Find Route"
-                            android:textColor="@color/white"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
+                            android:textSize="13sp" />
 
                         <Button
                             android:id="@+id/buttonReroute"
+                            style="@style/Widget.GeoRescuX.Button.Secondary"
                             android:layout_width="0dp"
-                            android:layout_height="44dp"
+                            android:layout_height="48dp"
                             android:layout_weight="1"
                             android:layout_marginStart="6dp"
-                            android:background="@drawable/bg_button_white"
                             android:text="Avoid Hazards"
-                            android:textColor="@color/brand_primary"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
+                            android:textSize="13sp" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -212,34 +207,29 @@
 
                         <Button
                             android:id="@+id/buttonMyLocation"
-                            android:layout_width="38dp"
-                            android:layout_height="38dp"
-                            android:background="@drawable/bg_button_white"
+                            style="@style/Widget.GeoRescuX.Button.MapControl"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
                             android:text="📍"
-                            android:textColor="@color/brand_primary"
                             android:textSize="14sp" />
 
                         <Button
                             android:id="@+id/buttonZoomIn"
-                            android:layout_width="38dp"
-                            android:layout_height="38dp"
+                            style="@style/Widget.GeoRescuX.Button.MapControl"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
                             android:layout_marginTop="6dp"
-                            android:background="@drawable/bg_button_white"
                             android:text="+"
-                            android:textColor="@color/text_primary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                            android:textSize="18sp" />
 
                         <Button
                             android:id="@+id/buttonZoomOut"
-                            android:layout_width="38dp"
-                            android:layout_height="38dp"
+                            style="@style/Widget.GeoRescuX.Button.MapControl"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
                             android:layout_marginTop="4dp"
-                            android:background="@drawable/bg_button_white"
                             android:text="−"
-                            android:textColor="@color/text_primary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                            android:textSize="18sp" />
                     </LinearLayout>
 
                     <!-- Bottom Floating Legend Overlay -->
@@ -360,6 +350,16 @@
                     </LinearLayout>
 
                     <TextView
+                        android:id="@+id/textViewNoRoute"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Select a start and a destination, then find a route."
+                        android:textColor="@color/text_muted"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+
+                    <TextView
                         android:id="@+id/textViewHazardWarnings"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -373,26 +373,22 @@
 
                     <Button
                         android:id="@+id/buttonStartNavigation"
+                        style="@style/Widget.GeoRescuX.Button"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
                         android:layout_marginTop="14dp"
-                        android:background="@drawable/bg_button_primary"
                         android:text="Start Navigation"
-                        android:textColor="@color/white"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
+                        android:textSize="14sp" />
 
                     <!-- Safe Route Pro Back to SOS Action -->
                     <Button
                         android:id="@+id/buttonBackToSos"
+                        style="@style/Widget.GeoRescuX.Button.Danger.Outlined"
                         android:layout_width="match_parent"
-                        android:layout_height="44dp"
+                        android:layout_height="48dp"
                         android:layout_marginTop="8dp"
-                        android:background="@drawable/bg_button_white"
                         android:text="Back to SOS"
-                        android:textColor="@color/sos_red"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
+                        android:textSize="14sp"
                         android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -416,12 +412,6 @@
             <!-- Hidden elements for code compatibility -->
             <TextView
                 android:id="@+id/textViewNoMapData"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/textViewNoRoute"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:visibility="gone" />

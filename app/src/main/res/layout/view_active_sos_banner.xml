@@ -45,23 +45,21 @@
 
     <Button
         android:id="@+id/activeSosBannerOpen"
+        style="@style/Widget.GeoRescuX.Button.Danger"
         android:layout_width="wrap_content"
         android:layout_height="36dp"
-        android:background="@drawable/bg_button_danger"
+        android:minHeight="36dp"
         android:paddingHorizontal="14dp"
         android:text="VIEW"
-        android:textColor="@color/white"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:textSize="12sp" />
 
     <Button
         android:id="@+id/activeSosBannerClose"
+        style="@style/Widget.GeoRescuX.Button.Icon"
         android:layout_width="36dp"
         android:layout_height="36dp"
         android:layout_marginStart="4dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
         android:text="✕"
         android:textColor="@color/text_muted"
-        android:textSize="14sp"
-        android:textStyle="bold" />
+        android:textSize="14sp" />
 </LinearLayout>

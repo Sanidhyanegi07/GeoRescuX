@@ -28,7 +28,8 @@ internal object SosEmergencyJson {
                 .put("provider", location.provider)
         } ?: JSONObject.NULL)
         put("locationStatus", emergency.locationStatus?.name ?: JSONObject.NULL)
-        put("note", emergency.note?.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+        val validNote = emergency.note?.trim()?.takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) }
+        put("note", validNote ?: JSONObject.NULL)
     }
 
     fun fromJson(json: JSONObject): SosEmergency {
@@ -46,13 +47,15 @@ internal object SosEmergencyJson {
         val locationStatus = json.optString("locationStatus", "")
             .takeIf { it.isNotEmpty() }
             ?.let { runCatching { SosLocationStatus.valueOf(it) }.getOrNull() }
+        val rawNote = if (json.isNull("note")) null else json.optString("note", "")
+        val parsedNote = rawNote?.trim()?.takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) }
         return SosEmergency(
             id = json.getString("id"),
             startedAtMs = json.getLong("startedAtMs"),
             stoppedAtMs = if (json.isNull("stoppedAtMs")) null else json.getLong("stoppedAtMs"),
             location = location,
             locationStatus = locationStatus,
-            note = json.optString("note", "").takeIf { it.isNotBlank() },
+            note = parsedNote,
         )
     }
 }

@@ -146,8 +146,9 @@ class SosActivity : AppCompatActivity() {
         val textNoteCounter = findViewById<TextView>(R.id.textNoteCounter)
         
         editNote.addTextChangedListener { editable ->
-            val note = editable?.toString()
-            val len = note?.length ?: 0
+            val textStr = editable?.toString() ?: ""
+            val note = textStr.trim().takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) }
+            val len = textStr.length
             textNoteCounter.text = "$len/120"
             viewModel.updateNote(note)
         }
@@ -190,13 +191,13 @@ class SosActivity : AppCompatActivity() {
                 
                 val editNote = findViewById<EditText>(R.id.editNote)
                 val textNoteCounter = findViewById<TextView>(R.id.textNoteCounter)
-                val incomingNote = ui.emergency?.note ?: ""
+                val rawIncomingNote = ui.emergency?.note
+                val incomingNote = if (rawIncomingNote.isNullOrBlank() || rawIncomingNote.equals("null", ignoreCase = true)) "" else rawIncomingNote
                 if (editNote.text.toString() != incomingNote) {
                     editNote.setText(incomingNote)
                     editNote.setSelection(editNote.text.length)
                 }
-                val noteLen = ui.emergency?.note?.length ?: 0
-                textNoteCounter.text = "$noteLen/120"
+                textNoteCounter.text = "${incomingNote.length}/120"
 
                 // One permission decision per emergency (per activity lifetime).
                 if (!locationSetupDone) {
@@ -229,21 +230,21 @@ class SosActivity : AppCompatActivity() {
         when (status) {
             SosLocationStatus.ACQUIRED, null -> {
                 if (status == SosLocationStatus.ACQUIRED && location != null) {
-                    statusText.text = "Location found"
+                    statusText.text = "GPS Telemetry Acquired"
                     coordsText.visibility = View.VISIBLE
                     coordsText.text = (
-                        "📍 " + String.format(
+                        "📍 Lat: " + String.format(
                             Locale.US,
-                            "%.5f, %.5f (±%.0fm)",
+                            "%.5f, Lng: %.5f (±%.0fm)",
                             location.latitude,
                             location.longitude,
                             location.accuracyMeters
                         ) +
-                            " · updated " + SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                            " · " + SimpleDateFormat("HH:mm:ss", Locale.getDefault())
                                 .format(Date(location.timestampMs))
                         )
                 } else {
-                    statusText.text = "Getting location..."
+                    statusText.text = "Acquiring GPS fix..."
                     coordsText.visibility = View.GONE
                 }
                 grantButton.visibility = View.GONE

@@ -40,7 +40,7 @@ class SosRepositoryImpl(private val store: LocalSosStore) : SosRepository {
 
     override fun updateActiveEmergencyNote(note: String?) {
         val active = store.loadActive() ?: return
-        val capNote = note?.take(120)
+        val capNote = note?.trim()?.takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) }?.take(120)
         store.saveActive(active.copy(note = capNote))
     }
 

@@ -52,7 +52,7 @@ class RegionSelectionActivity : AppCompatActivity() {
         tabAvailable?.setOnClickListener {
             showOnlyDownloaded = false
             tabAvailable.setBackgroundResource(R.drawable.bg_tab_active)
-            tabAvailable.setTextColor(getTextColor(R.color.brand_primary))
+            tabAvailable.setTextColor(getTextColor(R.color.white))
             tabDownloaded?.background = null
             tabDownloaded?.setTextColor(getTextColor(R.color.text_muted))
             renderRegions()
@@ -61,7 +61,7 @@ class RegionSelectionActivity : AppCompatActivity() {
         tabDownloaded?.setOnClickListener {
             showOnlyDownloaded = true
             tabDownloaded.setBackgroundResource(R.drawable.bg_tab_active)
-            tabDownloaded.setTextColor(getTextColor(R.color.brand_primary))
+            tabDownloaded.setTextColor(getTextColor(R.color.white))
             tabAvailable.background = null
             tabAvailable.setTextColor(getTextColor(R.color.text_muted))
             renderRegions()
@@ -129,6 +129,7 @@ class RegionSelectionActivity : AppCompatActivity() {
         )
 
         val installed = graphInstalled
+        btnDownload?.backgroundTintList = null
         if (installed) {
             btnDownload?.text = if (region.id == selectedRegionId) "Active" else "Select"
             btnDownload?.setBackgroundResource(if (region.id == selectedRegionId) R.drawable.bg_button_primary else R.drawable.bg_button_white)

@@ -115,6 +115,8 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:paddingBottom="84dp"
+        android:clipToPadding="false"
         android:fillViewport="true">
 
         <LinearLayout
@@ -548,32 +550,20 @@
 
                         <Button
                             android:id="@+id/buttonAdminMapZoomIn"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
+                            style="@style/Widget.GeoRescuX.Button.MapControl"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
                             android:layout_marginBottom="4dp"
-                            android:background="@drawable/bg_card_white"
-                            android:elevation="2dp"
-                            android:minWidth="0dp"
-                            android:minHeight="0dp"
-                            android:padding="0dp"
                             android:text="+"
-                            android:textColor="@color/text_primary"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
+                            android:textSize="18sp" />
 
                         <Button
                             android:id="@+id/buttonAdminMapZoomOut"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:background="@drawable/bg_card_white"
-                            android:elevation="2dp"
-                            android:minWidth="0dp"
-                            android:minHeight="0dp"
-                            android:padding="0dp"
+                            style="@style/Widget.GeoRescuX.Button.MapControl"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
                             android:text="−"
-                            android:textColor="@color/text_primary"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
+                            android:textSize="18sp" />
                     </LinearLayout>
                 </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -746,25 +736,27 @@
                     <Button
                         android:id="@+id/buttonTabEmergencies"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="40dp"
                         android:layout_marginEnd="6dp"
                         android:background="@drawable/bg_tab_active"
+                        app:backgroundTint="@null"
                         android:minWidth="0dp"
-                        android:minHeight="0dp"
+                        android:minHeight="40dp"
                         android:paddingHorizontal="14dp"
                         android:text="🚨 SOS Events"
-                        android:textColor="@color/brand_primary"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
                         android:textStyle="bold" />
 
                     <Button
                         android:id="@+id/buttonTabHazards"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="40dp"
                         android:layout_marginEnd="6dp"
                         android:background="@drawable/bg_tab_container"
+                        app:backgroundTint="@null"
                         android:minWidth="0dp"
-                        android:minHeight="0dp"
+                        android:minHeight="40dp"
                         android:paddingHorizontal="14dp"
                         android:text="⚠️ Hazards &amp; Roads"
                         android:textColor="@color/text_muted"
@@ -774,11 +766,12 @@
                     <Button
                         android:id="@+id/buttonTabIncidents"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="40dp"
                         android:layout_marginEnd="6dp"
                         android:background="@drawable/bg_tab_container"
+                        app:backgroundTint="@null"
                         android:minWidth="0dp"
-                        android:minHeight="0dp"
+                        android:minHeight="40dp"
                         android:paddingHorizontal="14dp"
                         android:text="📋 Incidents"
                         android:textColor="@color/text_muted"
@@ -788,11 +781,12 @@
                     <Button
                         android:id="@+id/buttonTabEvents"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="40dp"
                         android:layout_marginEnd="6dp"
                         android:background="@drawable/bg_tab_container"
+                        app:backgroundTint="@null"
                         android:minWidth="0dp"
-                        android:minHeight="0dp"
+                        android:minHeight="40dp"
                         android:paddingHorizontal="14dp"
                         android:text="📅 Events"
                         android:textColor="@color/text_muted"
@@ -802,11 +796,12 @@
                     <Button
                         android:id="@+id/buttonTabRoutes"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="40dp"
                         android:layout_marginEnd="6dp"
                         android:background="@drawable/bg_tab_container"
+                        app:backgroundTint="@null"
                         android:minWidth="0dp"
-                        android:minHeight="0dp"
+                        android:minHeight="40dp"
                         android:paddingHorizontal="14dp"
                         android:text="🛣️ Routes"
                         android:textColor="@color/text_muted"
@@ -816,11 +811,12 @@
                     <Button
                         android:id="@+id/buttonTabResources"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="40dp"
                         android:layout_marginEnd="6dp"
                         android:background="@drawable/bg_tab_container"
+                        app:backgroundTint="@null"
                         android:minWidth="0dp"
-                        android:minHeight="0dp"
+                        android:minHeight="40dp"
                         android:paddingHorizontal="14dp"
                         android:text="🏥 Resources"
                         android:textColor="@color/text_muted"
@@ -830,11 +826,12 @@
                     <Button
                         android:id="@+id/buttonTabVerifications"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="40dp"
                         android:layout_marginEnd="6dp"
                         android:background="@drawable/bg_tab_container"
+                        app:backgroundTint="@null"
                         android:minWidth="0dp"
-                        android:minHeight="0dp"
+                        android:minHeight="40dp"
                         android:paddingHorizontal="14dp"
                         android:text="🛡️ Verifications"
                         android:textColor="@color/text_muted"
@@ -844,10 +841,11 @@
                     <Button
                         android:id="@+id/buttonTabSettings"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="40dp"
                         android:background="@drawable/bg_tab_container"
+                        app:backgroundTint="@null"
                         android:minWidth="0dp"
-                        android:minHeight="0dp"
+                        android:minHeight="40dp"
                         android:paddingHorizontal="14dp"
                         android:text="⚙️ Settings"
                         android:textColor="@color/text_muted"
@@ -865,44 +863,32 @@
 
                 <Button
                     android:id="@+id/buttonBroadcastAlert"
+                    style="@style/Widget.GeoRescuX.Button"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_button_primary"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
                     android:text="📢 Broadcast Alert"
-                    android:textColor="@color/white"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textSize="12sp" />
 
                 <Button
                     android:id="@+id/buttonCreateEvent"
+                    style="@style/Widget.GeoRescuX.Button.Secondary"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="44dp"
                     android:layout_marginStart="8dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_button_white"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
                     android:text="📅 Log Event"
-                    android:textColor="@color/brand_primary"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textSize="12sp" />
 
                 <Button
                     android:id="@+id/buttonAdminUsers"
+                    style="@style/Widget.GeoRescuX.Button.Secondary"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="44dp"
                     android:layout_marginStart="8dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_button_white"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
                     android:text="👥 Users"
-                    android:textColor="@color/brand_primary"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <!-- Hazard Actions Bar -->
@@ -916,26 +902,22 @@
 
                 <Button
                     android:id="@+id/buttonAddHazard"
+                    style="@style/Widget.GeoRescuX.Button"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="44dp"
                     android:layout_marginEnd="8dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_button_primary"
                     android:text="+ Add Hazard"
-                    android:textColor="@color/white"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textSize="12sp" />
 
                 <Button
                     android:id="@+id/buttonBlockRoad"
+                    style="@style/Widget.GeoRescuX.Button.Danger"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_button_danger"
                     android:text="🚫 Block Road"
-                    android:textColor="@color/white"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <!-- Detailed Data List Header -->
@@ -989,15 +971,13 @@
             <!-- Admin Logout Button -->
             <Button
                 android:id="@+id/buttonAdminLogout"
+                style="@style/Widget.GeoRescuX.Button.Danger.Outlined"
                 android:layout_width="match_parent"
-                android:layout_height="46dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/bg_button_white"
                 android:text="Logout Admin"
-                android:textColor="@color/sos_red"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:textSize="13sp" />
 
         </LinearLayout>
     </ScrollView>

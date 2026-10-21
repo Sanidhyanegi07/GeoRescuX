@@ -237,14 +237,12 @@
 
                     <Button
                         android:id="@+id/buttonSaveProfile"
+                        style="@style/Widget.GeoRescuX.Button"
                         android:layout_width="match_parent"
-                        android:layout_height="42dp"
+                        android:layout_height="48dp"
                         android:layout_marginTop="12dp"
-                        android:background="@drawable/bg_button_primary"
                         android:text="Save Profile"
-                        android:textColor="@color/white"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
+                        android:textSize="14sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -508,14 +506,12 @@
             <!-- Log Out Button -->
             <Button
                 android:id="@+id/buttonLogout"
+                style="@style/Widget.GeoRescuX.Button.Danger.Outlined"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:layout_marginBottom="24dp"
-                android:background="@drawable/bg_button_white"
                 android:text="Log Out"
-                android:textColor="@color/sos_red"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textSize="14sp" />
 
         </LinearLayout>
     </ScrollView>

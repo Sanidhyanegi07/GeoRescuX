@@ -55,6 +55,9 @@ object OfflineMapSetup {
     @Suppress("DEPRECATION")
     fun configure(activity: Activity, mapView: MapView, region: MapRegion): Result {
         mapView.setMultiTouchControls(true)
+        mapView.isTilesScaledToDpi = true
+        mapView.minZoomLevel = 4.0
+        mapView.maxZoomLevel = 20.0
 
         if (region.tileAssetPath.isNotBlank()) {
             TileArchiveInstaller.ensureExtracted(activity, region)

@@ -159,9 +159,9 @@
         <!-- Cancel Button -->
         <Button
             android:id="@+id/buttonCancelSosModal"
+            style="@style/Widget.GeoRescuX.Button.Secondary"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:background="@drawable/bg_button_white"
             android:text="Cancel"
             android:textColor="@color/text_primary"
             android:textSize="14sp"
@@ -188,9 +188,9 @@
 
             <Button
                 android:id="@+id/buttonSosBack"
+                style="@style/Widget.GeoRescuX.Button.Icon"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
                 android:text="←"
                 android:textColor="@color/text_primary"
                 android:textSize="22sp" />
@@ -306,52 +306,64 @@
                                 android:src="@drawable/ic_safe_route"
                                 app:tint="@color/brand_primary" />
 
-                            <LinearLayout
+                            <TextView
+                                android:id="@+id/textViewLocationStatus"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
                                 android:layout_marginStart="10dp"
-                                android:orientation="vertical">
+                                android:layout_weight="1"
+                                android:text="GPS Telemetry"
+                                android:textColor="@color/text_primary"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
 
-                                <TextView
-                                    android:id="@+id/textViewLocationStatus"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Location Shared"
-                                    android:textColor="@color/text_primary"
-                                    android:textSize="13sp"
-                                    android:textStyle="bold" />
-
-                                <TextView
-                                    android:id="@+id/textViewLocationCoords"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Acquiring GPS fix..."
-                                    android:textColor="@color/text_secondary"
-                                    android:textSize="12sp" />
-                            </LinearLayout>
-
-                            <Button
-                                android:id="@+id/buttonViewLocationOnMap"
+                            <TextView
                                 android:layout_width="wrap_content"
-                                android:layout_height="36dp"
-                                android:background="@drawable/bg_button_white"
-                                android:paddingHorizontal="12dp"
-                                android:text="View on Map"
-                                android:textColor="@color/brand_primary"
-                                android:textSize="11sp"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_pill_low_risk"
+                                android:paddingHorizontal="8dp"
+                                android:paddingVertical="3dp"
+                                android:text="● LIVE"
+                                android:textColor="@color/safe_green"
+                                android:textSize="10sp"
                                 android:textStyle="bold" />
                         </LinearLayout>
 
+                        <!-- Full width, unobstructed GPS Telemetry (Lat, Lng, Accuracy, Timestamp) -->
+                        <TextView
+                            android:id="@+id/textViewLocationCoords"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_input_field"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="10dp"
+                            android:text="Acquiring GPS fix..."
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <!-- View Location on Map: accessible full-width secondary button below telemetry -->
+                        <Button
+                            android:id="@+id/buttonViewLocationOnMap"
+                            style="@style/Widget.GeoRescuX.Button.Secondary"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:layout_marginTop="10dp"
+                            android:text="View Location on Map"
+                            android:textColor="@color/brand_primary"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
                         <Button
                             android:id="@+id/buttonGrantLocation"
+                            style="@style/Widget.GeoRescuX.Button"
                             android:layout_width="match_parent"
-                            android:layout_height="40dp"
-                            android:layout_marginTop="10dp"
-                            android:background="@drawable/bg_button_primary"
+                            android:layout_height="44dp"
+                            android:layout_marginTop="8dp"
                             android:text="Grant Location Permission"
                             android:textColor="@color/white"
-                            android:textSize="12sp"
+                            android:textSize="13sp"
                             android:visibility="gone" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -609,13 +621,13 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Stop Emergency Button -->
+                <!-- Stop Emergency Button (Distinct Emergency Lifecycle Action) -->
                 <Button
                     android:id="@+id/buttonStopEmergency"
+                    style="@style/Widget.GeoRescuX.Button.Danger"
                     android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:background="@drawable/bg_button_danger"
-                    android:text="End Emergency"
+                    android:layout_height="52dp"
+                    android:text="END EMERGENCY"
                     android:textColor="@color/white"
                     android:textSize="15sp"
                     android:textStyle="bold" />

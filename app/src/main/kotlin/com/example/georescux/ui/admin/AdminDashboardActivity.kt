@@ -159,32 +159,32 @@ class AdminDashboardActivity : AppCompatActivity() {
 
         val activeBg = ContextCompat.getDrawable(this, R.drawable.bg_tab_active)
         val inactiveBg = ContextCompat.getDrawable(this, R.drawable.bg_tab_container)
-        val brandPrimary = ContextCompat.getColor(this, R.color.brand_primary)
+        val textActive = ContextCompat.getColor(this, R.color.white)
         val textMuted = ContextCompat.getColor(this, R.color.text_muted)
 
         btnEmergencies.background = if (currentTab == AdminTab.EMERGENCIES) activeBg else inactiveBg
-        btnEmergencies.setTextColor(if (currentTab == AdminTab.EMERGENCIES) brandPrimary else textMuted)
+        btnEmergencies.setTextColor(if (currentTab == AdminTab.EMERGENCIES) textActive else textMuted)
 
         btnHazards.background = if (currentTab == AdminTab.HAZARDS) activeBg else inactiveBg
-        btnHazards.setTextColor(if (currentTab == AdminTab.HAZARDS) brandPrimary else textMuted)
+        btnHazards.setTextColor(if (currentTab == AdminTab.HAZARDS) textActive else textMuted)
 
         btnIncidents.background = if (currentTab == AdminTab.INCIDENTS) activeBg else inactiveBg
-        btnIncidents.setTextColor(if (currentTab == AdminTab.INCIDENTS) brandPrimary else textMuted)
+        btnIncidents.setTextColor(if (currentTab == AdminTab.INCIDENTS) textActive else textMuted)
 
         btnEvents.background = if (currentTab == AdminTab.EVENTS) activeBg else inactiveBg
-        btnEvents.setTextColor(if (currentTab == AdminTab.EVENTS) brandPrimary else textMuted)
+        btnEvents.setTextColor(if (currentTab == AdminTab.EVENTS) textActive else textMuted)
 
         btnRoutes.background = if (currentTab == AdminTab.ROUTES) activeBg else inactiveBg
-        btnRoutes.setTextColor(if (currentTab == AdminTab.ROUTES) brandPrimary else textMuted)
+        btnRoutes.setTextColor(if (currentTab == AdminTab.ROUTES) textActive else textMuted)
 
         btnResources.background = if (currentTab == AdminTab.RESOURCES) activeBg else inactiveBg
-        btnResources.setTextColor(if (currentTab == AdminTab.RESOURCES) brandPrimary else textMuted)
+        btnResources.setTextColor(if (currentTab == AdminTab.RESOURCES) textActive else textMuted)
 
         btnVerifications.background = if (currentTab == AdminTab.VERIFICATIONS) activeBg else inactiveBg
-        btnVerifications.setTextColor(if (currentTab == AdminTab.VERIFICATIONS) brandPrimary else textMuted)
+        btnVerifications.setTextColor(if (currentTab == AdminTab.VERIFICATIONS) textActive else textMuted)
 
         btnSettings.background = if (currentTab == AdminTab.SETTINGS) activeBg else inactiveBg
-        btnSettings.setTextColor(if (currentTab == AdminTab.SETTINGS) brandPrimary else textMuted)
+        btnSettings.setTextColor(if (currentTab == AdminTab.SETTINGS) textActive else textMuted)
 
         hazardActions?.visibility = if (currentTab == AdminTab.HAZARDS) View.VISIBLE else View.GONE
         renderCurrentTabContent()
@@ -482,7 +482,8 @@ class AdminDashboardActivity : AppCompatActivity() {
                         val acc = locSnap.child("accuracyMeters").getValue(Float::class.java) ?: 0f
                         val provider = locSnap.child("provider").getValue(String::class.java) ?: "GPS"
                         
-                        val note = alertSnap.child("note").getValue(String::class.java)
+                        val rawNote = alertSnap.child("note").getValue(String::class.java)
+                        val note = rawNote?.trim()?.takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) }
 
                         emergencyList.add(
                             EmergencyItem(
@@ -769,7 +770,7 @@ AdminTab.VERIFICATIONS -> {
             setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.text_muted))
             textSize = 13f
             setPadding(32, 32, 32, 32)
-            background = ContextCompat.getDrawable(this@AdminDashboardActivity, R.drawable.bg_card_dark)
+            background = ContextCompat.getDrawable(this@AdminDashboardActivity, R.drawable.bg_card_white)
         }
         container.addView(text)
     }
@@ -777,23 +778,32 @@ AdminTab.VERIFICATIONS -> {
     private fun buildEmergencyCard(emergency: EmergencyItem): View {
         val card = layoutInflater.inflate(R.layout.item_alert, findViewById(R.id.adminDataContainer), false)
         val dateStr = SimpleDateFormat("dd MMM, HH:mm:ss", Locale.getDefault()).format(Date(emergency.startedAtMs))
-        val statusText = if (emergency.isActive) "🚨 ACTIVE SOS" else "✅ RESOLVED"
+        val statusText = if (emergency.isActive) "Active SOS" else "Resolved"
 
-        card.findViewById<TextView>(R.id.textAlertDate).text = "$statusText · UID: ${emergency.uid.take(8)}…"
-        
-        var durationText = "Started: $dateStr · Status: ${emergency.status}"
-        if (!emergency.note.isNullOrBlank()) {
-            durationText += "\nNote: ${emergency.note}"
+        card.findViewById<TextView>(R.id.textAlertTitle).text = "Emergency #${emergency.alertId.takeLast(4).uppercase()}"
+        card.findViewById<TextView>(R.id.textAlertSource).apply {
+            text = statusText
+            setBackgroundResource(if (emergency.isActive) R.drawable.bg_pill_high_priority else R.drawable.bg_pill_low_risk)
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, if (emergency.isActive) R.color.sos_red else R.color.safe_green))
         }
-        card.findViewById<TextView>(R.id.textAlertDuration).text = durationText
 
         val locText = if (emergency.latitude != null && emergency.longitude != null) {
             String.format(Locale.US, "📍 Lat: %.5f, Lng: %.5f (±%.0fm, %s)", emergency.latitude, emergency.longitude, emergency.accuracy, emergency.provider)
         } else {
             "📍 Location: GPS Fix Pending"
         }
-        card.findViewById<TextView>(R.id.textAlertLocation).apply {
-            text = if (emergency.isActive) "$locText\nTap to Resolve / View details →" else "$locText\n✅ Resolved (Tap to View)"
+        card.findViewById<TextView>(R.id.textAlertLocation).text = locText
+
+        if (!emergency.note.isNullOrBlank()) {
+            card.findViewById<TextView>(R.id.textAlertNote).apply {
+                text = "Note: ${emergency.note}"
+                visibility = View.VISIBLE
+            }
+        }
+
+        card.findViewById<TextView>(R.id.textAlertDate).text = "Started: $dateStr"
+        card.findViewById<TextView>(R.id.textAlertDuration).apply {
+            text = if (emergency.isActive) "UID: ${emergency.uid.take(8)}… · Tap to Resolve" else "UID: ${emergency.uid.take(8)}… · Resolved"
             setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, if (emergency.isActive) R.color.brand_primary else R.color.safe_green))
         }
 
@@ -805,28 +815,38 @@ AdminTab.VERIFICATIONS -> {
 
     private fun buildHazardCard(hazard: HazardItem): View {
         val card = layoutInflater.inflate(R.layout.item_alert, findViewById(R.id.adminDataContainer), false)
-        card.findViewById<TextView>(R.id.textAlertDate).text = "⚠️ Hazard: ${hazard.id}"
-        card.findViewById<TextView>(R.id.textAlertDuration).text = "Affected: ${hazard.fromNodeId} ↔ ${hazard.toNodeId} · Penalty: +${hazard.penaltyMeters.toInt()}m"
-        card.findViewById<TextView>(R.id.textAlertLocation).apply {
-            text = "Tap to Resolve / Remove"
+        card.findViewById<TextView>(R.id.textAlertTitle).text = "⚠️ Hazard: ${hazard.id}"
+        card.findViewById<TextView>(R.id.textAlertSource).apply {
+            text = "Hazard"
+            setBackgroundResource(R.drawable.bg_pill_pending)
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.amber_alert))
+        }
+        card.findViewById<TextView>(R.id.textAlertLocation).text = "Affected: ${hazard.fromNodeId} ↔ ${hazard.toNodeId} · +${hazard.penaltyMeters.toInt()}m penalty"
+        card.findViewById<TextView>(R.id.textAlertDuration).apply {
+            text = "Tap to Resolve / Remove Hazard →"
             setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.text_error))
-            setOnClickListener {
-                confirmClearHazard(hazard.id)
-            }
+        }
+        card.setOnClickListener {
+            confirmClearHazard(hazard.id)
         }
         return card
     }
 
     private fun buildBlockedRoadCard(block: BlockedRoadItem): View {
         val card = layoutInflater.inflate(R.layout.item_alert, findViewById(R.id.adminDataContainer), false)
-        card.findViewById<TextView>(R.id.textAlertDate).text = "🚫 Blocked Road"
-        card.findViewById<TextView>(R.id.textAlertDuration).text = "Segment: ${block.fromNodeId} ↔ ${block.toNodeId} (Impassable)"
-        card.findViewById<TextView>(R.id.textAlertLocation).apply {
-            text = "Tap to Unblock Segment"
+        card.findViewById<TextView>(R.id.textAlertTitle).text = "🚫 Blocked Road"
+        card.findViewById<TextView>(R.id.textAlertSource).apply {
+            text = "Impassable"
+            setBackgroundResource(R.drawable.bg_pill_high_priority)
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.sos_red))
+        }
+        card.findViewById<TextView>(R.id.textAlertLocation).text = "Segment: ${block.fromNodeId} ↔ ${block.toNodeId}"
+        card.findViewById<TextView>(R.id.textAlertDuration).apply {
+            text = "Tap to Unblock Segment →"
             setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.safe_green))
-            setOnClickListener {
-                confirmUnblockRoad(block.fromNodeId, block.toNodeId)
-            }
+        }
+        card.setOnClickListener {
+            confirmUnblockRoad(block.fromNodeId, block.toNodeId)
         }
         return card
     }
@@ -835,14 +855,21 @@ AdminTab.VERIFICATIONS -> {
         val card = layoutInflater.inflate(R.layout.item_alert, findViewById(R.id.adminDataContainer), false)
         val dateStr = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()).format(Date(incident.timestampMs))
 
-        card.findViewById<TextView>(R.id.textAlertDate).text = "📋 ${incident.type} · ${incident.status}"
-        card.findViewById<TextView>(R.id.textAlertDuration).text = "${incident.description} ($dateStr)"
-        card.findViewById<TextView>(R.id.textAlertLocation).apply {
-            text = "Update Status (Investigating / Resolved)"
-            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.violet_accent))
-            setOnClickListener {
-                showUpdateIncidentStatusDialog(incident.id, incident.status)
-            }
+        card.findViewById<TextView>(R.id.textAlertTitle).text = "📋 ${incident.type}"
+        card.findViewById<TextView>(R.id.textAlertSource).apply {
+            text = incident.status
+            val isResolved = incident.status.equals("RESOLVED", true) || incident.status.equals("CLOSED", true)
+            setBackgroundResource(if (isResolved) R.drawable.bg_pill_low_risk else R.drawable.bg_pill_pending)
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, if (isResolved) R.color.safe_green else R.color.amber_alert))
+        }
+        card.findViewById<TextView>(R.id.textAlertLocation).text = incident.description
+        card.findViewById<TextView>(R.id.textAlertDate).text = dateStr
+        card.findViewById<TextView>(R.id.textAlertDuration).apply {
+            text = "Tap to Update Status →"
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.brand_primary))
+        }
+        card.setOnClickListener {
+            showUpdateIncidentStatusDialog(incident.id, incident.status)
         }
         return card
     }
@@ -851,27 +878,44 @@ AdminTab.VERIFICATIONS -> {
         val card = layoutInflater.inflate(R.layout.item_alert, findViewById(R.id.adminDataContainer), false)
         val dateStr = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()).format(Date(req.timestampMs))
 
-        card.findViewById<TextView>(R.id.textAlertDate).text = "🛡️ Verification Request · ${req.status}"
-        card.findViewById<TextView>(R.id.textAlertDuration).text = "User: ${req.name} (UID: ${req.uid})\nSubmitted: $dateStr"
-        card.findViewById<TextView>(R.id.textAlertLocation).apply {
-            // §11.4: only a pending submission needs a decision. An already
-            // approved/rejected request shows its outcome and no action.
+        card.findViewById<TextView>(R.id.textAlertTitle).text = "🛡️ ${req.name}"
+        card.findViewById<TextView>(R.id.textAlertSource).apply {
+            text = req.status
             when (req.status) {
                 "VERIFIED" -> {
-                    text = "Identity approved — contributing 2 points to priority score"
+                    setBackgroundResource(R.drawable.bg_pill_low_risk)
                     setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.safe_green))
                 }
                 "REJECTED" -> {
-                    text = "Identity rejected — contributing 1 point to priority score"
+                    setBackgroundResource(R.drawable.bg_pill_high_priority)
+                    setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.sos_red))
+                }
+                else -> {
+                    setBackgroundResource(R.drawable.bg_pill_pending)
+                    setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.amber_alert))
+                }
+            }
+        }
+        card.findViewById<TextView>(R.id.textAlertLocation).text = "UID: ${req.uid} · Submitted: $dateStr"
+        card.findViewById<TextView>(R.id.textAlertDuration).apply {
+            when (req.status) {
+                "VERIFIED" -> {
+                    text = "Identity approved (+2 priority)"
+                    setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.safe_green))
+                }
+                "REJECTED" -> {
+                    text = "Identity rejected (+1 priority)"
                     setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.text_error))
                 }
                 else -> {
-                    text = "Review Identity (Approve / Reject)"
-                    setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.violet_accent))
-                    setOnClickListener {
-                        showVerificationReviewDialog(req.uid, req.name)
-                    }
+                    text = "Tap to Review (Approve / Reject) →"
+                    setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.brand_primary))
                 }
+            }
+        }
+        if (req.status == "PENDING") {
+            card.setOnClickListener {
+                showVerificationReviewDialog(req.uid, req.name)
             }
         }
         return card
@@ -883,12 +927,17 @@ AdminTab.VERIFICATIONS -> {
         val activeRegion = MapRegionCatalog.byId(container.activeRegionId) ?: MapRegionCatalog.sampleRegion
         val graph = runCatching { container.routeRepository.getGraph() }.getOrNull()
 
-        card.findViewById<TextView>(R.id.textAlertDate).text = "🖥️ System & Network Health"
-        card.findViewById<TextView>(R.id.textAlertDuration).text =
-            "Region: ${activeRegion.displayName} (v${activeRegion.version})\n" +
-            "Local Graph: ${graph?.nodes?.size ?: 0} nodes / ${graph?.edges?.size ?: 0} edges\n" +
-            "BLE Subsystem: Active & Listening"
-        card.findViewById<TextView>(R.id.textAlertLocation).text = "Firebase RTDB: Connected · Custom Claims: Verified"
+        card.findViewById<TextView>(R.id.textAlertTitle).text = "🖥️ System & Network Health"
+        card.findViewById<TextView>(R.id.textAlertSource).apply {
+            text = "HEALTHY"
+            setBackgroundResource(R.drawable.bg_pill_low_risk)
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.safe_green))
+        }
+        card.findViewById<TextView>(R.id.textAlertLocation).text = "Region: ${activeRegion.displayName} (v${activeRegion.version})"
+        card.findViewById<TextView>(R.id.textAlertNote).apply {
+            text = "Local Graph: ${graph?.nodes?.size ?: 0} nodes / ${graph?.edges?.size ?: 0} edges\nBLE Subsystem: Active & Listening\nFirebase RTDB: Connected · Custom Claims: Verified"
+            visibility = View.VISIBLE
+        }
         return card
     }
 
@@ -898,10 +947,17 @@ AdminTab.VERIFICATIONS -> {
         val graph = runCatching { container.routeRepository.getGraph() }.getOrNull()
         val safeHavens = graph?.nodes?.filter { it.isSafeHaven }.orEmpty()
 
-        card.findViewById<TextView>(R.id.textAlertDate).text = "🏥 Emergency Facilities (${safeHavens.size} Safe Havens)"
-        card.findViewById<TextView>(R.id.textAlertDuration).text =
-            safeHavens.take(5).joinToString("\n") { "• Safe Haven: ${it.id} (Lat: ${String.format(Locale.US, "%.4f", it.latitude)}, Lng: ${String.format(Locale.US, "%.4f", it.longitude)})" }
+        card.findViewById<TextView>(R.id.textAlertTitle).text = "🏥 Emergency Safe Havens"
+        card.findViewById<TextView>(R.id.textAlertSource).apply {
+            text = "${safeHavens.size} Active"
+            setBackgroundResource(R.drawable.bg_pill_low_risk)
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.safe_green))
+        }
         card.findViewById<TextView>(R.id.textAlertLocation).text = "All emergency safe zones online and routable via A*"
+        card.findViewById<TextView>(R.id.textAlertNote).apply {
+            text = safeHavens.take(5).joinToString("\n") { "• ${it.id} (Lat: ${String.format(Locale.US, "%.4f", it.latitude)}, Lng: ${String.format(Locale.US, "%.4f", it.longitude)})" }
+            visibility = View.VISIBLE
+        }
         return card
     }
 
@@ -1369,14 +1425,19 @@ AdminTab.VERIFICATIONS -> {
         val card = layoutInflater.inflate(R.layout.item_alert, findViewById(R.id.adminDataContainer), false)
         val dateStr = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()).format(Date(event.timestampMs))
 
-        card.findViewById<TextView>(R.id.textAlertDate).text = "📅 ${event.type} · ${event.status}"
-        card.findViewById<TextView>(R.id.textAlertDuration).text = "${event.description} ($dateStr)"
-        card.findViewById<TextView>(R.id.textAlertLocation).apply {
-            text = "Update Status (Active / Resolved)"
-            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.violet_accent))
-            setOnClickListener {
-                showUpdateEventStatusDialog(event.id, event.status)
-            }
+        card.findViewById<TextView>(R.id.textAlertTitle).text = "📅 ${event.type}"
+        card.findViewById<TextView>(R.id.textAlertSource).apply {
+            text = event.status
+            setBackgroundResource(if (event.status == "ACTIVE") R.drawable.bg_pill_low_risk else R.drawable.bg_pill_pending)
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, if (event.status == "ACTIVE") R.color.safe_green else R.color.text_muted))
+        }
+        card.findViewById<TextView>(R.id.textAlertLocation).text = "${event.description} ($dateStr)"
+        card.findViewById<TextView>(R.id.textAlertDuration).apply {
+            text = "Tap to Update Status →"
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.brand_primary))
+        }
+        card.setOnClickListener {
+            showUpdateEventStatusDialog(event.id, event.status)
         }
         return card
     }
@@ -1418,22 +1479,27 @@ AdminTab.VERIFICATIONS -> {
 
         // §50: network health summary
         val summaryCard = layoutInflater.inflate(R.layout.item_alert, container, false)
-        summaryCard.findViewById<TextView>(R.id.textAlertDate).text = "🛣️ Route Network Inspection"
-        summaryCard.findViewById<TextView>(R.id.textAlertDuration).text = buildString {
-            if (graph == null) {
-                append("Route graph unavailable for the active region.")
-            } else {
-                append("Nodes: ${graph.nodes.size}\n")
-                append("Road segments: ${graph.edges.size}\n")
-                val blockedEdges = graph.edges.count { it.blocked }
-                append("Blocked segments (graph): $blockedEdges\n")
-                append("Hazards (graph): ${graph.hazards.size}\n")
-                append("Blocked roads (admin ops): ${blockedRoadList.size}\n")
-                append("Hazards (admin ops): ${hazardList.size}")
-            }
+        summaryCard.findViewById<TextView>(R.id.textAlertTitle).text = "🛣️ Route Network Inspection"
+        summaryCard.findViewById<TextView>(R.id.textAlertSource).apply {
+            text = if (graph != null) "LOADED" else "OFFLINE"
+            setBackgroundResource(if (graph != null) R.drawable.bg_pill_low_risk else R.drawable.bg_pill_pending)
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, if (graph != null) R.color.safe_green else R.color.amber_alert))
         }
         summaryCard.findViewById<TextView>(R.id.textAlertLocation).text =
             "Local offline routing graph ${if (graph != null) "loaded" else "not installed"}"
+        summaryCard.findViewById<TextView>(R.id.textAlertNote).apply {
+            text = buildString {
+                if (graph == null) {
+                    append("Route graph unavailable for the active region.")
+                } else {
+                    append("Nodes: ${graph.nodes.size} · Road segments: ${graph.edges.size}\n")
+                    val blockedEdges = graph.edges.count { it.blocked }
+                    append("Blocked segments: $blockedEdges · Hazards: ${graph.hazards.size}\n")
+                    append("Admin ops blocked: ${blockedRoadList.size} · Admin hazards: ${hazardList.size}")
+                }
+            }
+            visibility = View.VISIBLE
+        }
         container.addView(summaryCard)
 
         // §50: blocked roads managed through the admin portal
@@ -1466,7 +1532,7 @@ AdminTab.VERIFICATIONS -> {
                 setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.text_muted))
                 textSize = 13f
                 setPadding(32, 24, 32, 32)
-                background = ContextCompat.getDrawable(this@AdminDashboardActivity, R.drawable.bg_card_dark)
+                background = ContextCompat.getDrawable(this@AdminDashboardActivity, R.drawable.bg_card_white)
             }
             container.addView(clear)
         }
@@ -1476,20 +1542,28 @@ AdminTab.VERIFICATIONS -> {
         container.removeAllViews()
 
         val card = layoutInflater.inflate(R.layout.item_alert, container, false)
-        card.findViewById<TextView>(R.id.textAlertDate).text = "⚙️ Admin Settings"
-        card.findViewById<TextView>(R.id.textAlertDuration).text = buildString {
-            append("🔧 Sync interval: ${adminSettings.syncIntervalMinutes} min (configurable)\n")
-            append("📊 Data retention: ${adminSettings.dataRetentionDays} days (configurable)\n")
-            append("🔔 Alert TTL: ${adminSettings.alertTTLDays} days (configurable)\n")
-            append("🌐 Region scope: ${selectedRegion?.displayName ?: "All"}\n")
-            append("🔐 Admin role: Custom Claims verified")
+        card.findViewById<TextView>(R.id.textAlertTitle).text = "⚙️ Admin Settings & Configuration"
+        card.findViewById<TextView>(R.id.textAlertSource).apply {
+            text = "CONFIG"
+            setBackgroundResource(R.drawable.bg_pill_low_risk)
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.brand_primary))
         }
-        card.findViewById<TextView>(R.id.textAlertLocation).apply {
-            text = "Tap to modify settings"
-            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.violet_accent))
-            setOnClickListener {
-                showSettingsDialog()
+        card.findViewById<TextView>(R.id.textAlertLocation).text = "Region scope: ${selectedRegion?.displayName ?: "All Regions"}"
+        card.findViewById<TextView>(R.id.textAlertNote).apply {
+            text = buildString {
+                append("🔧 Sync interval: ${adminSettings.syncIntervalMinutes} min\n")
+                append("📊 Data retention: ${adminSettings.dataRetentionDays} days\n")
+                append("🔔 Alert TTL: ${adminSettings.alertTTLDays} days\n")
+                append("🔐 Admin role: Custom Claims verified")
             }
+            visibility = View.VISIBLE
+        }
+        card.findViewById<TextView>(R.id.textAlertDuration).apply {
+            text = "Tap to modify settings →"
+            setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.brand_primary))
+        }
+        card.setOnClickListener {
+            showSettingsDialog()
         }
         container.addView(card)
     }

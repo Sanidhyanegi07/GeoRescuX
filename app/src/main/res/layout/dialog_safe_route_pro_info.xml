@@ -131,9 +131,9 @@
 
     <Button
         android:id="@+id/buttonDismissProInfo"
+        style="@style/Widget.GeoRescuX.Button"
         android:layout_width="match_parent"
-        android:layout_height="46dp"
-        android:background="@drawable/bg_button_primary"
+        android:layout_height="48dp"
         android:text="Got It"
         android:textColor="@color/white"
         android:textSize="14sp"

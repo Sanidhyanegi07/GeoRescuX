@@ -71,7 +71,7 @@ class AlertsActivity : AppCompatActivity() {
             chips.forEach { chip ->
                 if (chip == selected) {
                     chip?.setBackgroundResource(R.drawable.bg_tab_active)
-                    chip?.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.brand_primary))
+                    chip?.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.white))
                 } else {
                     chip?.setBackgroundResource(R.drawable.bg_tab_container)
                     chip?.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.text_muted))

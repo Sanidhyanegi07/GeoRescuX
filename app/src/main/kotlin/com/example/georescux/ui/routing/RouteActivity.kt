@@ -188,6 +188,13 @@ class RouteActivity : AppCompatActivity() {
         // cached online), identical to the Map screen.
         val mapResult = OfflineMapSetup.configure(this, mapView, activeRegion)
         mapCacheBadge?.text = mapResult.tier.badgeText
+        if (!mapResult.isOffline) {
+            mapCacheBadge?.setBackgroundResource(R.drawable.bg_pill_pending)
+            mapCacheBadge?.setTextColor(ContextCompat.getColor(this, R.color.amber_alert))
+        } else {
+            mapCacheBadge?.setBackgroundResource(R.drawable.bg_pill_low_risk)
+            mapCacheBadge?.setTextColor(ContextCompat.getColor(this, R.color.safe_green))
+        }
         findViewById<TextView>(R.id.textViewNoMapData).visibility =
             if (mapResult.isOffline) View.GONE else View.VISIBLE
 
@@ -731,11 +738,13 @@ class RouteActivity : AppCompatActivity() {
         syncStartEditText(startEditText, ui.startNodeId)
         syncDestinationEditText(destinationEditText, ui.destinationNodeId)
 
+        val navButton = findViewById<Button>(R.id.buttonStartNavigation)
         if (ui.graphLoading) {
             noRouteText.visibility = View.VISIBLE
             noRouteText.text = "Loading offline map data…"
             summaryText.visibility = View.GONE
             warningsText.visibility = View.GONE
+            navButton?.visibility = View.GONE
             return
         }
 
@@ -754,11 +763,13 @@ class RouteActivity : AppCompatActivity() {
             }
             summaryText.visibility = View.GONE
             warningsText.visibility = View.GONE
+            navButton?.visibility = View.GONE
             return
         }
 
         noRouteText.visibility = View.GONE
         summaryText.visibility = View.VISIBLE
+        navButton?.visibility = View.VISIBLE
         summaryText.text = buildString {
             append("Distance: ${EtaEstimator.formatDistance(route.totalDistanceMeters)}")
             append(" · ETA: ${EtaEstimator.format(route.estimatedDurationSeconds)}")

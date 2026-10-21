@@ -17,6 +17,7 @@
 
         <Button
             android:id="@+id/buttonHelpBack"
+            style="@style/Widget.GeoRescuX.Button.Icon"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
@@ -301,10 +302,10 @@
 
                     <Button
                         android:id="@+id/buttonLearnSafeRoutePro"
+                        style="@style/Widget.GeoRescuX.Button.Secondary"
                         android:layout_width="match_parent"
-                        android:layout_height="40dp"
+                        android:layout_height="44dp"
                         android:layout_marginTop="12dp"
-                        android:background="@drawable/bg_button_white"
                         android:text="Learn About Safe Route Pro"
                         android:textColor="@color/brand_primary"
                         android:textSize="13sp"

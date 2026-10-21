@@ -70,7 +70,7 @@ class ContactsActivity : AppCompatActivity() {
         tabMyContacts?.setOnClickListener {
             currentTabIsServices = false
             tabMyContacts.setBackgroundResource(R.drawable.bg_tab_active)
-            tabMyContacts.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.brand_primary))
+            tabMyContacts.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.white))
             tabEmergencyServices?.background = null
             tabEmergencyServices?.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.text_muted))
             buttonAdd?.visibility = View.VISIBLE
@@ -80,7 +80,7 @@ class ContactsActivity : AppCompatActivity() {
         tabEmergencyServices?.setOnClickListener {
             currentTabIsServices = true
             tabEmergencyServices.setBackgroundResource(R.drawable.bg_tab_active)
-            tabEmergencyServices.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.brand_primary))
+            tabEmergencyServices.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.white))
             tabMyContacts.background = null
             tabMyContacts.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.text_muted))
             buttonAdd?.visibility = View.GONE

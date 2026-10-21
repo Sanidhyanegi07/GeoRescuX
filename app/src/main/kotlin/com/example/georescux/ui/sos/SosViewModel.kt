@@ -165,7 +165,8 @@ class SosViewModel(
     fun updateNote(note: String?) {
         val current = _uiState.value
         if (current.state != SosState.ACTIVE) return
-        sosRepository.updateActiveEmergencyNote(note)
+        val sanitized = note?.trim()?.takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) }
+        sosRepository.updateActiveEmergencyNote(sanitized)
         _uiState.value = _uiState.value.copy(emergency = sosRepository.getActiveEmergency())
     }
 

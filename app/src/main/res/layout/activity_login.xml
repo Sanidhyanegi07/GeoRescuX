@@ -73,7 +73,7 @@
                         android:background="@drawable/bg_tab_active"
                         android:gravity="center"
                         android:text="Login"
-                        android:textColor="@color/brand_primary"
+                        android:textColor="@color/white"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -163,13 +163,11 @@
                 <!-- Primary Login Button -->
                 <Button
                     android:id="@+id/buttonLogin"
+                    style="@style/Widget.GeoRescuX.Button"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
-                    android:background="@drawable/bg_button_primary"
                     android:text="Login"
-                    android:textColor="@color/white"
-                    android:textSize="15sp"
-                    android:textStyle="bold" />
+                    android:textSize="15sp" />
 
                 <!-- Divider: or -->
                 <LinearLayout
@@ -203,13 +201,12 @@
                 <!-- Google Sign In Button -->
                 <Button
                     android:id="@+id/buttonGoogleSignIn"
+                    style="@style/Widget.GeoRescuX.Button.Secondary"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
-                    android:background="@drawable/bg_button_white"
                     android:text="Continue with Google"
                     android:textColor="@color/text_primary"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:textSize="14sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -233,6 +230,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="?attr/selectableItemBackgroundBorderless"
+                app:backgroundTint="@null"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
                 android:padding="0dp"
