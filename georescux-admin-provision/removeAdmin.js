@@ -15,9 +15,10 @@ getAuth().getUser(targetUid)
     ...(user.customClaims || {}),
     admin: false
   }))
+  .then(() => getAuth().revokeRefreshTokens(targetUid))
   .then(() => {
-    console.log(`Admin claim revoked for UID: ${targetUid}`);
-    console.log('The user must refresh their ID token or sign in again.');
+    console.log(`Admin claim revoked and refresh tokens invalidated for UID: ${targetUid}`);
+    console.log('The user must sign in again to receive a fresh token.');
   })
   .catch((error) => {
     console.error('Error removing custom claims:', error.message);

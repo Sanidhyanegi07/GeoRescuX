@@ -20,13 +20,20 @@ exports.setAdminClaim = functions.https.onCall(async (data, context) => {
   }
 
   const targetUid = data?.targetUid;
-  const enableAdmin = data?.admin === true;
   if (typeof targetUid !== "string" || targetUid.trim().length === 0) {
     throw new functions.https.HttpsError(
       "invalid-argument",
       "The function must be called with a valid 'targetUid'."
     );
   }
+
+  if (typeof data?.admin !== "boolean") {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "The function must be called with an explicit boolean 'admin' property (true to grant, false to revoke)."
+    );
+  }
+  const enableAdmin = data.admin;
 
   const callerIsAdmin = context.auth.token?.admin === true;
   if (!callerIsAdmin) {

@@ -181,7 +181,7 @@ test("Security Gate: setAdminClaim authorization enforcement", async (t) => {
     assert.equal(userStore["user_target"].tokensRevoked, true, "Revoking admin must invalidate refresh tokens to prevent cached session reuse");
   });
 
-  await t.test("Fail-closed: Non-boolean truthy values (e.g. string 'true') do NOT grant admin privilege", async () => {
+  await t.test("Rejects missing, null, or non-boolean admin property with 'invalid-argument'", async () => {
     const adminContext = {
       auth: {
         uid: "user_admin",
@@ -189,9 +189,51 @@ test("Security Gate: setAdminClaim authorization enforcement", async (t) => {
       }
     };
 
-    const result = await setAdminClaim({ targetUid: "user_target", admin: "true" }, adminContext);
-    assert.deepEqual(result, { status: "success", targetUid: "user_target", admin: false });
-    assert.equal(userStore["user_target"].customClaims.admin, false, "admin claim must be false if not boolean true");
+    // Missing admin property
+    await assert.rejects(
+      async () => {
+        await setAdminClaim({ targetUid: "user_target" }, adminContext);
+      },
+      (err) => {
+        assert.equal(err.code, "invalid-argument");
+        assert.match(err.message, /boolean 'admin' property/i);
+        return true;
+      }
+    );
+
+    // Non-boolean string "true"
+    await assert.rejects(
+      async () => {
+        await setAdminClaim({ targetUid: "user_target", admin: "true" }, adminContext);
+      },
+      (err) => {
+        assert.equal(err.code, "invalid-argument");
+        assert.match(err.message, /boolean 'admin' property/i);
+        return true;
+      }
+    );
+
+    // Non-boolean number 1
+    await assert.rejects(
+      async () => {
+        await setAdminClaim({ targetUid: "user_target", admin: 1 }, adminContext);
+      },
+      (err) => {
+        assert.equal(err.code, "invalid-argument");
+        return true;
+      }
+    );
+
+    // Null admin
+    await assert.rejects(
+      async () => {
+        await setAdminClaim({ targetUid: "user_target", admin: null }, adminContext);
+      },
+      (err) => {
+        assert.equal(err.code, "invalid-argument");
+        return true;
+      }
+    );
   });
 
   await t.test("Ordinary user attempting to revoke claims MUST throw 'permission-denied'", async () => {
