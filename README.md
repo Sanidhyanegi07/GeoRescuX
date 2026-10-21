@@ -180,13 +180,36 @@ GeoRescuX/
 │   │   └── test/                    # Unit tests & emulator rule test suites
 │   ├── build.gradle.kts             # AGP 8.13, NDK, and CMake configuration
 │   └── google-services.json         # Firebase project configuration
+├── prototype_qt/                    # Cross-platform C++20 / Qt 6.11.1 native prototype
 ├── backend/                         # Standalone C++20 Drogon server & simulators
-├── docs/                            # Deep architectural and regional specs
+├── docs/                            # Deep architectural, security, and testing documentation
+│   ├── audit/                       # Baseline inventory, final audit report, limitations
+│   ├── architecture/                # Four pillars of OOP, class reference, repository guide
+│   ├── testing/                     # Test execution logs, master APK hashes, build verification
+│   ├── security/                    # Security review, least-privilege rules, custom claims
+│   └── development/                 # Reproducible developer setup & toolchain guides
 ├── output/                          # Bundled regional routing graphs & manifests
 ├── database.rules.json              # 39-case verified least-privilege security rules
 ├── firebase.json                    # Firebase emulator & database configuration
 └── README.md                        # Master documentation
 ```
+
+---
+
+## 📚 Master Engineering Documentation Library
+
+Exhaustive, verified technical specifications and audit reports are available in the [`docs/`](docs/) directory:
+
+- 🏛️ **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)**: Deep dive into the multi-tier layered model, threading, and dual-mesh topology.
+- 📂 **[Repository & Module Guide](docs/architecture/REPOSITORY_GUIDE.md)**: Comprehensive folder-by-folder and file-by-file inventory.
+- 🧱 **[Four Pillars of OOP](docs/architecture/OOP_FOUR_PILLARS.md)**: Real-world encapsulation, inheritance, polymorphism, and abstraction with exact source lines.
+- 📑 **[Master Class Reference](docs/architecture/CLASS_REFERENCE.md)**: Index of critical Kotlin, C++, and Qt classes, contracts, and responsibilities.
+- 🛡️ **[Security & Access Control Review](docs/security/SECURITY_REVIEW.md)**: Custom claims, zero-trust role resolution, and vulnerability analysis.
+- 🔍 **[Final Audit Report](docs/audit/FINAL_AUDIT_REPORT.md)**: Code review findings, resolved UI/UX defects, and defect registers.
+- ⚙️ **[Build & Setup Guide](docs/development/BUILD_AND_SETUP.md)**: Step-by-step reproducible toolchain and compilation instructions.
+- 🧪 **[Test & Build Report](docs/testing/TEST_AND_BUILD_REPORT.md)**: JVM unit tests, Qt desktop CTests, and release APK cryptographic hashes.
+- ⚠️ **[Known Limitations](docs/audit/KNOWN_LIMITATIONS.md)**: Transparent boundary definitions for physical RF, satellite GNSS, and cloud deployments.
+- 🎓 **[Viva Preparation Guide](docs/engineering/VIVA_PREPARATION.md)**: Complete interview and oral defense guide with elevator pitch and diagrams.
 
 ---
 

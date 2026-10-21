@@ -6,9 +6,10 @@ admin.initializeApp();
 /**
  * Assigns or removes the admin custom claim on a target UID.
  *
- * Every request must be authenticated. Existing administrators may manage
- * other users; the bootstrap UID may only be initialized by itself. Claims
- * are merged so this function never accidentally removes unrelated claims.
+ * Every request must be authenticated and issued by an existing verified
+ * administrator (token.admin === true). Initial administrator bootstrap
+ * must be performed out-of-band using service-account credentials.
+ * Claims are merged so this function never accidentally removes unrelated claims.
  */
 exports.setAdminClaim = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
@@ -28,11 +29,10 @@ exports.setAdminClaim = functions.https.onCall(async (data, context) => {
   }
 
   const callerIsAdmin = context.auth.token?.admin === true;
-  const isSelfBootstrap = targetUid === context.auth.uid;
-  if (!callerIsAdmin && !isSelfBootstrap) {
+  if (!callerIsAdmin) {
     throw new functions.https.HttpsError(
       "permission-denied",
-      "Only administrators may manage another user's administrator privileges."
+      "Only verified administrators may manage administrator privileges. Initial bootstrap must be performed out-of-band using service-account credentials."
     );
   }
 
