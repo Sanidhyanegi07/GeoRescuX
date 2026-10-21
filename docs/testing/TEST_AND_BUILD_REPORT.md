@@ -11,8 +11,8 @@ The GeoRescuX verification pipeline exercises both the production Kotlin Android
 ### A. Android Kotlin Unit Tests
 - **Command**: `.\gradlew.bat testDebugUnitTest`
 - **Exit Code**: `0` (BUILD SUCCESSFUL)
-- **Duration**: 3m 49s
-- **Actionable Tasks**: 25 executed / up-to-date
+- **Total Tests**: **452 unit tests passed (0 failures, 0 errors, 0 skipped)**
+- **Actionable Tasks**: 25 executed clean
 - **Failures**: 0
 
 #### Test Suite Breakdown

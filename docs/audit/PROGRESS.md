@@ -21,12 +21,14 @@
 | **Phase 14** | Complete Documentation Library | **COMPLETE** | 10 Master Engineering Documents Created |
 | **Phase 15** | Real-Device Validation | **BLOCKED** | ADB indicates 0 attached devices |
 | **Phase 16** | Final Quality Gate | **COMPLETE** | Clean Working Tree, All Gates Passed |
+| **Phase 17** | 30-Minute Faculty Demo Guide | **COMPLETE** | [`docs/demo/30_MINUTE_DEMO_GUIDE.md`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/docs/demo/30_MINUTE_DEMO_GUIDE.md) |
 
 ---
 
 ## 2. Master Verification Metrics
 
-- **Kotlin Unit Tests**: 25 tasks passed (`BUILD SUCCESSFUL`).
+- **Kotlin Unit Tests**: 452 unit tests passed across 25 tasks (`BUILD SUCCESSFUL`).
+- **Node Cloud Function Security Tests**: 15/15 security tests passed (`node:test` in `functions/`).
 - **Release APK**: Built clean (`app-release-unsigned.apk`, 36,681,165 bytes).
-- **Qt Desktop CTests**: 6 suites passed (100% pass rate in 6.21s).
+- **Qt Desktop CTests**: 6 suites passed (100% pass rate).
 - **Qt Android ARM64 APK**: Built clean (`android-build-release-unsigned.apk`, 29,478,897 bytes).
