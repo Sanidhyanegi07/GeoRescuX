@@ -34,10 +34,9 @@ In mission-critical life-safety software, claiming an application is "100% produ
 
 ## 4. Cloud & Security Infrastructure Boundaries
 
-### LIMIT-SEC-01: Self-Bootstrapping Logic in Un-deployed Cloud Functions
-- **Constraint**: In [`functions/index.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/functions/index.js#L31), `const isSelfBootstrap = targetUid === context.auth.uid;` allows any authenticated user to elevate themselves to an administrator if this function is deployed as-is.
-- **Current State**: The Cloud Function is currently not deployed to production. Administrative claims are minted out-of-band via [`georescux-admin-provision/makeAdmin.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/georescux-admin-provision/makeAdmin.js).
-- **Required Action**: Remove `isSelfBootstrap` before deploying Firebase Functions to production.
+### LIMIT-SEC-01: Historical Self-Bootstrapping Logic Remediated & Verified
+- **Resolution**: In [`functions/index.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/functions/index.js#L30-L36), `isSelfBootstrap` was completely removed and replaced with strict server-side authorization (`callerIsAdmin = context.auth.token?.admin === true`).
+- **Status**: Remediated and verified with [`functions/test/admin_security.test.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/functions/test/admin_security.test.js) (12/12 passing). Initial administrative bootstrap is strictly restricted to out-of-band provisioning via [`georescux-admin-provision/manageAdmin.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/georescux-admin-provision/manageAdmin.js). Cloud function is un-deployed pending live production environment setup.
 
 ### LIMIT-CLOUD-01: Offline-First Synchronous Mirroring Lag
 - **Constraint**: When operating in a zero-connectivity disaster zone, local emergency updates are queued durably in `SyncStateStore`.

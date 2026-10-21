@@ -43,13 +43,22 @@ The GeoRescuX verification pipeline exercises both the production Kotlin Android
 
 ---
 
-### C. Release Build Verification
-- **Command**: `.\gradlew.bat assembleRelease`
-- **Target**: Android Production Release APK
+### C. Cloud Functions Security Unit Tests
+- **Command**: `npm test` (in `functions/`)
+- **Engine**: Node.js v26.7.0 `node:test` test runner
+- **Exit Code**: `0`
+- **Duration**: 158.5ms
+- **Results**: **15/15 tests passed (100%)**
+- **Scope**: Rigorous regression testing of `functions/index.js` preventing self-bootstrap privilege escalation (FINDING-SEC-01), enforcing admin caller verification, fail-closed error handling, claim merging, and status query ownership.
+
+---
+
+### D. Release Build Verification
+- **Command**: `.\gradlew.bat assembleRelease` (Kotlin) & `.\gradlew.bat assembleRelease` (Qt Android)
+- **Target**: Android Production Release APKs (Unsigned)
 - **Exit Code**: `0` (BUILD SUCCESSFUL)
-- **Duration**: 1m 24s
-- **Actionable Tasks**: 59 executed / up-to-date
-- **Verification**: Android NDK CMake compiled shared native libraries (`libgeorescux_routing.so`) across all 4 target ABIs (`arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`).
+- **Actionable Tasks**: 59 executed/up-to-date (Kotlin) | 47 executed/up-to-date (Qt)
+- **Verification**: Android NDK CMake compiled shared native libraries across ABIs (`arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`) for Kotlin; Qt deployment packaged stripped native `libappGeoRescuXQtPrototype_arm64-v8a.so` (4,266,872 bytes).
 
 ---
 
@@ -57,9 +66,9 @@ The GeoRescuX verification pipeline exercises both the production Kotlin Android
 
 | Target Application | Relative Path | Exact Bytes | Build Timestamp | Cryptographic SHA-256 Hash |
 | :--- | :--- | :---: | :---: | :--- |
-| **Kotlin Production (Release)** | `app\build\outputs\apk\release\app-release-unsigned.apk` | 36,681,165 | 21-10-2026 12:35:19 | `E1C5CA9FAB2674EC932B910D0C6A4F786F578E1D0BE9A6991EB1B0FFA91B1EFD` |
+| **Kotlin Production (Release)** | `app\build\outputs\apk\release\app-release-unsigned.apk` | 36,681,165 | 21-10-2026 13:50:58 | `9814B2A577AD6D040832D286B9880A5CFCBE904FB57416B93AD4BF2681A7800B` |
 | **Kotlin Production (Debug)** | `app\build\outputs\apk\debug\app-debug.apk` | 41,491,530 | 21-10-2026 00:49:01 | `B1812FDBCFC712FE1A5162F54EDFD1C5BB9B28682DE04FE7818A613AFEB646F9` |
-| **Qt Prototype (ARM64 Release)** | `prototype_qt\build_android_arm64\android-build\appGeoRescuXQtPrototype.apk` | 35,361,673 | 21-10-2026 00:35:30 | `87EE20C1A63B9B4C9D2BEC9BE6FE70E7BA175765182D7AB860B2677F393DE0C5` |
+| **Qt Prototype (ARM64 Release)** | `prototype_qt\build_android_arm64\android-build\build\outputs\apk\release\android-build-release-unsigned.apk` | 29,478,897 | 21-10-2026 13:56:49 | `854E77F0B29BED969DE053E3B70F09F36539DFDE595F790BD67443E34BEA85C6` |
 | **Qt Prototype (ARM64 Debug)** | `prototype_qt\build_android_arm64\android-build\build\outputs\apk\debug\android-build-debug.apk` | 33,464,089 | 21-10-2026 00:55:13 | `A1840A7811EFB30D54A7E2F2922B62233FD77981E8EEE7638289096F26F91127` |
 
 ---

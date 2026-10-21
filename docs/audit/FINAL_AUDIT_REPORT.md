@@ -44,20 +44,20 @@ The audit established that the core functional architecture—offline A\* routin
 - **Severity**: **Critical**
 - **Location**: [`functions/index.js:L31`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/functions/index.js#L31)
 - **Detail**: `const isSelfBootstrap = targetUid === context.auth.uid;` allows any authenticated user to grant themselves admin claims if the function is deployed.
-- **Action Required**: Remove `isSelfBootstrap` before deployment; use [`georescux-admin-provision/makeAdmin.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/georescux-admin-provision/makeAdmin.js) for out-of-band admin minting.
+- **Action Completed**: Removed `isSelfBootstrap` completely; strictly enforced caller admin token verification; invalidated refresh tokens on demotion. Initial admin creation is strictly out-of-band via [`georescux-admin-provision/manageAdmin.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/georescux-admin-provision/manageAdmin.js). Added automated test suite [`functions/test/admin_security.test.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/functions/test/admin_security.test.js) (15/15 passing).
 
 ---
 
 ## 4. Master Defect & Status Register
 
 | ID | Title | Module | Severity | Status | Verification Evidence |
-| :--- | :--- | :--- | :---: | :---: | :--- |
+| :--- | :--- | :--- | :--- | :---: | :--- |
 | **DEF-01** | Button Tint Contrast Collision | UI / Themes | **High** | `FIXED AND TESTED` | `themes.xml`, `assembleRelease` passed |
 | **DEF-02** | Active Tab Blue-on-Blue Text | UI / Tabs | **High** | `FIXED AND TESTED` | 5 layout files + Kotlin listeners |
 | **DEF-03** | Literal `"null"` in SOS Notes | Data / SOS | **High** | `FIXED AND TESTED` | `SosEmergencyJsonTest` passed |
 | **DEF-04** | Bottom Navigation Card Overlap | UI / Admin | **Medium** | `FIXED AND TESTED` | `activity_admin_dashboard.xml` |
 | **DEF-05** | Card Visual Hierarchy Clash | UI / Admin | **Medium** | `FIXED AND TESTED` | `AdminDashboardActivity.kt` |
 | **DEF-06** | Map High-DPI Tile Scaling | UI / Maps | **Medium** | `FIXED AND TESTED` | `OfflineMapSetup.kt` |
-| **SEC-01** | Self-Bootstrapping Privilege Escalation | Functions | **Critical** | `REQUIRES HUMAN REVIEW` | Code inspected; function not deployed |
+| **SEC-01** | Self-Bootstrapping Privilege Escalation | Functions | **Critical** | `FIXED AND TESTED` | `functions/test/admin_security.test.js` (15 tests pass) |
 | **HW-01** | Dual-Device Physical BLE Relay | BLE Mesh | **High** | `IMPLEMENTED — NOT PHYSICALLY VERIFIED` | Unit tested; physical RF test blocked |
 | **HW-02** | Physical GNSS Satellite Lock | Location | **Medium** | `IMPLEMENTED — NOT PHYSICALLY VERIFIED` | CTest passed; satellite lock blocked |

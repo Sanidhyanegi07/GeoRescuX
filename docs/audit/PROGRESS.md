@@ -29,4 +29,4 @@
 - **Kotlin Unit Tests**: 25 tasks passed (`BUILD SUCCESSFUL`).
 - **Release APK**: Built clean (`app-release-unsigned.apk`, 36,681,165 bytes).
 - **Qt Desktop CTests**: 6 suites passed (100% pass rate in 6.21s).
-- **Qt Android ARM64 APK**: Built clean (`appGeoRescuXQtPrototype.apk`, 35,361,673 bytes).
+- **Qt Android ARM64 APK**: Built clean (`android-build-release-unsigned.apk`, 29,478,897 bytes).

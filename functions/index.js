@@ -40,6 +40,9 @@ exports.setAdminClaim = functions.https.onCall(async (data, context) => {
     const user = await admin.auth().getUser(targetUid);
     const claims = { ...(user.customClaims || {}), admin: enableAdmin };
     await admin.auth().setCustomUserClaims(targetUid, claims);
+    if (!enableAdmin) {
+      await admin.auth().revokeRefreshTokens(targetUid);
+    }
     return { status: "success", targetUid, admin: enableAdmin };
   } catch (error) {
     console.error("Failed to update admin claim", { targetUid, error });

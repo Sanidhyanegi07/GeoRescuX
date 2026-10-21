@@ -68,8 +68,8 @@ The security rules in [`database.rules.json`](file:///c:/Users/sanid/Documents/G
   }
   ```
   Because `isSelfBootstrap` checks `targetUid === context.auth.uid`, any logged-in user calling this function can make themselves an Administrator.
-- **Current Status**: `REQUIRES HUMAN REVIEW`. Cloud function is currently **not deployed**.
-- **Remediation**: Delete `isSelfBootstrap` or bind strictly to an environment-configured master admin UID (`process.env.BOOTSTRAP_ADMIN_UID`). Admin claims must only be granted via [`georescux-admin-provision/makeAdmin.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/georescux-admin-provision/makeAdmin.js).
+- **Remediation**: Completely removed `isSelfBootstrap` logic. Replaced with strict server-side authorization check `callerIsAdmin = context.auth.token?.admin === true`. All non-admin callers attempting privilege escalation receive `permission-denied`. Initial bootstrap is strictly out-of-band via [`georescux-admin-provision/manageAdmin.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/georescux-admin-provision/manageAdmin.js).
+- **Status**: `REMEDIATED AND VERIFIED`. Regression test suite [`functions/test/admin_security.test.js`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/functions/test/admin_security.test.js) added; 15/15 security test assertions passing.
 
 ---
 

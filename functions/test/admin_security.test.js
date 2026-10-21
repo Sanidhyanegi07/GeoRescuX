@@ -53,6 +53,12 @@ Module._load = function (request, parent, isMain) {
             throw new Error(`User ${uid} not found`);
           }
           userStore[uid].customClaims = { ...claims };
+        },
+        revokeRefreshTokens: async (uid) => {
+          if (!userStore[uid]) {
+            throw new Error(`User ${uid} not found`);
+          }
+          userStore[uid].tokensRevoked = true;
         }
       })
     };
@@ -172,6 +178,62 @@ test("Security Gate: setAdminClaim authorization enforcement", async (t) => {
     assert.deepEqual(result, { status: "success", targetUid: "user_target", admin: false });
     assert.equal(userStore["user_target"].customClaims.admin, false);
     assert.equal(userStore["user_target"].customClaims.department, "SAR");
+    assert.equal(userStore["user_target"].tokensRevoked, true, "Revoking admin must invalidate refresh tokens to prevent cached session reuse");
+  });
+
+  await t.test("Fail-closed: Non-boolean truthy values (e.g. string 'true') do NOT grant admin privilege", async () => {
+    const adminContext = {
+      auth: {
+        uid: "user_admin",
+        token: { admin: true }
+      }
+    };
+
+    const result = await setAdminClaim({ targetUid: "user_target", admin: "true" }, adminContext);
+    assert.deepEqual(result, { status: "success", targetUid: "user_target", admin: false });
+    assert.equal(userStore["user_target"].customClaims.admin, false, "admin claim must be false if not boolean true");
+  });
+
+  await t.test("Ordinary user attempting to revoke claims MUST throw 'permission-denied'", async () => {
+    const callerContext = {
+      auth: {
+        uid: "user_ordinary",
+        token: {}
+      }
+    };
+
+    await assert.rejects(
+      async () => {
+        await setAdminClaim({ targetUid: "user_admin", admin: false }, callerContext);
+      },
+      (err) => {
+        assert.equal(err.code, "permission-denied");
+        return true;
+      }
+    );
+
+    // Verify admin was not revoked by ordinary user
+    assert.equal(userStore["user_admin"].customClaims.admin, true);
+  });
+
+  await t.test("Fail-closed: Internal backend errors throw 'internal'", async () => {
+    const adminContext = {
+      auth: {
+        uid: "user_admin",
+        token: { admin: true }
+      }
+    };
+
+    await assert.rejects(
+      async () => {
+        await setAdminClaim({ targetUid: "nonexistent_uid", admin: true }, adminContext);
+      },
+      (err) => {
+        assert.equal(err.code, "internal");
+        assert.match(err.message, /Failed to update admin privileges/i);
+        return true;
+      }
+    );
   });
 });
 

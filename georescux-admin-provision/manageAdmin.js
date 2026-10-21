@@ -33,7 +33,8 @@ async function run() {
 
     case 'revoke':
       await auth.setCustomUserClaims(targetUid, { admin: false });
-      console.log(`[GeoRescuX Admin] Revoked admin claim (set admin: false) for UID: ${targetUid}`);
+      await auth.revokeRefreshTokens(targetUid);
+      console.log(`[GeoRescuX Admin] Revoked admin claim (set admin: false) and invalidated refresh tokens for UID: ${targetUid}`);
       break;
 
     case 'verify':
