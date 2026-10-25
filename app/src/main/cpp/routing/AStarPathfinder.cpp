@@ -120,9 +120,11 @@ std::optional<EvacuationRoute> AStarPathfinder::findRoute(
     }
 
     std::unordered_map<std::string, double> bestCost;
+    bestCost.reserve(graph.nodes.size());
     bestCost[startId] = 0.0;
 
     std::unordered_map<std::string, std::string> cameFrom;
+    cameFrom.reserve(graph.nodes.size());
 
     std::priority_queue<SearchNode, std::vector<SearchNode>, std::greater<SearchNode>> open;
     open.push(SearchNode{startId, 0.0, haversineMeters(*start, *destination)});

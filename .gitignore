@@ -22,6 +22,8 @@ backend/build/
 
 # Local SDK and machine-specific configuration
 local.properties
+*serviceAccountKey*.json
+serviceAccountKey.json
 
 # Proguard / R8
 proguard/

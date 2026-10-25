@@ -15,15 +15,15 @@
         android:orientation="horizontal"
         android:paddingHorizontal="16dp">
 
-        <Button
+        <ImageView
             android:id="@+id/buttonAdminUsersBack"
-            style="@style/Widget.GeoRescuX.Button.Icon"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:text="←"
-            android:textColor="@color/text_primary"
-            android:textSize="22sp" />
+            android:contentDescription="Navigate back"
+            android:padding="8dp"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="0dp"

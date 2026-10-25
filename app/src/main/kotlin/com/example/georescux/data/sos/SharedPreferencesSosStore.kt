@@ -15,7 +15,7 @@ class SharedPreferencesSosStore(context: Context) : LocalSosStore {
 
     override fun loadActive(): SosEmergency? {
         val json = prefs.getString(KEY_ACTIVE, null) ?: return null
-        return SosEmergencyJson.fromJson(JSONObject(json))
+        return runCatching { SosEmergencyJson.fromJson(JSONObject(json)) }.getOrNull()
     }
 
     override fun saveActive(emergency: SosEmergency) {
@@ -27,10 +27,12 @@ class SharedPreferencesSosStore(context: Context) : LocalSosStore {
     }
 
     override fun loadHistory(): List<SosEmergency> {
-        val array = JSONArray(prefs.getString(KEY_HISTORY, "[]"))
-        return (0 until array.length())
-            .map { SosEmergencyJson.fromJson(array.getJSONObject(it)) }
-            .asReversed() // newest first
+        return runCatching {
+            val array = JSONArray(prefs.getString(KEY_HISTORY, "[]"))
+            (0 until array.length())
+                .map { SosEmergencyJson.fromJson(array.getJSONObject(it)) }
+                .asReversed() // newest first
+        }.getOrDefault(emptyList())
     }
 
     override fun addToHistory(emergency: SosEmergency) {

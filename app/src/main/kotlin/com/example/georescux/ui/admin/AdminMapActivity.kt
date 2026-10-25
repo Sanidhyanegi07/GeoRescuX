@@ -102,7 +102,7 @@ class AdminMapActivity : AppCompatActivity() {
             }
         }.toListener()
 
-        findViewById<Button>(R.id.buttonAdminMapBack).setOnClickListener { finish() }
+        findViewById<View>(R.id.buttonAdminMapBack).setOnClickListener { finish() }
 
         attachSosListener()
     }

@@ -12,6 +12,18 @@ long long currentEpochMs() {
     ).count();
 }
 
+inline std::string safeColumnText(sqlite3_stmt* stmt, int col) {
+    const unsigned char* text = sqlite3_column_text(stmt, col);
+    return text ? reinterpret_cast<const char*>(text) : "";
+}
+
+inline std::optional<std::string> safeColumnOptionalText(sqlite3_stmt* stmt, int col) {
+    if (sqlite3_column_type(stmt, col) == SQLITE_NULL) return std::nullopt;
+    const unsigned char* text = sqlite3_column_text(stmt, col);
+    if (!text) return std::nullopt;
+    return std::string(reinterpret_cast<const char*>(text));
+}
+
 } // namespace
 
 SqliteStorage::SqliteStorage(const std::string& dbPath) : dbPath_(dbPath) {}
@@ -140,8 +152,8 @@ std::optional<models::SosEventDto> SqliteStorage::getSosEvent(const std::string&
     }
 
     models::SosEventDto dto;
-    dto.eventId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-    dto.userId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+    dto.eventId = safeColumnText(stmt, 0);
+    dto.userId = safeColumnText(stmt, 1);
     dto.startedAtMs = sqlite3_column_int64(stmt, 2);
     dto.stoppedAtMs = sqlite3_column_int64(stmt, 3);
     dto.isActive = (sqlite3_column_int(stmt, 4) != 0);
@@ -149,11 +161,9 @@ std::optional<models::SosEventDto> SqliteStorage::getSosEvent(const std::string&
     if (sqlite3_column_type(stmt, 5) != SQLITE_NULL) dto.latitude = sqlite3_column_double(stmt, 5);
     if (sqlite3_column_type(stmt, 6) != SQLITE_NULL) dto.longitude = sqlite3_column_double(stmt, 6);
 
-    dto.locationStatus = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
-    if (sqlite3_column_type(stmt, 8) != SQLITE_NULL) {
-        dto.note = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
-    }
-    dto.source = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
+    dto.locationStatus = safeColumnText(stmt, 7);
+    dto.note = safeColumnOptionalText(stmt, 8);
+    dto.source = safeColumnText(stmt, 9);
     dto.receivedAtMs = sqlite3_column_int64(stmt, 10);
 
     sqlite3_finalize(stmt);
@@ -176,8 +186,8 @@ std::vector<models::SosEventDto> SqliteStorage::getAllSosEvents(int limit) {
     sqlite3_bind_int(stmt, 1, limit);
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         models::SosEventDto dto;
-        dto.eventId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        dto.userId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        dto.eventId = safeColumnText(stmt, 0);
+        dto.userId = safeColumnText(stmt, 1);
         dto.startedAtMs = sqlite3_column_int64(stmt, 2);
         dto.stoppedAtMs = sqlite3_column_int64(stmt, 3);
         dto.isActive = (sqlite3_column_int(stmt, 4) != 0);
@@ -185,11 +195,9 @@ std::vector<models::SosEventDto> SqliteStorage::getAllSosEvents(int limit) {
         if (sqlite3_column_type(stmt, 5) != SQLITE_NULL) dto.latitude = sqlite3_column_double(stmt, 5);
         if (sqlite3_column_type(stmt, 6) != SQLITE_NULL) dto.longitude = sqlite3_column_double(stmt, 6);
 
-        dto.locationStatus = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
-        if (sqlite3_column_type(stmt, 8) != SQLITE_NULL) {
-            dto.note = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
-        }
-        dto.source = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
+        dto.locationStatus = safeColumnText(stmt, 7);
+        dto.note = safeColumnOptionalText(stmt, 8);
+        dto.source = safeColumnText(stmt, 9);
         dto.receivedAtMs = sqlite3_column_int64(stmt, 10);
         results.push_back(std::move(dto));
     }
@@ -266,20 +274,18 @@ std::optional<models::BleMeshPacketDto> SqliteStorage::getMeshPacket(const std::
     }
 
     models::BleMeshPacketDto dto;
-    dto.packetId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-    dto.originDeviceId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-    dto.originEmergencyId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+    dto.packetId = safeColumnText(stmt, 0);
+    dto.originDeviceId = safeColumnText(stmt, 1);
+    dto.originEmergencyId = safeColumnText(stmt, 2);
     dto.timestampMs = sqlite3_column_int64(stmt, 3);
     dto.ttl = sqlite3_column_int(stmt, 4);
-    dto.type = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+    dto.type = safeColumnText(stmt, 5);
 
     if (sqlite3_column_type(stmt, 6) != SQLITE_NULL) dto.latitude = sqlite3_column_double(stmt, 6);
     if (sqlite3_column_type(stmt, 7) != SQLITE_NULL) dto.longitude = sqlite3_column_double(stmt, 7);
 
-    dto.status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
-    if (sqlite3_column_type(stmt, 9) != SQLITE_NULL) {
-        dto.noteText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
-    }
+    dto.status = safeColumnText(stmt, 8);
+    dto.noteText = safeColumnOptionalText(stmt, 9);
     dto.ingestedAtMs = sqlite3_column_int64(stmt, 10);
 
     sqlite3_finalize(stmt);
@@ -302,20 +308,18 @@ std::vector<models::BleMeshPacketDto> SqliteStorage::getAllMeshPackets(int limit
     sqlite3_bind_int(stmt, 1, limit);
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         models::BleMeshPacketDto dto;
-        dto.packetId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        dto.originDeviceId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        dto.originEmergencyId = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        dto.packetId = safeColumnText(stmt, 0);
+        dto.originDeviceId = safeColumnText(stmt, 1);
+        dto.originEmergencyId = safeColumnText(stmt, 2);
         dto.timestampMs = sqlite3_column_int64(stmt, 3);
         dto.ttl = sqlite3_column_int(stmt, 4);
-        dto.type = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+        dto.type = safeColumnText(stmt, 5);
 
         if (sqlite3_column_type(stmt, 6) != SQLITE_NULL) dto.latitude = sqlite3_column_double(stmt, 6);
         if (sqlite3_column_type(stmt, 7) != SQLITE_NULL) dto.longitude = sqlite3_column_double(stmt, 7);
 
-        dto.status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
-        if (sqlite3_column_type(stmt, 9) != SQLITE_NULL) {
-            dto.noteText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
-        }
+        dto.status = safeColumnText(stmt, 8);
+        dto.noteText = safeColumnOptionalText(stmt, 9);
         dto.ingestedAtMs = sqlite3_column_int64(stmt, 10);
         results.push_back(std::move(dto));
     }

@@ -14,7 +14,7 @@ object RouteCostPolicy {
     fun edgeCostMeters(edge: RouteEdge, hazards: List<RoadHazard>): Double? {
         if (edge.blocked) return null
         var cost = edge.distanceMeters
-        hazards.forEach { hazard ->
+        for (hazard in hazards) {
             if (hazard.affects(edge.fromNodeId, edge.toNodeId)) {
                 cost += hazard.penaltyMeters
             }

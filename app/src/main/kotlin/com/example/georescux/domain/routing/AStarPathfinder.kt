@@ -89,9 +89,11 @@ object AStarPathfinder {
             val edge = graph.edgeBetween(fromNodeId, toNodeId)!!
             totalDistance += edge.distanceMeters
             totalCost += RouteCostPolicy.edgeCostMeters(edge, graph.hazards) ?: 0.0
-            graph.hazards
-                .filter { it.affects(fromNodeId, toNodeId) }
-                .forEach { warnings.putIfAbsent(it.id, it) }
+            for (hazard in graph.hazards) {
+                if (hazard.affects(fromNodeId, toNodeId)) {
+                    warnings.putIfAbsent(hazard.id, hazard)
+                }
+            }
         }
         return EvacuationRoute(
             nodeIds = path.toList(),
@@ -111,11 +113,13 @@ object AStarPathfinder {
     /** Straight-line distance — admissible for the distance-based cost model. */
     fun haversineMeters(from: RouteNode, to: RouteNode): Double {
         val earthRadiusMeters = 6_371_000.0
-        val dLat = Math.toRadians(to.latitude - from.latitude)
-        val dLng = Math.toRadians(to.longitude - from.longitude)
-        val halfChord = sin(dLat / 2).pow(2) +
-            cos(Math.toRadians(from.latitude)) * cos(Math.toRadians(to.latitude)) *
-            sin(dLng / 2).pow(2)
-        return 2 * earthRadiusMeters * asin(sqrt(halfChord))
+        val degToRad = Math.PI / 180.0
+        val dLat = (to.latitude - from.latitude) * degToRad
+        val dLng = (to.longitude - from.longitude) * degToRad
+        val sLat = sin(dLat / 2)
+        val sLng = sin(dLng / 2)
+        val halfChord = sLat * sLat +
+            cos(from.latitude * degToRad) * cos(to.latitude * degToRad) * (sLng * sLng)
+        return 2 * earthRadiusMeters * asin(sqrt(halfChord.coerceIn(0.0, 1.0)))
     }
 }

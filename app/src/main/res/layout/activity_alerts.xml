@@ -15,15 +15,15 @@
         android:orientation="horizontal"
         android:paddingHorizontal="16dp">
 
-        <Button
+        <ImageView
             android:id="@+id/buttonAlertsBack"
-            style="@style/Widget.GeoRescuX.Button.Icon"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:text="←"
-            android:textColor="@color/text_primary"
-            android:textSize="22sp" />
+            android:contentDescription="Back"
+            android:padding="8dp"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="@color/text_primary" />
 
         <TextView
             android:id="@+id/topBarTitle"
@@ -36,15 +36,15 @@
             android:textSize="18sp"
             android:textStyle="bold" />
 
-        <Button
+        <ImageView
             android:id="@+id/buttonAlertsRefresh"
-            style="@style/Widget.GeoRescuX.Button.Icon"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:text="↻"
-            android:textColor="@color/brand_primary"
-            android:textSize="20sp" />
+            android:contentDescription="Refresh Alerts"
+            android:padding="8dp"
+            android:src="@drawable/ic_refresh"
+            app:tint="@color/brand_primary" />
     </LinearLayout>
 
     <ScrollView

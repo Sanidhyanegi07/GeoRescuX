@@ -182,6 +182,8 @@ GeoRescuX/
 │   └── google-services.json         # Firebase project configuration
 ├── prototype_qt/                    # Cross-platform C++20 / Qt 6.11.1 native prototype
 ├── backend/                         # Standalone C++20 Drogon server & simulators
+├── functions/                       # Firebase Cloud Functions custom claim gatekeeper
+├── georescux-admin-provision/       # Node.js Firebase Admin SDK claim provisioner
 ├── docs/                            # Deep architectural, security, and testing documentation
 │   ├── audit/                       # Baseline inventory, final audit report, limitations
 │   ├── architecture/                # Four pillars of OOP, class reference, repository guide
@@ -189,6 +191,7 @@ GeoRescuX/
 │   ├── security/                    # Security review, least-privilege rules, custom claims
 │   └── development/                 # Reproducible developer setup & toolchain guides
 ├── output/                          # Bundled regional routing graphs & manifests
+├── ARCHITECTURE.md                  # Master enterprise architecture & design invariants
 ├── database.rules.json              # 39-case verified least-privilege security rules
 ├── firebase.json                    # Firebase emulator & database configuration
 └── README.md                        # Master documentation
@@ -198,9 +201,12 @@ GeoRescuX/
 
 ## 📚 Master Engineering Documentation Library
 
-Exhaustive, verified technical specifications and audit reports are available in the [`docs/`](docs/) directory:
+Exhaustive, verified technical specifications and audit reports are available in the repository:
 
-- 🏛️ **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)**: Deep dive into the multi-tier layered model, threading, and dual-mesh topology.
+- 🏛️ **[Enterprise Architecture Specification](ARCHITECTURE.md)**: Master blueprint detailing subsystem layers, design invariants, C++20 native engine contracts, and full directory justification.
+- 🔐 **[Admin Provisioning Subsystem](georescux-admin-provision/README.md)**: Command-line provisioning utility utilizing Firebase Admin SDK to mint cryptographic coordinator claims.
+- ⚡ **[Cloud Functions Backend Gatekeeper](functions/README.md)**: Serverless custom claims automation with strict administrative gatekeeping.
+- 📐 **[System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md)**: Deep dive into the multi-tier layered model, threading, and dual-mesh topology.
 - 📂 **[Repository & Module Guide](docs/architecture/REPOSITORY_GUIDE.md)**: Comprehensive folder-by-folder and file-by-file inventory.
 - 🧱 **[Four Pillars of OOP](docs/architecture/OOP_FOUR_PILLARS.md)**: Real-world encapsulation, inheritance, polymorphism, and abstraction with exact source lines.
 - 📑 **[Master Class Reference](docs/architecture/CLASS_REFERENCE.md)**: Index of critical Kotlin, C++, and Qt classes, contracts, and responsibilities.

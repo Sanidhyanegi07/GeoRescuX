@@ -14,6 +14,9 @@ void RouteGraph::buildIndexAndAdjacency() {
     nodesById.clear();
     adjacency.clear();
 
+    nodesById.reserve(nodes.size());
+    adjacency.reserve(nodes.size());
+
     for (const auto& nd : nodes) {
         nodesById.emplace(nd.id, nd);
     }
@@ -39,6 +42,14 @@ const std::vector<std::pair<RouteEdge, RouteNode>>& RouteGraph::neighbors(const 
 }
 
 std::optional<RouteEdge> RouteGraph::edgeBetween(const std::string& fromNodeId, const std::string& toNodeId) const {
+    auto it = adjacency.find(fromNodeId);
+    if (it != adjacency.end()) {
+        for (const auto& [edge, neighbor] : it->second) {
+            if (edge.connects(fromNodeId, toNodeId)) {
+                return edge;
+            }
+        }
+    }
     for (const auto& edge : edges) {
         if (edge.connects(fromNodeId, toNodeId)) {
             return edge;

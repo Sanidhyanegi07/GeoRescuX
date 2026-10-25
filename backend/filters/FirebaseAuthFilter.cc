@@ -12,6 +12,16 @@ namespace {
 const std::string DEFAULT_FIREBASE_PROJECT_ID = "georescex";
 
 std::string base64UrlDecode(const std::string& input) {
+    static const auto T = []() {
+        std::array<int, 256> table{};
+        table.fill(-1);
+        const char* chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        for (int i = 0; i < 64; ++i) {
+            table[static_cast<unsigned char>(chars[i])] = i;
+        }
+        return table;
+    }();
+
     std::string base64 = input;
     for (char& c : base64) {
         if (c == '-') c = '+';
@@ -21,10 +31,8 @@ std::string base64UrlDecode(const std::string& input) {
         base64.push_back('=');
     }
 
-    const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     std::string out;
-    std::vector<int> T(256, -1);
-    for (int i = 0; i < 64; i++) T[chars[i]] = i;
+    out.reserve((base64.size() * 3) / 4);
 
     int val = 0, valb = -8;
     for (unsigned char c : base64) {

@@ -70,7 +70,7 @@ class AdminUsersActivity : AppCompatActivity() {
         listContainer = findViewById(R.id.usersListContainer)
         summaryText = findViewById(R.id.textUsersSummary)
 
-        findViewById<Button>(R.id.buttonAdminUsersBack).setOnClickListener { finish() }
+        findViewById<View>(R.id.buttonAdminUsersBack).setOnClickListener { finish() }
         findViewById<EditText>(R.id.editUserSearch).addTextChangedListener { editable: Editable? ->
             filter = editable?.toString().orEmpty().trim().lowercase()
             renderUsers()

@@ -25,7 +25,8 @@ data class RouteGraph(
 
     /** The undirected edge between two nodes, or null when not directly connected. */
     fun edgeBetween(fromNodeId: String, toNodeId: String): RouteEdge? =
-        edges.firstOrNull { it.connects(fromNodeId, toNodeId) }
+        adjacency[fromNodeId]?.firstOrNull { it.second.id == toNodeId }?.first
+            ?: edges.firstOrNull { it.connects(fromNodeId, toNodeId) }
 
     private fun buildAdjacency(): Map<String, List<Pair<RouteEdge, RouteNode>>> {
         val adjacency = mutableMapOf<String, MutableList<Pair<RouteEdge, RouteNode>>>()
