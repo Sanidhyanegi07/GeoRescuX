@@ -34,11 +34,14 @@ import com.example.georescux.ui.home.HomeActivity
 class RegionSelectionActivity : AppCompatActivity() {
 
     private val container by lazy { (application as GeoRescuXApplication).appContainer }
-    private var selectedRegionId: String = container.activeRegionId
+    private var selectedRegionId: String = ""
     private var searchQuery: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        selectedRegionId = container.activeRegionId
+
         setContentView(R.layout.activity_region_selection)
 
         findViewById<View>(R.id.topBarTitle)?.let { (it as? TextView)?.setText(R.string.region_select_title) }
