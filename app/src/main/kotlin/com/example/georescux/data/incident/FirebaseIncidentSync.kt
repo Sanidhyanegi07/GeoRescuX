@@ -30,7 +30,7 @@ class FirebaseIncidentSync(
 
         try {
             val ref = database.getReference("incidents").child(incident.id)
-            ref.setValue(incident.toMap())
+            ref.setValue(incident.toCloudMap())
                 .addOnSuccessListener {
                     Log.d(TAG, "Incident ${incident.id} synced to Firebase successfully.")
                     onComplete?.invoke(true)

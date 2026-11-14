@@ -128,6 +128,12 @@ void testFirebaseAuthVerification() {
     assert(!r2.has_value());
     assert(err.find("Rejecting unverified") != std::string::npos);
 
+    // 3. Forged token with valid claims but unverified cryptographic signature: must fail closed
+    std::string forgedToken = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJldmlsX3VzZXIiLCJhdWQiOiJnZW9yZXNjZXgiLCJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vZ2VvcmVzY2V4IiwiZXhwIjo5OTk5OTk5OTk5LCJhZG1pbiI6dHJ1ZX0.forged_signature_bytes";
+    auto r3 = filters::FirebaseAuthFilter::verifyFirebaseToken(forgedToken, "georescex", err);
+    assert(!r3.has_value());
+    assert(err.find("signature verification unfulfilled") != std::string::npos);
+
     std::cout << "[PASS] testFirebaseAuthVerification passed." << std::endl;
 }
 

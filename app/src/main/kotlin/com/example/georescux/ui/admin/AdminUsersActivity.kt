@@ -14,6 +14,7 @@ import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
 import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
+import com.example.georescux.domain.auth.AdminAuthGuard
 import com.example.georescux.data.auth.UserRole
 import com.example.georescux.data.maps.MapRegionCatalog
 import com.google.firebase.database.DataSnapshot
@@ -56,15 +57,19 @@ class AdminUsersActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         val appContainer = (application as GeoRescuXApplication).appContainer
+        val guard = AdminAuthGuard(appContainer.roleResolver)
         lifecycleScope.launch {
-            val role = appContainer.roleResolver.resolveRole()
-            if (role != UserRole.ADMIN) {
+            if (!guard.isAuthorizedAdmin()) {
                 Toast.makeText(this@AdminUsersActivity, "Access Denied: Admin authorization required", Toast.LENGTH_LONG).show()
                 finish()
                 return@launch
             }
-        }
 
+            initializeAdminUsers()
+        }
+    }
+
+    private fun initializeAdminUsers() {
         setContentView(R.layout.activity_admin_users)
 
         listContainer = findViewById(R.id.usersListContainer)
@@ -181,6 +186,8 @@ class AdminUsersActivity : AppCompatActivity() {
     override fun onDestroy() {
         usersListener?.let { database.getReference("users").removeEventListener(it) }
         sosListener?.let { database.getReference("sos_alerts").removeEventListener(it) }
+        usersListener = null
+        sosListener = null
         super.onDestroy()
     }
 }

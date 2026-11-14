@@ -139,12 +139,13 @@ std::optional<AuthContext> FirebaseAuthFilter::verifyFirebaseToken(
         return std::nullopt;
     }
 
-    AuthContext ctx;
-    ctx.uid = sub;
-    ctx.email = payload.get("email", "").asString();
-    ctx.isAdmin = payload.get("admin", false).asBool();
-
-    return ctx;
+    // Zero-Trust Security Enforcement:
+    // Reject unverified tokens instead of treating them as authenticated.
+    // The standalone offline C++ backend does not verify cryptographic RSA signatures
+    // against Google's public certificates (x509 JWKS endpoint).
+    // Failing closed prevents authentication bypass via forged tokens.
+    errorReason = "Cryptographic signature verification unfulfilled: offline C++ backend cannot verify Google RSA certs; failing closed";
+    return std::nullopt;
 }
 
 void FirebaseAuthFilter::doFilter(

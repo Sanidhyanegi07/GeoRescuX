@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 class RegisterActivity : AppCompatActivity() {
 
     private lateinit var authViewModel: AuthViewModel
+    private var hasNavigated = false
 
     private val uiScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
 
@@ -46,6 +47,8 @@ class RegisterActivity : AppCompatActivity() {
         val goToLoginButton = findViewById<View>(R.id.buttonGoToLogin)
 
         registerButton.setOnClickListener {
+            if (authViewModel.uiState.value.isLoading) return@setOnClickListener
+
             val email = emailInput.text.toString().trim()
             val password = passwordInput.text.toString()
             val confirmPassword = confirmPasswordInput.text.toString()
@@ -72,6 +75,7 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun observeAuthState(errorText: TextView, registerButton: Button) {
+        val container = (application as GeoRescuXApplication).appContainer
         uiScope.launch {
             authViewModel.uiState.collect { state ->
                 registerButton.isEnabled = !state.isLoading
@@ -80,10 +84,13 @@ class RegisterActivity : AppCompatActivity() {
                 } else {
                     errorText.visibility = View.GONE
                 }
-                if (state.isDone) {
-                    // Firebase signs the new user in automatically,
-                    // so we can go straight to the Home screen.
-                    startActivity(Intent(this@RegisterActivity, HomeActivity::class.java))
+                if (state.isDone && !hasNavigated) {
+                    hasNavigated = true
+                    // Spec §6 & LoginActivity parity: a user without an explicitly selected
+                    // region must be routed to RegionSelectionActivity. Returning users with
+                    // a valid selected region go straight to HomeActivity.
+                    val destination = resolvePostRegistrationDestination(container.hasSelectedRegion)
+                    startActivity(Intent(this@RegisterActivity, destination))
                     finish()
                 }
             }
@@ -98,5 +105,14 @@ class RegisterActivity : AppCompatActivity() {
     override fun onDestroy() {
         uiScope.cancel()
         super.onDestroy()
+    }
+
+    companion object {
+        fun resolvePostRegistrationDestination(hasSelectedRegion: Boolean): Class<*> =
+            if (!hasSelectedRegion) {
+                com.example.georescux.ui.region.RegionSelectionActivity::class.java
+            } else {
+                HomeActivity::class.java
+            }
     }
 }

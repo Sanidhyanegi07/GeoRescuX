@@ -15,6 +15,7 @@ import com.example.georescux.data.maps.MapRegionCatalog
 import com.example.georescux.domain.admin.DistrictCatalog
 import com.example.georescux.domain.admin.EmergencyPriorityCalculator
 import com.example.georescux.domain.admin.EmergencyVerifiable
+import com.example.georescux.domain.auth.AdminAuthGuard
 import com.example.georescux.ui.common.OfflineMapSetup
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
@@ -62,15 +63,19 @@ class AdminMapActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        val guard = AdminAuthGuard(container.roleResolver)
         lifecycleScope.launch {
-            val role = container.roleResolver.resolveRole()
-            if (role != UserRole.ADMIN) {
+            if (!guard.isAuthorizedAdmin()) {
                 Toast.makeText(this@AdminMapActivity, "Access Denied: Admin authorization required", Toast.LENGTH_LONG).show()
                 finish()
                 return@launch
             }
-        }
 
+            initializeAdminMap()
+        }
+    }
+
+    private fun initializeAdminMap() {
         OfflineMapSetup.prepareOsmdroid(this)
         setContentView(R.layout.activity_admin_map)
 
@@ -247,7 +252,10 @@ row.addView(TextView(this).apply {
 
     override fun onDestroy() {
         listener?.let { database.getReference("sos_alerts").removeEventListener(it) }
-        mapView.onDetach()
+        listener = null
+        if (::mapView.isInitialized) {
+            mapView.onDetach()
+        }
         super.onDestroy()
     }
 

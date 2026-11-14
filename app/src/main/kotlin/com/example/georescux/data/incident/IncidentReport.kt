@@ -79,7 +79,9 @@ data class IncidentReport(
         put("reportedBy", reportedBy)
     }
 
-    fun toMap(): Map<String, Any?> = mapOf(
+    fun toMap(): Map<String, Any?> = toCloudMap()
+
+    fun toCloudMap(): Map<String, Any?> = mapOf(
         "id" to id,
         "type" to type,
         "title" to title,
@@ -89,12 +91,21 @@ data class IncidentReport(
         "severity" to severity,
         "status" to status,
         "timestampMs" to timestampMs,
-        "imageUri" to imageUri,
+        "imageUri" to sanitizeCloudImageUri(imageUri),
         "imageBase64" to imageBase64,
         "reportedBy" to reportedBy,
     )
 
     companion object {
+        fun sanitizeCloudImageUri(uri: String?): String? {
+            if (uri.isNullOrBlank()) return null
+            val lower = uri.trim().lowercase(Locale.ROOT)
+            if (lower.startsWith("file:") || lower.startsWith("/data/") || lower.startsWith("content:")) {
+                return null
+            }
+            return uri
+        }
+
         fun fromJson(json: JSONObject): IncidentReport = IncidentReport(
             id = json.optString("id", UUID.randomUUID().toString()),
             type = json.optString("type", "OTHER"),
@@ -120,7 +131,7 @@ data class IncidentReport(
             severity = map["severity"] as? String ?: "HIGH",
             status = map["status"] as? String ?: "REPORTED",
             timestampMs = (map["timestampMs"] as? Number)?.toLong() ?: System.currentTimeMillis(),
-            imageUri = map["imageUri"] as? String,
+            imageUri = sanitizeCloudImageUri(map["imageUri"] as? String),
             imageBase64 = map["imageBase64"] as? String,
             reportedBy = map["reportedBy"] as? String ?: "Anonymous",
         )

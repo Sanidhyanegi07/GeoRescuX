@@ -74,6 +74,61 @@ class IncidentReportTest {
     }
 
     @Test
+    fun `toCloudMap strips private device file and content URIs while preserving imageBase64 and remote URLs`() {
+        val fileReport = IncidentReport(
+            id = "inc-file",
+            type = "FLOOD",
+            title = "Causeway Flood",
+            description = "Submerged",
+            latitude = 30.0,
+            longitude = 78.0,
+            imageUri = "file:///data/user/0/com.example.georescux/files/photo.jpg",
+            imageBase64 = "photo_base64_payload",
+        )
+        val fileCloudMap = fileReport.toCloudMap()
+        assertNull("file:// URI must be stripped from cloud payload", fileCloudMap["imageUri"])
+        assertEquals("photo_base64_payload", fileCloudMap["imageBase64"])
+
+        val dataPathReport = fileReport.copy(
+            id = "inc-data",
+            imageUri = "/data/user/0/com.example.georescux/cache/temp.jpg",
+        )
+        assertNull("/data/ path must be stripped from cloud payload", dataPathReport.toCloudMap()["imageUri"])
+
+        val contentUriReport = fileReport.copy(
+            id = "inc-content",
+            imageUri = "content://media/external/images/media/42",
+        )
+        assertNull("content:// URI must be stripped from cloud payload", contentUriReport.toCloudMap()["imageUri"])
+
+        val remoteHttpsReport = fileReport.copy(
+            id = "inc-https",
+            imageUri = "https://firebasestorage.googleapis.com/v0/b/app/o/incidents%2Fphoto.jpg",
+        )
+        assertEquals("https://firebasestorage.googleapis.com/v0/b/app/o/incidents%2Fphoto.jpg", remoteHttpsReport.toCloudMap()["imageUri"])
+    }
+
+    @Test
+    fun `fromMap rejects and sanitizes local file URIs received from untrusted cloud data`() {
+        val maliciousCloudMap = mapOf<String, Any?>(
+            "type" to "LANDSLIDE",
+            "title" to "Rockfall",
+            "description" to "Debris",
+            "latitude" to 30.1,
+            "longitude" to 78.2,
+            "imageUri" to "file:///etc/shadow",
+            "imageBase64" to "payload",
+        )
+        val restored = IncidentReport.fromMap("inc-untrusted", maliciousCloudMap)
+        assertNull("Untrusted local file URI received from cloud must be rejected", restored.imageUri)
+        assertEquals("payload", restored.imageBase64)
+
+        val legitimateCloudMap = maliciousCloudMap + ("imageUri" to "https://cdn.example.com/disaster.png")
+        val legitimateRestored = IncidentReport.fromMap("inc-legit", legitimateCloudMap)
+        assertEquals("https://cdn.example.com/disaster.png", legitimateRestored.imageUri)
+    }
+
+    @Test
     fun `type emoji and display names resolve correctly for key disaster types`() {
         val flood = IncidentReport(type = "FLOOD", title = "", description = "", latitude = 0.0, longitude = 0.0)
         assertEquals("🌊", flood.getTypeEmoji())

@@ -270,6 +270,7 @@ class AppContainer(context: Context) {
 
             if (envelope.event.type == IncidentType.SOS) {
                 val event = envelope.event
+                if (event.originId == selfOriginId) return@setOnEventReceivedListener
                 val status = event.payload["status"] ?: "ACTIVE"
                 val locationStatusName = event.payload["locationStatus"]
                 val locStatus = locationStatusName?.let { runCatching { SosLocationStatus.valueOf(it) }.getOrNull() }
@@ -288,7 +289,8 @@ class AppContainer(context: Context) {
                     startedAtMs = event.occurredAtMs,
                     stoppedAtMs = if (status == "COMPLETED") event.occurredAtMs + 1000L else null,
                     location = location,
-                    locationStatus = locStatus ?: (if (location != null) SosLocationStatus.ACQUIRED else null)
+                    locationStatus = locStatus ?: (if (location != null) SosLocationStatus.ACQUIRED else null),
+                    note = event.payload["note"],
                 )
                 sosStore.addToHistory(emergency)
 
@@ -303,6 +305,12 @@ class AppContainer(context: Context) {
                         note = emergency.note,
                     )
                 }
+
+                // If signed in, mark pending so this device uploads the relayed Nearby emergency to Firebase
+                authRepository.currentUserId?.let { uid ->
+                    syncStateStore.setSosAlertPending(uid, emergency.id, pending = true)
+                }
+                syncRetryCoordinator.retryPendingNow()
             }
         }
     }
