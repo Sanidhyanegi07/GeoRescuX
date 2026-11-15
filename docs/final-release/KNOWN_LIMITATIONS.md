@@ -1,6 +1,6 @@
 # GeoRescuX: Known Technical Limitations & Risk Analysis
 
-This document provides a thorough, transparent, and honest disclosure of the current technical limitations, unverified subsystems, and engineering constraints of GeoRescuX at baseline commit `546c7690d74e2a89bff2f47164d66d767c85f849`.
+This document provides a thorough, transparent, and honest disclosure of the current technical limitations, unverified subsystems, and engineering constraints of GeoRescuX at release build baseline commit `a05fea2` / HEAD `abb0ad7` (built upon mesh commit `546c7690d74e2a89bff2f47164d66d767c85f849`).
 
 ---
 
@@ -36,16 +36,17 @@ This document provides a thorough, transparent, and honest disclosure of the cur
 
 ---
 
-### 3. Multi-Hop "A → B → C → Internet" Physical Relay Undemonstrated
+### 3. Multi-Hop "A → B → C → Internet" Physical Relay Undemonstrated & Hop-Budget Asymmetry
 
 - **Current Implementation:**
-  The cross-transport forwarding pipeline (`CrossTransportRelayBridge.kt`, `RelayEngine.kt`, `DurableRelayEngine.kt`) implements multi-hop store-and-forward routing, hop decrementing (`ttl - 1`), and seen-event deduplication.
+  The cross-transport forwarding pipeline (`CrossTransportRelayBridge.kt`, `RelayEngine.kt`, `DurableRelayEngine.kt`) implements multi-hop store-and-forward routing, carried hop-budget decrementing (`remainingHops = packet.ttl - 1`), and seen-event deduplication.
 - **Existing Evidence:**
-  Deduplication and hop-budget handling pass synthetic unit tests (`CrossTransportRelayTest`). A physical end-to-end multi-hop propagation chain where an offline Node A transmits to an offline intermediary Node B, which forwards to an internet-connected Node C that synchronizes to Firebase, has not been physically executed.
+  Deduplication and hop-budget handling pass synthetic unit tests (`CrossTransportRelayTest`, `GeoRescueBleMeshNodeTest`). A physical end-to-end multi-hop propagation chain where an offline Node A transmits to an offline intermediary Node B, which forwards to an internet-connected Node C that synchronizes to Firebase, has not been physically executed.
 - **Technical Consequence:**
   Store-and-forward mesh topologies suffer from unpredictable delivery latency. Without physical multi-node verification:
   - True end-to-end latency across multiple hops under pedestrian movement speeds is unknown.
   - Battery drain on intermediary relay nodes continuously operating BLE scanning and Nearby advertising has not been benchmarked.
+  - **Hop-Budget Enforcement Asymmetry:** The carried hop budget is explicitly decremented during BLE ↔ Nearby cross-transport conversion (`remainingHops = packet.ttl - 1` in `CrossTransportRelayBridge.kt`) and during BLE mesh node forwarding (`GeoRescueBleMeshNode.kt`). However, within `RelayEngine.kt`, same-transport Nearby relaying relies on time-based duration expiry (`isEventExpired(occurredAtMs, ttlSeconds, nowMs)`) and deduplication (`CrossTransportDeduplicator`) rather than a universal per-node hop decrement on every same-transport handoff.
 - **Required Future Verification:**
   Deploy a controlled physical 3-device testbed: Device A (Offline victim), Device B (Offline courier moving between partitions), Device C (Connected gateway with LTE). Measure total elapsed time from Device A's SOS trigger to Device C's Firebase write confirmation.
 
@@ -151,6 +152,34 @@ This document provides a thorough, transparent, and honest disclosure of the cur
   The platform has not undergone formal regulatory certification (such as FCC Part 15 wireless certification, RED compliance in the EU, or safety-critical software audits like DO-178C or ISO 26262). The application must not be advertised or deployed as a commercial, life-critical emergency service to the general public without formal validation and coordination with official government disaster management agencies (e.g., NDMA / SDRF).
 - **Required Future Verification:**
   Undergo formal independent security audits, penetration testing, and controlled field exercises in collaboration with civil defense and search-and-rescue authorities.
+
+---
+
+### 11. Safe Route Pro Synthetic Hazard Fixtures & Shelter Categorization
+
+- **Current Implementation:**
+  `SafeRoutePlanner.kt`, `RouteRepositoryImpl.kt`, and `RoadHazard.kt` calculate evacuation routes that avoid blocked road segments and penalize high-hazard corridors in the offline road graph.
+- **Existing Evidence:**
+  Algorithmic detour and penalty calculation pass automated unit tests in `SafeRouteOfflineEngineTest.kt` using synthetic test fixtures (road closures simulated via `repo.setRoadBlocked` and hazard penalties simulated via `RoadHazard.penaltyMeters`).
+- **Technical Consequence:**
+  - The application does **not** ingest real-time official hazard feeds (such as live landslide telemetry, radar rainfall feeds, or active civil defense alerts).
+  - Safe havens are nodes tagged as designated shelters in the packaged OpenStreetMap road graph (`isSafeHaven = true`), rather than government-certified evacuation shelters.
+  - Offline-calculated paths cannot guarantee physical passability in rapidly evolving catastrophic conditions.
+- **Required Future Verification:**
+  Integrate validated GIS layers from disaster management authorities and test dynamic route recalculation in field exercises with ground-truth obstacle reporting.
+
+---
+
+### 12. Working-Tree Documentation State (Uncommitted Baseline Preservation)
+
+- **Current Implementation:**
+  All final release documentation files in `docs/final-release/` reflect the latest verified baseline and are maintained in the working tree.
+- **Existing Evidence:**
+  The repository Git tree remains unmodified outside the designated documentation files, preserving the exact release baseline commits (`546c769` base, `a05fea2` role-router fix, `abb0ad7` documentation HEAD).
+- **Technical Consequence:**
+  In accordance with strict verification rules, no automatic commits, branch rewrites, or remote pushes were executed during this verification cycle. Maintainers inspecting Git status will observe these 5 documentation files modified in the active working tree.
+- **Required Future Verification:**
+  When repository maintainers authorize the documentation release, stage and commit the verified `docs/final-release/` suite.
 
 ---
 *Limitations document certified for technical accuracy and academic review.*

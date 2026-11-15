@@ -8,26 +8,19 @@ This document records the empirical baseline data, build artifacts, test outputs
 
 - **Repository Root:** `C:\Users\sanid\Documents\GitHub\GeoRescuX`
 - **Active Branch:** `main`
-- **Baseline Git Commit:** `546c7690d74e2a89bff2f47164d66d767c85f849` (HEAD at `a05fea27f2511f0a39dfc53f6ffb494c5dc759d5`)
-- **Git Commit Timestamp:** Fri Nov 13 2026
+- **Baseline Git Lineage:**
+  - **Initial Mesh Baseline Commit:** `546c7690d74e2a89bff2f47164d66d767c85f849` (`feat: add cross-transport relay bridge and BLE mesh routing engine`)
+  - **Cold-Start Fix & Build Baseline Commit:** `a05fea27f2511f0a39dfc53f6ffb494c5dc759d5` (`feat: implement role-based routing coordinator and main activity entry point`)
+  - **Documentation Baseline Commit (HEAD):** `abb0ad7f707691ebd15b6c0ca09b00d2ffc1467a` (`docs: add final release documentation, demonstration checklist, and viva guide`)
 - **Git Working Tree Status:**
-  - **Tracked Modified Files:**
-    1. `app/src/main/kotlin/com/example/georescux/MainActivity.kt` (Immediate layout rendering + asynchronous bounded role router)
-    2. `app/src/main/res/values/strings.xml` (Branded role verification and recovery string resources)
-    3. `output/haryana/manifest.json` (Offline routing timestamp from Gradle test task)
-    4. `output/himachal_pradesh/manifest.json` (Offline routing timestamp from Gradle test task)
-    5. `output/uttar_pradesh/manifest.json` (Offline routing timestamp from Gradle test task)
-    6. `output/uttarakhand/manifest.json` (Offline routing timestamp from Gradle test task)
-  - **New Untracked Files:**
-    1. `app/src/main/kotlin/com/example/georescux/ui/main/RoleRoutingCoordinator.kt`
-    2. `app/src/main/res/layout/activity_main.xml`
-    3. `app/src/test/kotlin/com/example/georescux/ui/main/RoleRoutingCoordinatorTest.kt`
-    4. `docs/final-release/FINAL_PROJECT_REPORT.md`
-    5. `docs/final-release/FEATURE_VERIFICATION_MATRIX.md`
-    6. `docs/final-release/DEMONSTRATION_CHECKLIST.md`
-    7. `docs/final-release/KNOWN_LIMITATIONS.md`
-    8. `docs/final-release/RELEASE_EVIDENCE.md`
-  - **Staged / Committed / Pushed Changes:** **ZERO.** No Git history alteration, no staging, no resets, and no remote pushes were performed.
+  - **Modified Tracked Files:** Strictly limited to the 5 documentation files in `docs/final-release/`:
+    1. `docs/final-release/FINAL_PROJECT_REPORT.md`
+    2. `docs/final-release/FEATURE_VERIFICATION_MATRIX.md`
+    3. `docs/final-release/DEMONSTRATION_CHECKLIST.md`
+    4. `docs/final-release/KNOWN_LIMITATIONS.md`
+    5. `docs/final-release/RELEASE_EVIDENCE.md`
+  - **Untracked Files:** **ZERO.** No new temporary files, build outputs, or scripts exist in the repository root.
+  - **Staged / Committed / Pushed Changes:** **ZERO.** No Git history alteration, no staging (`git add`), no resets, and no remote pushes (`git push`) were performed. All working-tree documentation refinements remain uncommitted per preservation rules.
 
 ---
 

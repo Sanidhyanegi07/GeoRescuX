@@ -8,9 +8,9 @@
 **Project Title:** GeoRescuX — Resilient Offline-First Disaster Emergency Navigation & Mesh Alerting Subsystem  
 **Academic Degree:** Bachelor of Technology in Computer Science & Engineering  
 **Application Package:** `com.example.georescux`  
-**Current Baseline Commit:** `546c7690d74e2a89bff2f47164d66d767c85f849`  
-**Automated Unit Test Status:** 582 Passed / 0 Failed / 0 Skipped (100% Success Rate across 73 Test Suites)  
-**Target Platform:** Android 11.0+ (API Level 30 through 35), Native C++20 / JNI, Firebase Realtime Database
+**Baseline Git Revision:** Initial baseline `546c7690d74e2a89bff2f47164d66d767c85f849` | Cold-start fix commit `a05fea27f2511f0a39dfc53f6ffb494c5dc759d5` | Documentation HEAD `abb0ad7f707691ebd15b6c0ca09b00d2ffc1467a`<br/>
+**Automated Unit Test Status:** 582 Passed / 0 Failed / 0 Skipped (100% Success Rate across 73 Test Suites)<br/>
+**Target Platform:** Android 7.0+ (API Level 24 minimum, targeting API Level 35), Native C++20 / JNI, Firebase Realtime Database
 
 GeoRescuX is an academic research prototype and disaster response application engineered for communication-degraded and zero-connectivity catastrophe environments. Standard commercial navigation applications fail when cellular base stations, power grids, or remote cloud servers become unreachable. GeoRescuX mitigates this critical vulnerability through a **local-first architecture**: emergency state transitions and location fixes are committed to on-device non-volatile storage before any wireless transmission is attempted. The platform incorporates dual peer-to-peer wireless transport abstractions (Bluetooth Low Energy GATT connections and Google Nearby Connections clusters), a native C++20 offline routing engine, and an asynchronous dual-homed Firebase cloud synchronization gateway.
 
@@ -19,7 +19,7 @@ GeoRescuX is an academic research prototype and disaster response application en
 ### 1. Project Title and Overview
 
 GeoRescuX models an end-to-end disaster communications lifeline connecting three operational tiers:
-1. **Isolated Survivor Nodes:** Citizen devices situated in cellular blackouts requiring immediate emergency beaconing, offline safe-haven evacuation, and local hazard awareness.
+1. **Isolated Survivor Nodes:** Citizen devices situated in cellular blackouts requiring immediate emergency beaconing, offline evacuation navigation, and local hazard awareness.
 2. **Intermediate Courier/Relay Nodes:** Mobile devices carried by relief workers or evacuees that ingest, carry, and forward emergency packets between disjoint network partitions using store-and-forward mechanisms.
 3. **Emergency Operations Center (EOC):** Centralized dispatchers and incident commanders accessing cloud-synchronized casualty telemetry and administrative controls via Firebase Custom Claims authentication.
 
@@ -40,7 +40,7 @@ Severe natural disasters (such as flash floods, landslides, cloudbursts, and ear
 GeoRescuX addresses these challenges through the following technical mechanisms:
 - **Local-First Persistence Authority:** Emergency data is committed to local non-volatile storage (`SharedPreferencesSosStore` backed by `sos_store.xml` and SQLite) before initiating any network transmission. Local emergency lifecycles operate independently of network status.
 - **Dual-Layer Hybrid Peer-to-Peer Mesh:** Provides peer discovery and alerting through Android Bluetooth Low Energy (BLE) GATT client-server connections and Google Nearby Connections (`Strategy.P2P_CLUSTER`).
-- **Cross-Transport Relay Bridge:** Connects BLE GATT and Nearby transports via a unified bridge (`CrossTransportRelayBridge.kt`), translating payloads, enforcing hop limits (TTL), and suppressing cyclic loops using deduplication caches.
+- **Cross-Transport Relay Bridge:** Connects BLE GATT and Nearby transports via a unified bridge (`CrossTransportRelayBridge.kt`), translating payloads, decrementing carried hop budgets on cross-transport conversion, and suppressing cyclic loops using deduplication caches.
 - **Native C++ Offline Spatial & Routing Core:** Graph search algorithms (bi-directional A* and heuristic pathfinding) are implemented in native C++20 (`app/src/main/cpp/`) accessed via JNI (`GeoRescueNativeRouting.kt`), paired with a pure Kotlin fallback engine (`SafeHavenFallback.kt`).
 - **Fail-Closed Administrative Authorization:** Administrative capabilities are restricted using server-verified Firebase Auth Custom Claims (`claims["admin"] == true`), guarded by an asynchronous bounded-timeout coordinator (`RoleRoutingCoordinator.kt`) that fails closed upon timeout or credential ambiguity.
 
@@ -51,7 +51,7 @@ GeoRescuX addresses these challenges through the following technical mechanisms:
 1. Maintain **local emergency state persistence** across application process termination (`am force-stop` verification).
 2. Eliminate startup window-focus ANRs by rendering a branded loading screen synchronously on launch, with a **bounded 3000ms role-resolution timeout**.
 3. Implement an **in-memory and durable cross-transport forwarding bridge** between BLE and Nearby Connections.
-4. Provide **offline evacuation route calculation** with dynamic hazard-avoidance heuristics and safe-haven fallbacks.
+4. Provide **offline evacuation route calculation** with dynamic hazard-avoidance heuristics and designated safe-haven fallbacks.
 5. Enforce **fail-closed administrative gating**, preventing unverified users from accessing command screens.
 6. Achieve a **regression-free automated test suite** validating state machines, codecs, deduplicators, and security boundaries.
 
@@ -124,7 +124,7 @@ flowchart TD
 
 | Layer / Subsystem | Technology | Specification / Version | Engineering Role |
 |---|---|---|---|
-| **Operating System** | Android OS | Android 11.0 (API 30) – Android 15.0 (API 35) | Primary target mobile operating system. |
+| **Operating System** | Android OS | Android 7.0 (API Level 24) minSdk, Android 15 (API Level 35) targetSdk | Configured in `app/build.gradle.kts` for broad device compatibility. |
 | **Primary Language** | Kotlin | 1.9.24 | Null-safe core logic, coroutines, and reactive StateFlows. |
 | **Native Computation** | C++ | C++20 / Android NDK r27 | Compute-heavy pathfinding and spatial geometry via JNI. |
 | **Build System** | Gradle | Gradle 8.7 / AGP 8.5.0 | Multi-module build management and CMake native compilation. |
@@ -153,13 +153,13 @@ The codebase is structured into cohesive packages:
 #### Identity Flow
 - Authentication is managed via Firebase Auth.
 - Authenticated accounts are assigned a unique Firebase UID and JWT token.
-- Unauthenticated or offline devices fallback to an on-device persistent UUID generated by [DeviceIdProvider](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/data/auth/DeviceIdProvider.kt) to ensure distinct node identities in the mesh.
+- Unauthenticated or offline devices fallback to an on-device persistent UUID generated by [DeviceIdProvider](../../app/src/main/kotlin/com/example/georescux/data/auth/DeviceIdProvider.kt) to ensure distinct node identities in the mesh.
 
 #### Asynchronous Cloud Synchronization
 Data synchronization follows an asynchronous store-and-forward pattern:
 1. When an emergency is created, it is written immediately to `LocalSosStore` (`sos_store.xml`).
 2. An un-synced dirty flag is recorded in `SyncStateStore`.
-3. When network connectivity is available, [FirebaseSosCloudDataSource](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/data/sync/FirebaseSosCloudDataSource.kt) writes the alert payload to:
+3. When network connectivity is available, [FirebaseSosCloudDataSource](../../app/src/main/kotlin/com/example/georescux/data/sync/FirebaseSosCloudDataSource.kt) writes the alert payload to:
    ```
    /sos_alerts/{uid}/{alertId}
    ```
@@ -206,7 +206,15 @@ stateDiagram-v2
 ### 10. Safe Route & Safe Route Pro
 
 - **Standard Safe Route:** Calculates the shortest geographical path from the user's location to designated relief shelters using an offline road network graph (`RouteRepositoryImpl.kt`).
-- **Safe Route Pro:** Designed to evaluate active road hazards (`RoadHazard.kt`) such as floods or landslides, applying cost penalties or severing blocked edges. In the live emulator run, the dynamic UI banner (`bannerSafeRoutePro`) successfully bound to the active emergency state; algorithmic hazard avoidance was verified via unit tests (`SafeRouteOfflineEngineTest.kt`).
+- **Safe Route Pro Implementation:**
+  - Evaluates local road hazards (`RoadHazard.kt`) such as simulated road blockages or structural damage.
+  - Implements blocked-edge avoidance (`repo.setRoadBlocked(from, to, true)`) and synthetic hazard cost penalties (`RoadHazard.penaltyMeters`) as tested in [SafeRouteOfflineEngineTest.kt](../../app/src/test/kotlin/com/example/georescux/ui/routing/SafeRouteOfflineEngineTest.kt).
+  - Routes toward designated safe-haven nodes marked with `isSafeHaven = true` in the offline graph data.
+  - In the live emulator run, the dynamic UI banner (`bannerSafeRoutePro`) successfully bound to the active emergency state.
+- **Important Engineering Distinctions & Caveats:**
+  - *No Live Sensor Feeds:* Safe Route Pro does not ingest real-time satellite imagery, meteorological flood gauges, or automated landslide sensor feeds.
+  - *No Official Certification:* Designated safe havens are nodes tagged in the local OpenStreetMap graph dataset; they are not officially certified or vetted by government disaster authorities.
+  - *Synthetic Verification Boundary:* Unit tests verify that the A* algorithm mathematically detours around blocked edges and penalizes hazardous segments in synthetic test graphs; this does not prove real-world topological safety or guarantee hazard-free passage in an actual disaster.
 
 ---
 
@@ -224,7 +232,7 @@ stateDiagram-v2
 
 ### 12. Bluetooth Low Energy (BLE) Architecture
 
-- **Protocol Framing:** Packets are represented as [GeoRescueBlePacket](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/domain/ble/GeoRescueBlePacket.kt), serialized into UTF-8 JSON wire frames delimited by newlines (`\n`).
+- **Protocol Framing:** Packets are represented as [GeoRescueBlePacket](../../app/src/main/kotlin/com/example/georescux/domain/ble/GeoRescueBlePacket.kt), serialized into UTF-8 JSON wire frames delimited by newlines (`\n`).
 - **Transport Mechanism:** Utilizes Android BLE GATT client/server architecture (`GeoRescueBleManager.kt`, `GeoRescueBleConnection.kt`, `GeoRescueBleMeshNode.kt`). BLE advertisements are used for peer discovery, while data payloads are transferred over GATT characteristics.
 - **Packet Wire Fields:** `protocolVersion`, `packetId`, `originDeviceId`, `originEmergencyId`, `timestampMs`, `ttl`, `type`, `latitude`, `longitude`, `status`, `payload`, `noteText`.
 - **Note Constraint:** A strict 120-character cap is enforced on `noteText` to constrain memory footprint.
@@ -237,40 +245,56 @@ stateDiagram-v2
 
 - **Topology Strategy:** Configured for `Strategy.P2P_CLUSTER` using Google Play Services Nearby Connections.
 - **Service Identifier:** Advertised under service ID `com.example.georescux.NEARBY_RELAY`.
-- **Payload Handling:** Asynchronous byte-array payloads handled via [GoogleNearbyClientAdapter](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/data/relay/GoogleNearbyClientAdapter.kt) and `NearbySosIngestionHandler.kt`.
+- **Payload Handling:** Asynchronous byte-array payloads handled via [GoogleNearbyClientAdapter](../../app/src/main/kotlin/com/example/georescux/data/relay/GoogleNearbyClientAdapter.kt) and `NearbySosIngestionHandler.kt`.
 - **Verification Boundary:** Verified in unit tests using mock connection adapters; multi-device Wi-Fi Direct socket negotiation was not evaluated on physical devices.
 
 ---
 
-### 14. Cross-Transport Relay Architecture
+### 14. Cross-Transport Relay Architecture, TTL, and Hop-Budget Semantics
 
 ```mermaid
 flowchart LR
     InboundBLE["Inbound BLE GATT Packet\n(GeoRescueBlePacket)"] --> Bridge["CrossTransportRelayBridge"]
-    Bridge --> Check1{"TTL > 0 & Not Own Origin & Not Duplicate?"}
-    Check1 -- Yes --> IngestNearby["Convert to IncidentEvent\n(Submit to RelayEngine / Nearby)"]
+    Bridge --> Check1{"TTL > 1 & Not Own Origin & Not Expired & Not Duplicate?"}
+    Check1 -- Yes --> IngestNearby["Decrement Hop Budget (ttl - 1)\nConvert to IncidentEvent\n(Submit to RelayEngine / Nearby)"]
     Check1 -- No --> Drop["Discard Packet"]
 
     InboundNearby["Inbound Nearby Event\n(IncidentEvent)"] --> Bridge
-    Bridge --> Check2{"TTL > 0 & Not Own Origin & Not Duplicate?"}
+    Bridge --> Check2{"Not Expired & Not Own Origin & Not Duplicate?"}
     Check2 -- Yes --> PublishBLE["Convert to GeoRescueBlePacket\n(Publish via GeoRescueBleManager)"]
     Check2 -- No --> Drop
 ```
 
-- **Loop Suppression:** [CrossTransportDeduplicator](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/domain/relay/CrossTransportDeduplicator.kt) combines an in-memory sliding window cache with an SQLite persistent seen-event store (`SQLiteSeenEventStore.kt`) to drop duplicate IDs across application restarts.
-- **Hop Count (TTL):** Forwarded packets decrement `ttl` by 1. When `ttl <= 0`, forwarding halts.
-- **Durable Outbox:** [DurableRelayEngine](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/data/relay/DurableRelayEngine.kt) enqueues outgoing envelopes into an SQLite outbox (`relay_outbox.db`).
+#### Detailed Hop-Budget & Forwarding Analysis
+In GeoRescuX, message propagation bounds are governed by four distinct mechanisms:
+1. **Cross-Transport Hop-Budget Decrement:** In [CrossTransportRelayBridge.kt](../../app/src/main/kotlin/com/example/georescux/data/relay/CrossTransportRelayBridge.kt), when an inbound BLE packet is bridged to Nearby, its carried hop budget is explicitly decremented:
+   ```kotlin
+   val remainingHops = packet.ttl - 1
+   val event = IncidentMapper.fromBlePacket(packet.copy(ttl = remainingHops))
+   ```
+   Packets with `ttl <= 1` are accepted locally but rejected from cross-transport re-broadcasting.
+2. **Same-Transport BLE Mesh Node Decrement:** In `GeoRescueBleMeshNode.kt`, BLE-to-BLE packet forwarding decrements the hop count via `packet.forNextHop()` (`ttl = ttl - 1`). Packets reaching `ttl <= 0` are marked `ACCEPTED_LOCAL` and never relayed further.
+3. **Time-Based Event Expiry:** In `RelayEngine.kt` and `CrossTransportRelayBridge.kt`, events enforce wall-clock expiration based on `ttlSeconds`:
+   ```kotlin
+   if (isEventExpired(event.occurredAtMs, event.ttlSeconds, nowMs())) return false
+   ```
+   Expired events are discarded regardless of remaining hop count.
+4. **Loop Suppression (Deduplication):** [CrossTransportDeduplicator](../../app/src/main/kotlin/com/example/georescux/domain/relay/CrossTransportDeduplicator.kt) combines an in-memory sliding-window cache of recent event UUIDs with an SQLite persistent seen-event store (`SQLiteSeenEventStore.kt`). Identical event IDs are dropped at the ingress boundary.
+- **Important Distinction:** The carried hop budget is explicitly decremented during cross-transport conversions and BLE mesh node forwarding. However, this is **not a universally guaranteed per-node hop limit** across arbitrary homogeneous networks, as `RelayEngine` primarily relies on time-based `ttlSeconds` expiry and seen-ID deduplication rather than decrementing an integer counter on every internal queue transition.
+- **Durable Outbox:** [DurableRelayEngine](../../app/src/main/kotlin/com/example/georescux/data/relay/DurableRelayEngine.kt) enqueues outgoing envelopes into an SQLite outbox (`relay_outbox.db`).
 - **Custody Boundary:** `transport.send() == true` indicates that the local transport accepted the envelope into its dispatch queue. It does **not** prove remote physical reception or disk persistence on the receiving device. A two-way receiver custody acknowledgement protocol is not implemented.
 
 ---
 
 ### 15. Native C++ Routing Components
 
-- **JNI Interface:** [GeoRescueNativeRouting](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/data/routing/GeoRescueNativeRouting.kt) loads `libgeorescux_routing.so` via `System.loadLibrary("georescux_routing")`.
-- **Native Implementation:**
-  - `app/src/main/cpp/routing/AStarPathfinder.cpp`: Implements A* pathfinding.
+- **JNI Interface:** [GeoRescueNativeRouting](../../app/src/main/kotlin/com/example/georescux/data/routing/GeoRescueNativeRouting.kt) loads `libgeorescux_routing.so` via `System.loadLibrary("georescux_routing")`.
+- **C++ Algorithms in Repository:**
+  - `app/src/main/cpp/routing/AStarPathfinder.cpp`: Implements standard A* heuristic pathfinding.
   - `app/src/main/cpp/routing/BidirectionalAStar.cpp`: Implements bi-directional search to accelerate path discovery.
-  - `app/src/main/cpp/jni/GeoRescueNativeRoutingBridge.cpp`: JNI export interface bridging C++ structures to Kotlin strings and JSON representations.
+  - `app/src/main/cpp/spatial/KDTree.cpp` & `RTree.h`: Implements nearest-neighbor search and spatial bounding-box indexing.
+  - `app/src/main/cpp/jni/GeoRescueNativeRoutingBridge.cpp`: JNI export interface bridging C++ structures to Kotlin.
+- **Algorithms Invoked via JNI:** At runtime, the JNI bridge exposes and invokes `nativeFindRoute`, `nativeFindBidirectionalRoute`, `nativeHaversineDistance`, `nativeVincentyDistance`, `nativeElevationImpedance`, and `nativeEvaluateTriage`. Other modules in `app/src/main/cpp/` (e.g. disaster spread models) exist in the repository as experimental native modules.
 - **Safe Fallback Invariant:** If the native shared library fails to load or link (e.g., missing ABI binaries in testing environments), `GeoRescueNativeRouting` catches `Throwable`, marks `isAvailable = false`, and delegates route computation to the pure Kotlin fallback implementation (`SafeHavenFallback.kt` / `AStarPathfinder.kt`).
 - **Verification Evidence:** Verified via `GeoRescueNativeRoutingTest.kt`, `AStarPathfinderTest.kt`, and `RouteRepositoryImplTest.kt`. (No claim of sub-50ms latency is asserted without physical device benchmarks).
 
@@ -279,7 +303,7 @@ flowchart LR
 ### 16. Admin Authorization & Role Routing
 
 - **Security Enforcement:** Administrative access requires Firebase Custom Claims containing `{"admin": true}` verified server-side.
-- **Asynchronous Coordinator:** [RoleRoutingCoordinator](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/ui/main/RoleRoutingCoordinator.kt) manages authorization resolution during startup.
+- **Asynchronous Coordinator:** [RoleRoutingCoordinator](../../app/src/main/kotlin/com/example/georescux/ui/main/RoleRoutingCoordinator.kt) manages authorization resolution during startup.
 - **Bounded Timeout:** Wraps role resolution in `withTimeout(3000L)`. If token retrieval exceeds 3000ms, it transitions to a fail-closed failure state.
 - **Cancellation Safety:** Catches and rethrows `CancellationException`, preserving coroutine lifecycles during Activity recreation or exit.
 - **Idempotent Single Navigation:** Protected by atomic flags (`AtomicBoolean.compareAndSet(false, true)`) in both coordinator and `MainActivity`, preventing duplicate intent launches.
@@ -304,7 +328,7 @@ flowchart LR
 
 Validation was conducted on Android Virtual Device `emulator-5554`:
 - **Device Profile:** Google Pixel 6 (`sdk_gphone16k_x86_64`)
-- **Measured Cold Start:** Total launch time: `14.716 seconds` (`LaunchState: COLD`). Synchronous layout inflation in `MainActivity.onCreate()` ensured immediate rendering of the loading screen with zero window-focus ANRs.
+- **Measured Cold Start:** Total launch time: `14.716 seconds` (`LaunchState: COLD`). Synchronous layout inflation in `MainActivity.onCreate()` ensured immediate rendering of the loading screen with zero window-focus ANRs. (The 3000ms timeout applies strictly to asynchronous role verification, distinct from total cold launch duration).
 - **Live User Routing:** Authenticated user resolved to `UserRole.USER` and landed on `HomeActivity`.
 - **Live SOS Smoke Test:**
   - Emergency initiated (`f6947442-e8b6-4604-a87c-25892260a0cc`), active sequence 4 recorded in `sos_store.xml`.
@@ -326,9 +350,9 @@ Validation was conducted on Android Virtual Device `emulator-5554`:
 
 ### 20. Security Architecture & Cryptographic Status
 
-- **Cryptographic Primitives:** [EventSigner.kt](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/domain/security/EventSigner.kt) implements ECDSA signing using the Android Keystore with curve `secp256r1` (NIST P-256) and `SHA256withECDSA`.
-- **Verification Engine:** [EventAuthenticator.kt](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/domain/security/EventAuthenticator.kt) provides signature verification logic.
-- **Current Runtime Status:** In production [GeoRescuXApplication.kt](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/GeoRescuXApplication.kt#L176), `RelayEngine` is initialized with default `authenticator = null`. Additionally, [GeoRescueBlePacket](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/domain/ble/GeoRescueBlePacket.kt) contains no signature wire field. Therefore, **cryptographic packet verification is implemented in code but not fully wired or enforced in the production mesh relay path**.
+- **Cryptographic Primitives:** [EventSigner.kt](../../app/src/main/kotlin/com/example/georescux/domain/security/EventSigner.kt) implements ECDSA signing using the Android Keystore with curve `secp256r1` (NIST P-256) and `SHA256withECDSA`.
+- **Verification Engine:** [EventAuthenticator.kt](../../app/src/main/kotlin/com/example/georescux/domain/security/EventAuthenticator.kt) provides signature verification logic.
+- **Current Runtime Status:** In production [GeoRescuXApplication.kt](../../app/src/main/kotlin/com/example/georescux/GeoRescuXApplication.kt#L176), `RelayEngine` is initialized with default `authenticator = null`. Additionally, [GeoRescueBlePacket](../../app/src/main/kotlin/com/example/georescux/domain/ble/GeoRescueBlePacket.kt) contains no signature wire field. Therefore, **cryptographic packet verification is implemented in code but not fully wired or enforced in the production mesh relay path**.
 - **Fail-Closed Authorization:** Client-side intent spoofing to `AdminDashboardActivity` is prevented by independent custom-claims verification in `onCreate()`.
 
 ---

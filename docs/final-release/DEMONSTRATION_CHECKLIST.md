@@ -128,7 +128,7 @@ When presenting to evaluators, explicitly distinguish between what is running li
 **Answer:** The SOS lifecycle is managed by `SosStateMachine.kt` as an immutable finite-state automaton. A tap transitions the system to `SosState.COUNTDOWN`, initiating a 2000ms delay accompanied by tactile and visual feedback. If the user touches cancel within this window, the event `COUNTDOWN_CANCELLED` resets the machine to `IDLE` with zero network or storage emissions.
 
 ### Q5: How is victim location acquired when cellular towers and Wi-Fi networks are down?
-**Answer:** The device relies on onboard GNSS/GPS satellite receivers via the Android `FusedLocationProviderClient` with a fallback to `LocationManager.GPS_PROVIDER`. Satellite reception functions completely independently of cellular data, reading signals directly from orbital GPS, GLONASS, Galileo, and BeiDou constellations. (In emulator demonstrations, these signals are virtual mock coordinates).
+**Answer:** The device relies on onboard GNSS/GPS satellite receivers via the Android `FusedLocationProviderClient` with a fallback to `LocationManager.GPS_PROVIDER`. Satellite reception functions completely independently of cellular data, reading signals directly from orbital constellations (such as GPS, GLONASS, Galileo, BeiDou, and NavIC). However, actual multi-constellation support depends on the physical device hardware and chipset capabilities. (In emulator demonstrations, these signals are virtual mock coordinates).
 
 ### Q6: How does the Bluetooth Low Energy (BLE) subsystem operate in GeoRescuX?
 **Answer:** The BLE subsystem uses a GATT client/server architecture (`GeoRescueBleManager.kt`, `GeoRescueBleConnection.kt`). BLE advertisements are used for device discovery. Once discovered, data is exchanged over GATT characteristics as newline-delimited UTF-8 JSON wire frames representing `GeoRescueBlePacket` objects.
@@ -140,12 +140,15 @@ When presenting to evaluators, explicitly distinguish between what is running li
 **Answer:** `CrossTransportRelayBridge.kt` connects the BLE GATT mesh with Google Nearby Connections. Inbound BLE packets are inspected for TTL, checked against origin, and deduplicated before being converted to `IncidentEvent` instances for Nearby cluster broadcast. Conversely, inbound Nearby events are converted to `GeoRescueBlePacket` instances and forwarded to BLE peers with decremented TTL.
 
 ### Q9: How are duplicate packets and broadcast storms prevented in the mesh?
-**Answer:** GeoRescuX employs a two-tier deduplication mechanism ([CrossTransportDeduplicator](file:///C:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/kotlin/com/example/georescux/domain/relay/CrossTransportDeduplicator.kt)):
-1. An in-memory sliding-window cache of recent event UUIDs for immediate O(1) rejection.
-2. A persistent SQLite seen-store (`SQLiteSeenEventStore.kt`) ensuring that even across app restarts, previously ingested emergency events are never rebroadcast.
+**Answer:** GeoRescuX employs a two-tier deduplication mechanism ([CrossTransportDeduplicator](../../app/src/main/kotlin/com/example/georescux/domain/relay/CrossTransportDeduplicator.kt)):
+1. An in-memory sliding-window cache of recent event UUIDs for immediate O(1) duplicate rejection.
+2. A persistent SQLite seen-store (`SQLiteSeenEventStore.kt`) ensuring that even across application process restarts, previously ingested emergency events within the retention window are recognized as duplicates and suppressed from rebroadcast.
 
 ### Q10: How does the Time-To-Live (TTL) / Hop Limit prevent infinite loops?
-**Answer:** Every emergency packet includes an integer `ttl` field (defaulting to 5 hops). Every relay node that receives and forwards the packet decrements `ttl` by 1. When `ttl <= 0`, the packet is processed locally if applicable but is never forwarded, bounding the geographical spread and eliminating cyclic broadcast amplification.
+**Answer:** Packet propagation bounds are enforced across both transports:
+1. In the BLE mesh subsystem, each forwarding node decrements `ttl` (`packet.forNextHop()`), and packets reaching `ttl <= 1` are ingested locally but not re-propagated.
+2. During BLE ↔ Nearby cross-transport conversion (`CrossTransportRelayBridge.kt`), the carried hop budget is explicitly decremented (`remainingHops = packet.ttl - 1`).
+3. Within the Nearby transport relay (`RelayEngine.kt`), packet expiration is governed by temporal duration (`isEventExpired(occurredAtMs, ttlSeconds, nowMs)`) and deduplication cache rejection, bounding geographic spread and eliminating cyclic broadcast loops.
 
 ### Q11: What happens if an active emergency is created while the phone is completely offline?
 **Answer:** The emergency is written immediately to `LocalSosStore` (`sos_store.xml`). Concurrently, an un-synced dirty flag is recorded in `SyncStateStore`. The app activates BLE/Nearby mesh broadcasts. The local UI functions normally. Once `AndroidConnectivityMonitor` detects internet connectivity, `SyncingSosRepository` automatically uploads the pending emergency to Firebase.
@@ -166,13 +169,17 @@ When presenting to evaluators, explicitly distinguish between what is running li
 **Answer:** In the Android emulator, location coordinates are synthetic values injected via virtual sensor controls. They bypass satellite Doppler shift, multi-path reflections from buildings, atmospheric ionospheric delays, and cold-start Time-To-First-Fix (TTFF) delays that real GPS chipsets experience in disaster terrain.
 
 ### Q17: What is the exact role of native C++ in GeoRescuX?
-**Answer:** C++ is utilized for compute-intensive spatial and routing operations:
-1. `AStarPathfinder.cpp` and `BidirectionalAStar.cpp`: Bi-directional A* search across large regional road graphs.
-2. `KDTree.cpp` & `RTree.h`: Rapid spatial indexing to find nearest road intersections and test if an evacuation segment intersects dynamic hazard polygons.
-3. Native execution avoids JVM memory allocations and garbage-collection latency spikes. If the native binary is missing, `GeoRescueNativeRouting` falls back cleanly to pure Kotlin.
+**Answer:** C++20 algorithms are implemented in `app/src/main/cpp/`:
+1. `AStarPathfinder.cpp` and `BidirectionalAStar.cpp`: Offline graph search and shortest-path calculation across regional road graphs.
+2. `KDTree.cpp` & `RTree.h`: Spatial indexing structures available in the native layer for geometric queries.
+3. `GeoRescueNativeRoutingBridge.cpp`: JNI bridge exposing `nativeFindRoute` and `nativeFindBidirectionalRoute` to `GeoRescueNativeRouting.kt`.
+4. Native execution avoids JVM memory allocations and garbage-collection latency spikes during intensive graph search. If the native shared library fails to load or link, `GeoRescueNativeRouting` catches the exception and falls back safely to pure Kotlin routing (`SafeHavenFallback.kt` / `AStarPathfinder.kt`).
 
 ### Q18: What is Safe Route Pro and how does it handle hazards?
-**Answer:** Safe Route Pro evaluates dynamic disaster hazards (e.g., active flood zones, landslide debris, bridge collapses). It treats hazards as topological exclusion zones or high-cost penalties in the routing graph, computing paths that route civilians away from danger zones toward certified safe havens.
+**Answer:** Safe Route Pro evaluates dynamic disaster hazards (such as road blockages, flooding, and debris):
+1. Algorithmic detour behavior is validated using synthetic unit test fixtures (`SafeRouteOfflineEngineTest.kt`), where road segments are marked blocked (`repo.setRoadBlocked`) or assigned synthetic cost penalties (`RoadHazard.penaltyMeters`), computing evacuation paths around hazard zones.
+2. Safe havens are nodes designated as emergency shelters in the offline OpenStreetMap road graph (`isSafeHaven = true`), rather than government-certified facilities.
+3. The platform does not ingest live official sensor feeds or government telemetry; path calculations rely entirely on local road graph data and locally recorded hazard attributes without guaranteeing absolute physical safety.
 
 ### Q19: What is the current status of cryptographic authentication in the mesh?
 **Answer:** Cryptographic signing is implemented in `EventSigner.kt` using Android Keystore EC P-256 with `SHA256withECDSA`, and `EventAuthenticator.kt` provides verification logic. However, in production `GeoRescuXApplication.kt`, `RelayEngine` is initialized with default `authenticator = null`, and `GeoRescueBlePacket` contains no signature field. Thus, cryptographic authentication is implemented in code but not fully wired or enforced in the production mesh path.
