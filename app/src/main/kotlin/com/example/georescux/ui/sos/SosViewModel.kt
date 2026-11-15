@@ -15,6 +15,7 @@ import com.example.georescux.domain.sos.SosStateMachine
 import com.example.georescux.domain.sos.StartSosUseCase
 import com.example.georescux.domain.sos.StopSosUseCase
 import com.example.georescux.domain.sos.UpdateSosLocationUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +36,7 @@ data class SosUiState(
     val state: SosState = SosState.IDLE,
     val countdownSeconds: Int? = null,
     val emergency: SosEmergency? = null,
+    val errorMessage: String? = null,
 )
 
 /**
@@ -53,6 +55,7 @@ class SosViewModel(
     private val locationRepository: LocationRepository,
     initialState: SosState,
     private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
+    private val ioDispatcher: CoroutineDispatcher = if (mainDispatcher == Dispatchers.Main.immediate) Dispatchers.IO else mainDispatcher,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SosUiState(state = initialState))
@@ -95,11 +98,35 @@ class SosViewModel(
 
     /** Marks the active emergency completed locally and returns to IDLE. */
     fun stopEmergency() {
+        val current = _uiState.value
+        if (current.state != SosState.ACTIVE) return
         transition(SosEvent.STOP_REQUESTED)          // ACTIVE -> STOPPING
-        stopSos(System.currentTimeMillis())          // persist completion + history
-        transition(SosEvent.STOP_COMPLETED)          // STOPPING -> COMPLETED
-        transition(SosEvent.COMPLETED_ACKNOWLEDGED)  // COMPLETED -> IDLE
-        stopLocationAcquisition()
+        val stoppedAtMs = System.currentTimeMillis()
+
+        scope.launch(ioDispatcher) {
+            val result = try {
+                stopSos(stoppedAtMs)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            kotlinx.coroutines.withContext(mainDispatcher) {
+                if (result != null) {
+                    transition(SosEvent.STOP_COMPLETED)          // STOPPING -> COMPLETED
+                    transition(SosEvent.COMPLETED_ACKNOWLEDGED)  // COMPLETED -> IDLE
+                    stopLocationAcquisition()
+                    _uiState.value = _uiState.value.copy(emergency = null, errorMessage = null)
+                } else {
+                    transition(SosEvent.STOP_FAILED)             // STOPPING -> ACTIVE
+                    val activeEmergency = sosRepository.getActiveEmergency()
+                    _uiState.value = _uiState.value.copy(
+                        emergency = activeEmergency,
+                        errorMessage = "Failed to complete emergency. Please retry.",
+                    )
+                }
+            }
+        }
     }
 
     // ---- Location (Phase 2) ----

@@ -15,6 +15,7 @@ data class SosEmergency(
     val location: SosLocation? = null,
     val locationStatus: SosLocationStatus? = null,
     val note: String? = null,
+    val sequence: Long = 0L,
 ) {
     val isActive: Boolean get() = stoppedAtMs == null
 }

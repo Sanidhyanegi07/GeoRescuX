@@ -122,4 +122,43 @@ class SosEmergencyJsonTest {
 
         assertEquals(listOf("second", "first"), restored.map { it.note })
     }
+
+    @Test
+    fun `the sequence field survives a round trip`() {
+        val emergency = SosEmergency(
+            id = "alert-1",
+            startedAtMs = 1_000L,
+            sequence = 42L,
+        )
+
+        val restored = roundTrip(emergency)
+
+        assertEquals(42L, restored.sequence)
+    }
+
+    @Test
+    fun `a record saved by an older app version without a sequence defaults to 0L`() {
+        val legacyJson = JSONObject().apply {
+            put("id", "alert-legacy")
+            put("startedAtMs", 1L)
+            // No "sequence" key
+        }
+
+        val restored = SosEmergencyJson.fromJson(legacyJson)
+
+        assertEquals(0L, restored.sequence)
+    }
+
+    @Test
+    fun `a record with a negative sequence normalises to 0L`() {
+        val json = JSONObject().apply {
+            put("id", "alert-neg")
+            put("startedAtMs", 1L)
+            put("sequence", -5L)
+        }
+
+        val restored = SosEmergencyJson.fromJson(json)
+
+        assertEquals(0L, restored.sequence)
+    }
 }

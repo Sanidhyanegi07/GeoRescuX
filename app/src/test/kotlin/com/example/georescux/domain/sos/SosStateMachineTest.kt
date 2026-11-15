@@ -60,6 +60,12 @@ class SosStateMachineTest {
     }
 
     @Test
+    fun `stopping failure returns to active`() {
+        val active = SosStateMachine.onEvent(SosState.STOPPING, SosEvent.STOP_FAILED)
+        assertEquals(SosState.ACTIVE, active)
+    }
+
+    @Test
     fun `full happy path from idle back to idle`() {
         var state = SosState.IDLE
         val events = listOf(

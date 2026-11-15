@@ -10,11 +10,14 @@ import com.example.georescux.domain.sos.SosState
 import com.example.georescux.domain.sos.StartSosUseCase
 import com.example.georescux.domain.sos.StopSosUseCase
 import com.example.georescux.domain.sos.UpdateSosLocationUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 /**
@@ -31,6 +34,8 @@ class SosViewModelLocationTest {
         var historyList = mutableListOf<SosEmergency>()
         var locationUpdateCount = 0
         var lastLocationUpdate: Pair<SosLocation?, SosLocationStatus>? = null
+        var failComplete = false
+        var exceptionToThrowOnComplete: Throwable? = null
 
         override fun getActiveEmergency(): SosEmergency? = active
 
@@ -42,6 +47,8 @@ class SosViewModelLocationTest {
         }
 
         override fun completeEmergency(stoppedAtMs: Long): SosEmergency? {
+            exceptionToThrowOnComplete?.let { throw it }
+            if (failComplete) return null
             val activeEmergency = active ?: return null
             val completed = activeEmergency.copy(stoppedAtMs = stoppedAtMs)
             active = null
@@ -189,6 +196,40 @@ class SosViewModelLocationTest {
         assertTrue(locationRepository.stopped)
         assertEquals(1, repository.historyList.size)
         assertNull(repository.getActiveEmergency())
+        assertEquals(SosState.IDLE, viewModel.uiState.value.state)
+        assertNull(viewModel.uiState.value.emergency)
+    }
+
+    @Test
+    fun `stopping the emergency reverts to active with error message when persistence fails`() {
+        val (viewModel, repositories) = activeViewModel()
+        val (repository, locationRepository) = repositories
+        viewModel.beginLocationAcquisition()
+        repository.failComplete = true
+
+        viewModel.stopEmergency()
+
+        // Location acquisition must NOT be stopped if persistence failed
+        assertFalse(locationRepository.stopped)
+        // Must remain in ACTIVE state, not IDLE
+        assertEquals(SosState.ACTIVE, viewModel.uiState.value.state)
+        assertNotNull(viewModel.uiState.value.emergency)
+        assertNotNull(viewModel.uiState.value.errorMessage)
+        // Active emergency remains in repository
+        assertNotNull(repository.getActiveEmergency())
+        assertEquals(0, repository.historyList.size)
+    }
+
+    @Test
+    fun `repeated stop requests do not cause duplicate completion`() {
+        val (viewModel, repositories) = activeViewModel()
+        val (repository, _) = repositories
+
+        viewModel.stopEmergency()
+        // Second call from IDLE/non-active state must be ignored
+        viewModel.stopEmergency()
+
+        assertEquals(1, repository.historyList.size)
     }
 
     @Test
@@ -215,5 +256,61 @@ class SosViewModelLocationTest {
         assertEquals(fix(1), active.location)
         assertEquals(SosLocationStatus.ACQUIRED, active.locationStatus)
         assertTrue(active.isActive)
+    }
+
+    @Test
+    fun `stopping the emergency reverts to active with error message when stopSos throws exception`() {
+        val (viewModel, repositories) = activeViewModel()
+        val (repository, locationRepository) = repositories
+        viewModel.beginLocationAcquisition()
+        repository.exceptionToThrowOnComplete = RuntimeException("Simulated disk I/O failure")
+
+        viewModel.stopEmergency()
+
+        // Location acquisition must NOT be stopped if persistence threw an exception
+        assertFalse(locationRepository.stopped)
+        // Must revert to ACTIVE state, never stay stuck in STOPPING or transition to IDLE
+        assertEquals(SosState.ACTIVE, viewModel.uiState.value.state)
+        assertNotNull(viewModel.uiState.value.emergency)
+        assertNotNull(viewModel.uiState.value.errorMessage)
+        assertEquals("Failed to complete emergency. Please retry.", viewModel.uiState.value.errorMessage)
+        // Active emergency remains safely in repository
+        assertNotNull(repository.getActiveEmergency())
+        assertEquals(0, repository.historyList.size)
+    }
+
+    @Test
+    fun `stopping the emergency rethrows CancellationException and does not falsely complete`() {
+        val (viewModel, repositories) = activeViewModel()
+        val (repository, locationRepository) = repositories
+        viewModel.beginLocationAcquisition()
+        val cancellation = CancellationException("Simulated scope cancellation")
+        repository.exceptionToThrowOnComplete = cancellation
+
+        viewModel.stopEmergency()
+
+        // CancellationException cancels the coroutine and is NOT converted to null or success.
+        // It must NOT execute withContext(mainDispatcher), so it must NOT transition to
+        // COMPLETED or IDLE, nor falsely set an error message.
+        assertFalse(viewModel.uiState.value.state == SosState.COMPLETED)
+        assertFalse(viewModel.uiState.value.state == SosState.IDLE)
+        assertFalse(locationRepository.stopped)
+        assertNull(viewModel.uiState.value.errorMessage)
+        // Active emergency must not be cleared
+        assertNotNull(repository.getActiveEmergency())
+        assertEquals(0, repository.historyList.size)
+    }
+
+    @Test
+    fun `rapid stop requests while in stopping state are ignored`() {
+        val (viewModel, repositories) = activeViewModel()
+        val (repository, _) = repositories
+
+        // First call transitions to STOPPING synchronously
+        viewModel.stopEmergency()
+        // Second call while state is not ACTIVE must return immediately without effect
+        viewModel.stopEmergency()
+
+        assertEquals(1, repository.historyList.size)
     }
 }

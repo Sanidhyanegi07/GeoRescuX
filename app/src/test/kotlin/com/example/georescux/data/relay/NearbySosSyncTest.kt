@@ -31,7 +31,10 @@ class NearbySosSyncTest {
         override fun saveActive(emergency: SosEmergency) { active = emergency }
         override fun clearActive() { active = null }
         override fun loadHistory(): List<SosEmergency> = history.toList()
-        override fun addToHistory(emergency: SosEmergency) { history.add(emergency) }
+        override fun addToHistory(emergency: SosEmergency): Boolean {
+            history.add(emergency)
+            return true
+        }
     }
 
     private class FakeAuthRepository(var uid: String? = "test-relay-user") : AuthRepository {

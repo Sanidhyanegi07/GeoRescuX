@@ -64,10 +64,58 @@ object SosIncomingEventCoordinator {
     fun correlate(event: IncidentEvent, existing: SosEmergency?): SosEmergency? {
         val isCompleted = isCompletionEvent(event)
 
-        // Ordering protection: an out-of-order ACTIVE event must never reactivate,
+        // Ordering & terminal-state protection: an out-of-order ACTIVE event must never reactivate,
         // downgrade, or overwrite an emergency that was already completed locally.
         if (existing != null && !existing.isActive && !isCompleted) {
             return null
+        }
+
+        // Sequence ordering and legacy protection rules
+        if (existing != null) {
+            if (existing.sequence > 0L) {
+                // Existing incident is sequenced.
+                if (event.sequence == 0L) {
+                    // Rule: A legacy sequence-zero event cannot update or cancel an already sequenced incident.
+                    return null
+                }
+                if (event.sequence < existing.sequence) {
+                    // Rule: Stale out-of-order sequence is rejected.
+                    return null
+                }
+                if (event.sequence == existing.sequence) {
+                    // Equal sequence: conflicting lifecycle status is invalid
+                    if (existing.isActive != !isCompleted) {
+                        return null
+                    }
+                    if (isCompleted) {
+                        return null // Duplicate completion
+                    }
+                    val newLat = event.latitude
+                    val newLon = event.longitude
+                    val existLat = existing.location?.latitude
+                    val existLon = existing.location?.longitude
+                    val newNote = event.payload["note"]
+                    val existNote = existing.note
+                    if (newLat == existLat && newLon == existLon && newNote == existNote) {
+                        return null // Idempotent duplicate
+                    } else {
+                        return null // Conflicting content at same sequence: reject
+                    }
+                }
+            } else {
+                // Existing incident is legacy (sequence == 0L).
+                if (existing.isActive && event.sequence == 0L && !isCompleted) {
+                    val newLat = event.latitude
+                    val newLon = event.longitude
+                    val existLat = existing.location?.latitude
+                    val existLon = existing.location?.longitude
+                    val newNote = event.payload["note"]
+                    val existNote = existing.note
+                    if (newLat == existLat && newLon == existLon && newNote == existNote) {
+                        return null // Idempotent duplicate
+                    }
+                }
+            }
         }
 
         val emergencyId = IncidentMapper.emergencyIdFor(event)
@@ -119,6 +167,8 @@ object SosIncomingEventCoordinator {
             }
         }
 
+        val finalSequence = if (event.sequence > 0L) event.sequence else (existing?.sequence ?: 0L)
+
         return SosEmergency(
             id = meshId,
             startedAtMs = startedAtMs,
@@ -126,6 +176,7 @@ object SosIncomingEventCoordinator {
             location = location ?: existing?.location,
             locationStatus = locStatus ?: (if (location != null) SosLocationStatus.ACQUIRED else existing?.locationStatus),
             note = note,
+            sequence = finalSequence,
         )
     }
 
@@ -149,10 +200,69 @@ object SosIncomingEventCoordinator {
 
         val emergencyId = IncidentMapper.emergencyIdFor(event)
         val meshId = computeMeshId(event.originId, emergencyId)
-        val existing = sosStore.loadHistory().firstOrNull { it.id == meshId }
+        val canonicalExisting = sosStore.loadHistory().firstOrNull { it.id == meshId }
+
+        var migratedOldId: String? = null
+        val existing = if (canonicalExisting != null) {
+            canonicalExisting
+        } else {
+            // Conservative pre-P0 BLE record matching: MESH_BLE_<origin>_<packetId>
+            val isCompleted = isCompletionEvent(event)
+            val candidateStartMs: Long? = if (isCompleted) {
+                // For completion events, strictly require explicit positive startedAtMs payload.
+                // Never substitute occurredAtMs (which represents stoppedAtMs).
+                event.payload["startedAtMs"]?.toLongOrNull()?.takeIf { it > 0L }
+            } else {
+                event.payload["startedAtMs"]?.toLongOrNull()?.takeIf { it > 0L } ?: event.occurredAtMs
+            }
+
+            val legacyPrefix = "${MESH_PREFIX}_BLE_"
+            val candidates = if (candidateStartMs == null) {
+                emptyList()
+            } else {
+                sosStore.loadHistory().filter { record ->
+                    if (!record.id.startsWith(legacyPrefix)) return@filter false
+                    val remainder = record.id.removePrefix(legacyPrefix)
+                    if (!remainder.contains('_')) return@filter false
+                    val candidateOrigin = remainder.substringBeforeLast('_')
+                    val candidatePacketId = remainder.substringAfterLast('_')
+                    candidateOrigin.isNotBlank() &&
+                        candidatePacketId.isNotBlank() &&
+                        candidateOrigin == event.originId &&
+                        record.startedAtMs == candidateStartMs
+                }
+            }
+
+            if (candidates.size == 1) {
+                val candidate = candidates.first()
+                if (!candidate.isActive) {
+                    // Pre-P0 record is already completed/terminal.
+                    // Terminal protection: delayed ACTIVE cannot resurrect it.
+                    // Repeated completion is also safely ignored.
+                    return null
+                }
+                migratedOldId = candidate.id
+                candidate
+            } else {
+                // Ambiguous or zero candidates: do not automatically migrate
+                null
+            }
+        }
 
         val emergency = correlate(event, existing) ?: return null
-        sosStore.addToHistory(emergency)
+        if (migratedOldId != null) {
+            val migrated = sosStore.replaceInHistory(migratedOldId, emergency)
+            if (!migrated) {
+                // Migration persistence failed: fail closed, do not report success, preserve old record
+                return null
+            }
+        } else {
+            val saved = sosStore.addToHistory(emergency)
+            if (!saved) {
+                // Ordinary persistence failed: fail closed, do not report success
+                return null
+            }
+        }
         return emergency
     }
 }

@@ -9,5 +9,6 @@ enum class SosEvent {
     COUNTDOWN_FINISHED,    // countdown reached 0 -> emergency activates
     STOP_REQUESTED,        // user tapped "Stop Emergency"
     STOP_COMPLETED,        // completion was persisted locally
+    STOP_FAILED,           // completion persistence failed -> revert to ACTIVE
     COMPLETED_ACKNOWLEDGED,// UI has shown the completion -> back to IDLE
 }

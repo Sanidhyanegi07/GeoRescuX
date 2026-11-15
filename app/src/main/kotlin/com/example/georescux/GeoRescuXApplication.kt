@@ -233,16 +233,18 @@ class AppContainer(context: Context) {
             ) {
                 // Ignore locally originated packets (already persisted by local SOS layer)
                 if (packet.originDeviceId == selfOriginId) return
-                val emergency = bleSosBridge.emergencyFromPacket(packet) ?: return
-                // Persist into the SAME local SOS store the existing sync
-                // engine reads — a device with Internet will upload the
-                // received emergency to Firebase on its next sync run.
-                sosStore.addToHistory(emergency)
+                val event = bleSosBridge.toIncidentEvent(packet) ?: return
+                val emergency = com.example.georescux.data.sos.SosIncomingEventCoordinator.processIncomingSos(
+                    event = event,
+                    sosStore = sosStore,
+                    selfOriginId = selfOriginId,
+                ) ?: return
+
                 if (emergency.isActive) {
                     com.example.georescux.data.notification.SosAlertNotifier.notify(
                         context = appContext,
                         originId = packet.originDeviceId,
-                        startedAtMs = packet.timestampMs,
+                        startedAtMs = emergency.startedAtMs,
                         note = emergency.note,
                     )
                 }

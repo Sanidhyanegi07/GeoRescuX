@@ -20,6 +20,7 @@ object SosStateMachine {
             SosState.COUNTDOWN to SosEvent.COUNTDOWN_FINISHED -> SosState.ACTIVE
             SosState.ACTIVE to SosEvent.STOP_REQUESTED -> SosState.STOPPING
             SosState.STOPPING to SosEvent.STOP_COMPLETED -> SosState.COMPLETED
+            SosState.STOPPING to SosEvent.STOP_FAILED -> SosState.ACTIVE
             SosState.COMPLETED to SosEvent.COMPLETED_ACKNOWLEDGED -> SosState.IDLE
             else -> throw IllegalStateException("Illegal SOS transition: $state --$event--> ?")
         }

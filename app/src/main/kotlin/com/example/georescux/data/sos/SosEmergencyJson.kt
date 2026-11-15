@@ -30,11 +30,12 @@ internal object SosEmergencyJson {
         put("locationStatus", emergency.locationStatus?.name ?: JSONObject.NULL)
         val validNote = emergency.note?.trim()?.takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) }
         put("note", validNote ?: JSONObject.NULL)
+        put("sequence", emergency.sequence)
     }
 
     fun fromJson(json: JSONObject): SosEmergency {
         // opt* reads keep records saved by older app versions readable:
-        // they simply have no location or note information.
+        // they simply have no location, note, or sequence information.
         val location = json.optJSONObject("location")?.let { loc ->
             SosLocation(
                 latitude = loc.getDouble("latitude"),
@@ -49,6 +50,8 @@ internal object SosEmergencyJson {
             ?.let { runCatching { SosLocationStatus.valueOf(it) }.getOrNull() }
         val rawNote = if (json.isNull("note")) null else json.optString("note", "")
         val parsedNote = rawNote?.trim()?.takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) }
+        val rawSeq = json.optLong("sequence", 0L)
+        val sequence = if (rawSeq < 0L) 0L else rawSeq
         return SosEmergency(
             id = json.getString("id"),
             startedAtMs = json.getLong("startedAtMs"),
@@ -56,6 +59,7 @@ internal object SosEmergencyJson {
             location = location,
             locationStatus = locationStatus,
             note = parsedNote,
+            sequence = sequence,
         )
     }
 }

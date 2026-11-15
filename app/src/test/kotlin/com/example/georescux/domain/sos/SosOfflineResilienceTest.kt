@@ -24,7 +24,10 @@ class SosOfflineResilienceTest {
         override fun saveActive(emergency: SosEmergency) { active = emergency }
         override fun clearActive() { active = null }
         override fun loadHistory(): List<SosEmergency> = history.toList()
-        override fun addToHistory(emergency: SosEmergency) { history.add(0, emergency) }
+        override fun addToHistory(emergency: SosEmergency): Boolean {
+            history.add(0, emergency)
+            return true
+        }
     }
 
     @Test

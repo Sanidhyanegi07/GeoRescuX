@@ -111,7 +111,7 @@ object IncidentMapper {
             latitude = emergency.location?.latitude,
             longitude = emergency.location?.longitude,
             severity = IncidentSeverity.CRITICAL,
-            sequence = 0L,
+            sequence = emergency.sequence,
             syncState = if (pendingCloudBackup) IncidentSyncState.QUEUED else IncidentSyncState.SYNCED,
             payload = buildMap {
                 put("emergencyId", emergency.id)
@@ -119,6 +119,9 @@ object IncidentMapper {
                 put("startedAtMs", emergency.startedAtMs.toString())
                 if (isCompleted) {
                     put("stoppedAtMs", emergency.stoppedAtMs!!.toString())
+                }
+                if (emergency.sequence > 0L) {
+                    put("sequence", emergency.sequence.toString())
                 }
                 emergency.locationStatus?.let { put("locationStatus", it.name) }
                 emergency.note?.let { put("note", it) }
