@@ -147,7 +147,7 @@ This document provides a thorough, transparent, and honest disclosure of the cur
 - **Current Implementation:**
   GeoRescuX is an academic research prototype developed as a Bachelor of Technology capstone project.
 - **Existing Evidence:**
-  The application has undergone unit testing (582 tests) and single-device emulator verification.
+  The application has undergone unit testing (593 tests) and single-device emulator verification.
 - **Technical Consequence:**
   The platform has not undergone formal regulatory certification (such as FCC Part 15 wireless certification, RED compliance in the EU, or safety-critical software audits like DO-178C or ISO 26262). The application must not be advertised or deployed as a commercial, life-critical emergency service to the general public without formal validation and coordination with official government disaster management agencies (e.g., NDMA / SDRF).
 - **Required Future Verification:**

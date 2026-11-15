@@ -16,6 +16,7 @@ import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
 import com.example.georescux.data.admin.SharedPreferencesAdminSettingsStore
 import com.example.georescux.data.auth.UserRole
+import com.example.georescux.domain.auth.AdminAuthGuard
 import com.example.georescux.data.maps.MapRegionCatalog
 import com.example.georescux.domain.admin.DistrictCatalog
 import com.example.georescux.domain.admin.EmergencyPriorityCalculator
@@ -70,13 +71,15 @@ class AdminDashboardActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Immediately render loading screen to avoid unrendered window during role resolution
+        setContentView(R.layout.activity_main)
+        findViewById<TextView>(R.id.textRoleStatus)?.text = "Verifying admin authorization..."
 
         val appContainer = (application as GeoRescuXApplication).appContainer
+        val guard = AdminAuthGuard(appContainer.roleResolver)
 
         lifecycleScope.launch {
-            // Secure server-verified check via Firebase Custom Claims
-            val role = appContainer.roleResolver.resolveRole()
-            if (role != UserRole.ADMIN) {
+            if (!guard.isAuthorizedAdmin()) {
                 Toast.makeText(this@AdminDashboardActivity, "Access Denied: Admin authorization required", Toast.LENGTH_LONG).show()
                 finish()
                 return@launch

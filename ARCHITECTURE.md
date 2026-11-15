@@ -31,15 +31,15 @@ Every top-level directory in the repository fulfills a distinct, justified respo
 
 | Directory | Core Responsibility | Technologies | Architectural Justification |
 | :--- | :--- | :--- | :--- |
-| [`app/`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/app) | Android Client Application | Kotlin 2.2, Android SDK 24+, C++20 NDK, JNI | Dual-role (Citizen & Field Responder / Admin) mobile client with offline-first local stores and foreground BLE mesh daemon. |
-| [`app/src/main/cpp/`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/app/src/main/cpp) | Native High-Performance Core | C++20, CMake, Android NDK | Memory-safe algorithms: A* pathfinding, KD-Tree spatial queries, 3D elevation impedance models, Bloom filter packet deduplication, and HMAC-SHA256 crypto. |
-| [`backend/`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/backend) | Dispatch & Simulation Backend | C++20, Drogon Framework, SQLite3 | High-throughput edge/cloud ingestion microservice, multi-victim DBSCAN clustering, Rothermel wildfire spread model, and hydrodynamic flood simulators. |
-| [`functions/`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/functions) | Cloud Functions Security Layer | Node.js, Firebase Admin SDK | Zero-trust admin minting, role verification, and server-side token claim revocation. |
-| [`georescux-admin-provision/`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/georescux-admin-provision) | Enterprise Admin Provisioning | Node.js, Firebase Admin SDK | Trusted out-of-band administration CLI scripts to mint, inspect, and revoke admin custom claims securely. |
-| [`tools/`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/tools) | Spatial Graph & Map Tooling | C++20, Java, CMake, OpenStreetMap | Offline extraction pipeline converting raw OpenStreetMap PBF files into optimized topological routing graphs and elevation matrices. |
-| [`output/`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/output) | Regional Graph Datasets | GeoJSON, OSM PBF, JSON | Partitioned offline datasets for critical mountain regions (Uttarakhand, Himachal Pradesh, Haryana, Uttar Pradesh). |
-| [`docs/`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/docs) | System Documentation | Markdown, Mermaid | Comprehensive system reference: architecture, testing reports, security audits, BLE subsystem specs, and demo guides. |
-| [`Images/`](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/Images) | Visual Assets & UI Captures | JPEG, PNG | Production interface screenshots and visual guides. |
+| [`app/`](app) | Android Client Application | Kotlin 2.2, Android SDK 24+, C++20 NDK, JNI | Dual-role (Citizen & Field Responder / Admin) mobile client with offline-first local stores and foreground BLE mesh daemon. |
+| [`app/src/main/cpp/`](app/src/main/cpp) | Native High-Performance Core | C++20, CMake, Android NDK | Memory-safe algorithms: A* pathfinding, KD-Tree spatial queries, 3D elevation impedance models, Bloom filter packet deduplication, and HMAC-SHA256 crypto. |
+| [`backend/`](backend) | Dispatch & Simulation Prototype | C++20, Drogon Framework, SQLite3 | Standalone unintegrated C++20 Drogon prototype; implements DBSCAN incident clustering, fire/flood spread models, and zero-trust auth filters (fails closed). Not deployed or connected to Android client. |
+| [`functions/`](functions) | Cloud Functions Security Layer | Node.js, Firebase Admin SDK | Zero-trust admin minting, role verification, and server-side token claim revocation. |
+| [`georescux-admin-provision/`](georescux-admin-provision) | Enterprise Admin Provisioning | Node.js, Firebase Admin SDK | Trusted out-of-band administration CLI scripts to mint, inspect, and revoke admin custom claims securely. |
+| [`tools/`](tools) | Spatial Graph & Map Tooling | C++20, Java, CMake, OpenStreetMap | Offline extraction pipeline converting raw OpenStreetMap PBF files into optimized topological routing graphs and elevation matrices. |
+| [`output/`](output) | Regional Graph Datasets | GeoJSON, OSM PBF, JSON | Partitioned offline datasets for critical mountain regions (Uttarakhand, Himachal Pradesh, Haryana, Uttar Pradesh). |
+| [`docs/`](docs) | System Documentation | Markdown, Mermaid | Comprehensive system reference: architecture, testing reports, security audits, BLE subsystem specs, and demo guides. |
+| [`Images/`](Images) | Visual Assets & UI Captures | JPEG, PNG | Production interface screenshots and visual guides. |
 
 ---
 
@@ -62,11 +62,11 @@ flowchart TB
         BLE_SVC[GeoRescueBleForegroundService]
         BLE_SVC <--> SCAN[BLE Central / Scanner]
         BLE_SVC <--> ADV[BLE Peripheral / Advertiser]
-        SCAN <--> GOSSIP[Gossip Mesh Protocol (TTL=7)]
+        SCAN <--> GOSSIP[Gossip Mesh Protocol (TTL=5)]
         ADV <--> GOSSIP
     end
 
-    subgraph Tier3["3. High-Throughput Ingestion Microservice"]
+    subgraph Tier3["3. Standalone C++20 Drogon Prototype (Unintegrated)"]
         DROGON[Drogon C++20 HTTP Engine]
         DROGON --> DBSCAN[DBSCAN Incident Clusterer]
         DROGON --> SIM[Disaster Spread Simulators]
@@ -83,9 +83,9 @@ flowchart TB
     end
 
     Tier1 <==>|Ad-hoc P2P BLE Packets| Tier2
-    Tier2 ==>|Opportunistic Gateway Uplink| Tier3
     Tier1 ==>|Direct Uplink when Online| Tier4
-    Tier3 <==>|Telemetry Reconciliation| Tier4
+    Tier2 -.->|Gateway Uplink / Sync| Tier4
+    Tier3 -.-|Isolated Simulation Prototype| Tier3
 ```
 
 ---

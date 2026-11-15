@@ -24,7 +24,7 @@
 
 **GeoRescuX** is a mission-critical, offline-first disaster response and emergency routing platform built for the **Smart India Hackathon 2026** (Problem Statement **SIH26206**, Disaster Management Software Track).
 
-In catastrophic events—such as Himalayan flash floods, cloudbursts, severe earthquakes, and structural collapses—conventional cloud-reliant emergency systems fail immediately due to base transceiver station (BTS) outages, power loss, and fiber severances. **GeoRescuX operates autonomously without cellular or internet connectivity**, providing peer-to-peer survival networking, native topological route generation, and guaranteed data delivery.
+In catastrophic events—such as Himalayan flash floods, cloudbursts, severe earthquakes, and structural collapses—conventional cloud-reliant emergency systems fail immediately due to base transceiver station (BTS) outages, power loss, and fiber severances. **GeoRescuX operates autonomously without cellular or internet connectivity**, providing peer-to-peer survival networking, native topological route generation, and resilient best-effort store-and-forward mesh propagation.
 
 > *"The emergency system designed to work when every other system stops working."*
 
@@ -39,12 +39,12 @@ graph TD
         B --> C[Local SharedPreferences Store]
         B --> D[Native C++20 Spatial Engine]
         D -->|A* Pathfinding + Elevation Penalties| E[Safe Haven Route Generation]
-        B -->|Encrypted Frames| F[BLE Mesh Forwarding Service]
+        B -->|Mesh Packets| F[BLE Mesh Forwarding Service]
     end
 
     subgraph "P2P Bluetooth Low Energy Mesh Tier"
-        F -->|Hop 1: TTL 7, Deduplicated| G[Nearby Offline Citizen Device]
-        G -->|Hop 2: TTL 6, Store-and-Forward| H[Field Responder Device]
+        F -->|Hop 1: TTL 5, Deduplicated| G[Nearby Offline Citizen Device]
+        G -->|Hop 2: TTL 4, Store-and-Forward| H[Field Responder Device]
         H -->|Hop 3: Edge Ingestion| I[Gateway Node with Sporadic Uplink]
     end
 
@@ -64,28 +64,26 @@ graph TD
 The routing and telemetry subsystem is implemented directly in modern C++20 and compiled via the Android NDK for near-instantaneous execution:
 - **A\* Pathfinding (`routing/RouteGraph.cpp`)**: High-performance shortest-path search over partitioned OpenStreetMap (OSM) regional topological graphs with admissible Haversine heuristics.
 - **3D Elevation Cost Model (`spatial/ElevationCostModel.cpp`)**: Dynamically penalizes steep climbs, terrain fatigue, and high-altitude hypoxia risks during evacuation.
-- **Cryptographic Packet Authenticator (`crypto/PacketAuthenticator.cpp`)**: Enforces HMAC-SHA256 signature verification and sliding-window timestamp replay protection for over-the-air BLE emergency packets.
+- **Cryptographic Packet Authenticator (`crypto/PacketAuthenticator.cpp`)**: C++ reference implementation providing HMAC-SHA256 signature verification and sliding-window timestamp replay protection for over-the-air packets (in the active deployment, mobile mesh broadcast packets operate unauthenticated without pre-shared key distribution).
 - **Dynamic Spatial Hazard Containment (`spatial/HazardPolygon.cpp`)**: Ray-casting point-in-polygon intersection to automatically avoid active landslides, flash flood corridors, and blocked roads.
 - **Zero-Copy JNI Bridges (`jni/GeoRescueNativeRoutingBridge.cpp`)**: High-throughput memory-safe JNI bridging with automatic fallback to pure Kotlin if native binary loading is unavailable.
 
 ### 2. 📡 Peer-to-Peer Multi-Hop BLE Mesh (`app/src/main/kotlin/.../ble/`)
 When infrastructure goes dark, GeoRescuX forms a spontaneous, self-healing ad-hoc mesh network:
 - **Symmetric GATT Architecture**: Each device simultaneously operates as a BLE Central (Scanner) and Peripheral (Advertiser).
-- **Store-and-Forward Relay**: Emergency SOS packets travel up to 7 hops across intermediary devices with local duplicate packet caches (LRU) to eliminate broadcast storms.
+- **Store-and-Forward Relay**: Emergency SOS packets travel up to 5 hops across intermediary devices (default TTL: 5 hops) with local duplicate packet caches (LRU) to eliminate broadcast storms.
 - **Opportunistic Gateway Uplink**: The instant any device in the mesh reconnects to cellular data or satellite uplink, it automatically pushes buffered emergency records to Firebase.
 
 ### 3. 🛡️ Enterprise Least-Privilege Security Rules (`database.rules.json`)
-The Firebase Realtime Database security model enforces strict zero-trust constraints validated by a **39-case automated emulator test suite**:
+The Firebase Realtime Database security model enforces strict zero-trust constraints validated by a **60-assertion automated emulator test suite**:
 - **Owner Lifecycle Isolation**: Normal users can only create and update their own SOS records (`ACTIVE` $\rightarrow$ `COMPLETED`). They cannot modify coordinates once submitted, reopen completed alerts, or delete emergency traces.
 - **Admin Least Privilege**: Administrators authenticated via verified Firebase Custom Claims (`auth.token.admin == true`) can update SOS records only to `RESOLVED`. Admins are strictly prohibited from altering victim GPS telemetry or situation notes.
 - **Metadata Protection**: Identity verification status (`isVerified`) and internal incident logs (`/incidents`, `/events`) can only be modified by authorized emergency coordinators.
 
 ### 4. 🗺️ Partitioned Offline Regional Graphs (`output/`)
 Rather than relying on unwieldy multi-gigabyte nationwide datasets, GeoRescuX uses pre-processed, lightweight regional routing graphs:
-- **Uttarakhand**: Comprehensive Himalayan topography, road networks, and verified relief havens.
-- **Himachal Pradesh**: High-altitude road matrices, mountain passes, and medical centers.
-- **Haryana & Uttar Pradesh**: Plains evacuation corridors and emergency hubs.
-- **Sample Region**: Connaught Place / Delhi NCT benchmark validation dataset.
+- **Uttarakhand & Sample Region**: Bundled directly inside the APK assets for immediate offline deployment.
+- **Himachal Pradesh, Haryana & Uttar Pradesh**: External regional package catalog entries available for post-install download.
 
 ---
 
@@ -100,7 +98,7 @@ Rather than relying on unwieldy multi-gigabyte nationwide datasets, GeoRescuX us
 - **1-Second Hold SOS**: Rapid physical activation trigger with vibration feedback and countdown cancellation.
 - **Offline Safe Route**: Dijkstra/A* evacuation guidance directing victims away from verified hazards toward safe shelters.
 - **Identity Verification**: In-app document submission granting prioritized rescue dispatch weightings.
-- **Emergency Contacts**: Local-first ICE (In Case of Emergency) address book synced peer-to-peer.
+- **Emergency Contacts**: Local-first ICE (In Case of Emergency) address book backed by local SQLite/SharedPreferences and backed up best-effort to Firebase cloud.
 
 ### Admin Command Portal (`AdminDashboardActivity.kt`)
 - **Heuristic Priority Scoring (`EmergencyPriorityCalculator.kt`)**: Prioritizes emergency queues based on verified identity status, elapsed duration, and regional danger density.
@@ -126,7 +124,7 @@ Verified via live GitHub Linguist language metrics:
 
 ### Prerequisites
 - Android Studio Iguana / Ladybug or newer
-- Android SDK 34 (`minSdk 24`, `targetSdk 34`)
+- Android SDK 35 (`minSdk 24`, `targetSdk 35`)
 - Android NDK 26+ (`26.1.10909125`)
 - CMake 3.22.1+
 - JDK 17 / Java 21
@@ -152,7 +150,7 @@ The compiled APK will be generated at:
 
 ### 4. Execute Firebase Security Rules Matrix (Local Emulator)
 ```bash
-# Executes 39 verified rule assertions against real Firebase RTDB Emulator
+# Executes 60 verified rule assertions against real Firebase RTDB Emulator
 firebase emulators:exec --project demo-georescux "node app/src/test/resources/run_emulator_rules_tests.js" --only database
 ```
 
@@ -192,7 +190,7 @@ GeoRescuX/
 │   └── development/                 # Reproducible developer setup & toolchain guides
 ├── output/                          # Bundled regional routing graphs & manifests
 ├── ARCHITECTURE.md                  # Master enterprise architecture & design invariants
-├── database.rules.json              # 39-case verified least-privilege security rules
+├── database.rules.json              # 60-assertion verified least-privilege security rules
 ├── firebase.json                    # Firebase emulator & database configuration
 └── README.md                        # Master documentation
 ```

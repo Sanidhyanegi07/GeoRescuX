@@ -13,11 +13,11 @@
           ".validate": "newData.isBoolean()"
         },
         "$alertId": {
-          ".write": "auth != null && auth.uid == $uid && $alertId !== 'isVerified' && newData.exists()",
-          ".validate": "$alertId !== 'isVerified' && newData.hasChildren(['id', 'status', 'startedAtMs'])",
+          ".write": "auth != null && auth.uid == $uid && $alertId !== 'isVerified' && newData.exists() && ((data.child('status').val() == 'RESOLVED' && newData.child('status').val() == 'RESOLVED') || (data.child('status').val() != 'RESOLVED' && newData.child('status').val() != 'RESOLVED'))",
+          ".validate": "$alertId !== 'isVerified' && newData.hasChildren(['id', 'status', 'startedAtMs']) && (newData.child('status').val() == 'ACTIVE' || newData.child('status').val() == 'COMPLETED' || newData.child('status').val() == 'RESOLVED')",
           "status": {
-            ".write": "auth != null && ((auth.uid == $uid && $alertId !== 'isVerified') || (auth.token.admin == true && newData.exists() && newData.val() == 'RESOLVED'))",
-            ".validate": "newData.isString() && ((auth.uid == $uid && (newData.val() == 'ACTIVE' || newData.val() == 'COMPLETED')) || (auth.token.admin == true && newData.val() == 'RESOLVED'))"
+            ".write": "auth != null && ((auth.uid == $uid && $alertId !== 'isVerified' && ((data.val() == 'RESOLVED' && newData.val() == 'RESOLVED') || (data.val() != 'RESOLVED' && newData.val() != 'RESOLVED'))) || (auth.token.admin == true && newData.exists() && newData.val() == 'RESOLVED'))",
+            ".validate": "newData.isString() && ((data.val() == 'RESOLVED' && newData.val() == 'RESOLVED') || (auth.uid == $uid && (!data.exists() || data.val() != 'RESOLVED') && (newData.val() == 'ACTIVE' || newData.val() == 'COMPLETED')) || (auth.token.admin == true && newData.val() == 'RESOLVED'))"
           }
         }
       }

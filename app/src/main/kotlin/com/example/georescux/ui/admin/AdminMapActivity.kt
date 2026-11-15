@@ -62,6 +62,9 @@ class AdminMapActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Immediately render loading screen to avoid unrendered window during role resolution
+        setContentView(R.layout.activity_main)
+        findViewById<TextView>(R.id.textRoleStatus)?.text = "Verifying admin authorization..."
 
         val guard = AdminAuthGuard(container.roleResolver)
         lifecycleScope.launch {

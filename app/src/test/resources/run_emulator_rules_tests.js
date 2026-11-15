@@ -182,9 +182,99 @@ async function runTests() {
     req('/sos_alerts/alice_uid/alert_101/startedAtMs.json', 'PUT', 111111111, adminAuth)
   );
 
-  // 17. SOS history upsert using actual SosCloudPayload.fromHistory output (simulating PATCH/updateChildren)
+  // 16b. Owner (Alice) cannot overwrite administratively RESOLVED status with COMPLETED
+  await assertCase(
+    "16b. Owner (Alice) cannot overwrite administratively RESOLVED status with COMPLETED",
+    false,
+    req('/sos_alerts/alice_uid/alert_101/status.json', 'PUT', "COMPLETED", aliceAuth)
+  );
+
+  // 16c. Owner (Alice) cannot overwrite administratively RESOLVED status with ACTIVE
+  await assertCase(
+    "16c. Owner (Alice) cannot overwrite administratively RESOLVED status with ACTIVE",
+    false,
+    req('/sos_alerts/alice_uid/alert_101/status.json', 'PUT', "ACTIVE", aliceAuth)
+  );
+
+  // 16d. Owner (Alice) cannot remove RESOLVED record (DELETE)
+  await assertCase(
+    "16d. Owner (Alice) cannot remove RESOLVED record (DELETE)",
+    false,
+    req('/sos_alerts/alice_uid/alert_101.json', 'DELETE', null, aliceAuth)
+  );
+
+  // 16e. Owner (Alice) cannot perform parent-level setValue() attempting to overwrite RESOLVED with COMPLETED
+  await assertCase(
+    "16e. Owner (Alice) cannot perform parent-level setValue() attempting to overwrite RESOLVED with COMPLETED",
+    false,
+    req('/sos_alerts/alice_uid/alert_101.json', 'PUT', completedPayload, aliceAuth)
+  );
+
+  // 16f. Owner (Alice) cannot perform parent-level setValue() attempting to overwrite RESOLVED with ACTIVE
+  await assertCase(
+    "16f. Owner (Alice) cannot perform parent-level setValue() attempting to overwrite RESOLVED with ACTIVE",
+    false,
+    req('/sos_alerts/alice_uid/alert_101.json', 'PUT', activePayload, aliceAuth)
+  );
+
+  // 16g. Owner (Alice) cannot perform ancestor updateChildren() attempting to overwrite RESOLVED with COMPLETED
+  await assertCase(
+    "16g. Owner (Alice) cannot perform ancestor updateChildren() attempting to overwrite RESOLVED with COMPLETED",
+    false,
+    req('/sos_alerts/alice_uid.json', 'PATCH', { "alert_101": completedPayload }, aliceAuth)
+  );
+
+  // 16h. Owner (Alice) cannot perform ancestor updateChildren() attempting to overwrite RESOLVED with ACTIVE
+  await assertCase(
+    "16h. Owner (Alice) cannot perform ancestor updateChildren() attempting to overwrite RESOLVED with ACTIVE",
+    false,
+    req('/sos_alerts/alice_uid.json', 'PATCH', { "alert_101": activePayload }, aliceAuth)
+  );
+
+  // 16i. Owner (Alice) updates permitted telemetry while retaining RESOLVED
+  const resolvedWithUpdatedTelemetry = {
+    ...completedPayload,
+    status: "RESOLVED",
+    note: "Rescued by team - safe at base"
+  };
+  await assertCase(
+    "16i. Owner (Alice) updates permitted telemetry while retaining RESOLVED (parent setValue)",
+    true,
+    req('/sos_alerts/alice_uid/alert_101.json', 'PUT', resolvedWithUpdatedTelemetry, aliceAuth)
+  );
+
+  // 16j. Owner (Alice) updates location telemetry child while retaining RESOLVED
+  await assertCase(
+    "16j. Owner (Alice) updates location telemetry child while retaining RESOLVED",
+    true,
+    req('/sos_alerts/alice_uid/alert_101/location.json', 'PUT', {
+      latitude: 30.56,
+      longitude: 79.57,
+      accuracyMeters: 5.0,
+      timestampMs: 1729000050000,
+      provider: "GPS"
+    }, aliceAuth)
+  );
+
+  // 16k. History synchronization attempting to overwrite RESOLVED is denied
+  const invalidHistoryMap = {
+    "alert_101": {
+      ...completedPayload,
+      status: "COMPLETED"
+    }
+  };
+  await assertCase(
+    "16k. History synchronization attempting to overwrite RESOLVED with COMPLETED is denied",
+    false,
+    req('/sos_alerts/alice_uid.json', 'PATCH', invalidHistoryMap, aliceAuth)
+  );
+
+  // 17. SOS history upsert preserving RESOLVED status (matching FirebaseSosCloudDataSource behavior)
   const historyMap = {
-    "alert_101": completedPayload,
+    "alert_101": {
+      ...completedPayload,
+      status: "RESOLVED"
+    },
     "alert_102": {
       id: "alert_102",
       status: "ACTIVE",
@@ -196,7 +286,7 @@ async function runTests() {
     }
   };
   await assertCase(
-    "17. SOS history upsert using updateChildren (PATCH) succeeds without touching isVerified",
+    "17. SOS history upsert preserving RESOLVED status succeeds without touching isVerified",
     true,
     req('/sos_alerts/alice_uid.json', 'PATCH', historyMap, aliceAuth)
   );

@@ -41,5 +41,30 @@ class AdminAuthGuardTest {
         val guard = AdminAuthGuard(FakeRoleResolver(shouldThrow = true))
         assertFalse(guard.isAuthorizedAdmin())
     }
+
+    @Test
+    fun `isAuthorizedAdmin fails closed and returns false on timeout`() = runBlocking {
+        val slowResolver = object : RoleResolver {
+            override suspend fun resolveRole(): UserRole {
+                kotlinx.coroutines.delay(500L)
+                return UserRole.ADMIN
+            }
+        }
+        val guard = AdminAuthGuard(slowResolver, timeoutMs = 50L)
+        assertFalse(guard.isAuthorizedAdmin())
+    }
+
+    @Test(expected = kotlinx.coroutines.CancellationException::class)
+    fun `isAuthorizedAdmin rethrows CancellationException`() {
+        runBlocking {
+            val throwingResolver = object : RoleResolver {
+                override suspend fun resolveRole(): UserRole {
+                    throw kotlinx.coroutines.CancellationException("Job cancelled")
+                }
+            }
+            val guard = AdminAuthGuard(throwingResolver)
+            guard.isAuthorizedAdmin()
+        }
+    }
 }
 

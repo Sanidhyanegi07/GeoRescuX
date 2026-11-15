@@ -32,7 +32,7 @@ class GeoRescueBleRepository(context: Context) : GeoRescueBleSeenPacketStore, Ge
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL(
                 """
-                CREATE TABLE $TABLE_SEEN (
+                CREATE TABLE IF NOT EXISTS $TABLE_SEEN (
                     $COL_SEEN_PACKET_ID TEXT PRIMARY KEY,
                     $COL_SEEN_AT INTEGER NOT NULL
                 )
@@ -40,7 +40,7 @@ class GeoRescueBleRepository(context: Context) : GeoRescueBleSeenPacketStore, Ge
             )
             db.execSQL(
                 """
-                CREATE TABLE $TABLE_OUTBOUND (
+                CREATE TABLE IF NOT EXISTS $TABLE_OUTBOUND (
                     $COL_OUT_PACKET_ID TEXT PRIMARY KEY,
                     $COL_OUT_JSON TEXT NOT NULL,
                     $COL_OUT_QUEUED_AT INTEGER NOT NULL,
@@ -51,8 +51,7 @@ class GeoRescueBleRepository(context: Context) : GeoRescueBleSeenPacketStore, Ge
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            db.execSQL("DROP TABLE IF EXISTS $TABLE_SEEN")
-            db.execSQL("DROP TABLE IF EXISTS $TABLE_OUTBOUND")
+            // Non-destructive upgrade: ensure tables exist without dropping existing data.
             onCreate(db)
         }
     }

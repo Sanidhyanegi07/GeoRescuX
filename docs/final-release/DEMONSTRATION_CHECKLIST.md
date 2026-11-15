@@ -8,7 +8,7 @@ This document provides a structured, step-by-step guide for conducting a live ac
 
 1. **Host Workstation:**
    - Ensure Android SDK platform-tools (`adb`) and Android Emulator are added to the system `PATH`.
-   - Verify Gradle build baseline: `.\gradlew.bat testDebugUnitTest` passes 582/582 tests across 73 suites.
+   - Verify Gradle build baseline: `.\gradlew.bat testDebugUnitTest` passes 593/593 tests across 74 suites.
 2. **Launch Android Virtual Device:**
    ```powershell
    & "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd Pixel_6 -no-snapshot-load -no-audio
@@ -163,7 +163,7 @@ When presenting to evaluators, explicitly distinguish between what is running li
 ### Q14: What is Receiver-Acknowledged Custody and why is it currently a limitation?
 **Answer:** Currently, `transport.send() == true` confirms only that the local operating system accepted the packet into its radio dispatch queue; the outbox entry is then cleared. It does not prove that the remote peer's radio received the bytes or that the remote application committed the alert to disk. An end-to-end receiver custody acknowledgement protocol (Phase P1.8) requires an authenticated cryptographic ACK returned from the receiver before outbox deletion.
 
-### Q15: Why is physical multi-device testing still required despite passing 582 unit tests?
+### Q15: Why is physical multi-device testing still required despite passing 593 unit tests?
 **Answer:** Unit tests verify algorithmic contracts, state machines, and mock interfaces. However, physical multi-device wireless communication is subject to real-world RF physics: 2.4 GHz signal attenuation through concrete and foliage, manufacturer-specific Android Bluetooth power-saving throttles (OEM battery optimizations like Doze mode), antenna orientation, and Wi-Fi Direct frequency contention. Physical testing is necessary to establish empirical transmission ranges.
 
 ### Q16: Why is emulator GPS data not considered real GPS validation?

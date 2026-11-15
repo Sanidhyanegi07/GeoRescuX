@@ -121,10 +121,11 @@ class SQLiteSeenEventStore(context: Context) :
     }
 
     override fun remove(eventId: String) {
+        val escaped = escapeLikePattern(eventId)
         writableDatabase.delete(
             TABLE_OUTBOUND_ENVELOPES,
-            "$COL_OUT_EVENT_ID = ? OR $COL_OUT_EVENT_ID LIKE ?",
-            arrayOf(eventId, "$eventId:%")
+            "$COL_OUT_EVENT_ID = ? OR $COL_OUT_EVENT_ID LIKE ? ESCAPE '\\'",
+            arrayOf(eventId, "$escaped:%")
         )
     }
 
@@ -140,5 +141,10 @@ class SQLiteSeenEventStore(context: Context) :
         const val COL_OUT_EVENT_ID = "event_id"
         const val COL_OUT_JSON = "envelope_json"
         const val COL_OUT_QUEUED_AT = "queued_at_ms"
+
+        internal fun escapeLikePattern(raw: String): String = raw
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
     }
 }

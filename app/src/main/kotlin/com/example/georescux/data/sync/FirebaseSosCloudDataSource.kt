@@ -26,15 +26,19 @@ class FirebaseSosCloudDataSource : SosCloudDataSource {
         val uid = firebaseAuth.currentUser?.uid ?: return false // signed out: skip
         return try {
             val alertRef = database.getReference("sos_alerts").child(uid).child(emergency.id)
-            val currentSnap = try { alertRef.child("status").get().await() } catch (_: Exception) { null }
+            // Query remote status. If the read fails, let the exception propagate to catch block
+            // so the sync marker is safely retained. Never assume record does not exist.
+            val currentSnap = alertRef.child("status").get().await()
             val cloudStatus = currentSnap?.getValue(String::class.java)
 
             val payload = SosCloudPayload.fromEmergency(emergency)
-            if (cloudStatus == "RESOLVED" && emergency.stoppedAtMs == null) {
+            if (cloudStatus == "RESOLVED") {
                 // Admin has resolved this emergency on the dashboard.
-                // Keep the RESOLVED status intact and update only telemetry.
+                // Keep the RESOLVED status intact. Never reopen or downgrade to ACTIVE or COMPLETED.
                 @Suppress("UNCHECKED_CAST")
-                val partialUpdate = payload.filterKeys { it != "status" && payload[it] != null } as Map<String, Any>
+                val partialUpdate = payload.toMutableMap().apply {
+                    put("status", "RESOLVED")
+                }.filterValues { it != null } as Map<String, Any>
                 alertRef.updateChildren(partialUpdate).await()
             } else {
                 alertRef.setValue(payload).await()
@@ -54,7 +58,24 @@ class FirebaseSosCloudDataSource : SosCloudDataSource {
         val uid = firebaseAuth.currentUser?.uid ?: return false // signed out: skip
         if (emergencies.isEmpty()) return true
         return try {
-            val payload = SosCloudPayload.fromHistory(emergencies)
+            // Read current user alerts to detect any administratively RESOLVED alerts.
+            // If the read fails, catch block returns false, preserving retry markers.
+            val userAlertsSnap = database.getReference("sos_alerts").child(uid).get().await()
+            val resolvedAlertIds = mutableSetOf<String>()
+            for (child in userAlertsSnap.children) {
+                if (child.child("status").getValue(String::class.java) == "RESOLVED") {
+                    child.key?.let { resolvedAlertIds.add(it) }
+                }
+            }
+
+            val payload = SosCloudPayload.fromHistory(emergencies).mapValues { (alertId, alertData) ->
+                if (alertId in resolvedAlertIds) {
+                    alertData.toMutableMap().apply { put("status", "RESOLVED") }
+                } else {
+                    alertData
+                }
+            }
+
             @Suppress("UNCHECKED_CAST")
             database.getReference("sos_alerts")
                 .child(uid)

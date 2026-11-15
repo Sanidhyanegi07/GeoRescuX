@@ -55,6 +55,9 @@ class AdminUsersActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Immediately render loading screen to avoid unrendered window during role resolution
+        setContentView(R.layout.activity_main)
+        findViewById<TextView>(R.id.textRoleStatus)?.text = "Verifying admin authorization..."
 
         val appContainer = (application as GeoRescuXApplication).appContainer
         val guard = AdminAuthGuard(appContainer.roleResolver)

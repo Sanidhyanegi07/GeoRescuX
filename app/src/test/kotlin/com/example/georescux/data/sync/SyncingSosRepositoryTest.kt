@@ -575,4 +575,44 @@ class SyncingSosRepositoryTest {
 
         assertEquals("cancelled", thrown?.message)
     }
+
+    @Test
+    fun `normal ACTIVE creation marks sync pending then clears on successful backup`() = kotlinx.coroutines.runBlocking {
+        val (repo, _, cloud, syncStateStore) = repository()
+        val created = repo.startEmergency("alert-1", startedAtMs = 1_000L)
+        org.junit.Assert.assertNotNull(created)
+        assertTrue(repo.backupNow())
+        assertEquals("alert-1", cloud.upsertedById["alert-1"]?.id)
+        assertFalse(syncStateStore.pendingSosAlertIds("user-a").contains("alert-1"))
+    }
+
+    @Test
+    fun `normal ACTIVE to COMPLETED update mirrors completed record to cloud`() = kotlinx.coroutines.runBlocking {
+        val (repo, _, cloud, syncStateStore) = repository()
+        repo.startEmergency("alert-1", startedAtMs = 1_000L)
+        val completed = repo.completeEmergency(stoppedAtMs = 2_000L)
+        org.junit.Assert.assertNotNull(completed)
+        assertTrue(repo.backupNow())
+        assertEquals(2_000L, cloud.upsertedById["alert-1"]?.stoppedAtMs)
+        assertFalse(syncStateStore.pendingSosAlertIds("user-a").contains("alert-1"))
+    }
+
+    @Test
+    fun `failed remote read or upload retains pending sync marker`() = kotlinx.coroutines.runBlocking {
+        val cloud = FakeSosCloudDataSource().apply { failUpserts = true }
+        val (repo, _, _, syncStateStore) = repository(cloud = cloud)
+        repo.startEmergency("alert-1", startedAtMs = 1_000L)
+        val uploaded = repo.backupNow()
+        assertFalse(uploaded)
+        assertTrue(syncStateStore.pendingSosAlertIds("user-a").contains("alert-1"))
+    }
+
+    @Test
+    fun `retry markers remain pending after failed uploads`() = kotlinx.coroutines.runBlocking {
+        val cloud = FakeSosCloudDataSource().apply { failUpserts = true }
+        val (repo, _, _, syncStateStore) = repository(cloud = cloud)
+        syncStateStore.setSosAlertPending("user-a", "alert-1", pending = true)
+        repo.retryPendingBackups()
+        assertTrue(syncStateStore.pendingSosAlertIds("user-a").contains("alert-1"))
+    }
 }
