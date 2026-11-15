@@ -86,6 +86,7 @@ class AdminUsersActivity : AppCompatActivity() {
 
         usersListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (isFinishing || isDestroyed || !::listContainer.isInitialized) return
                 profileMap.clear()
                 for (child in snapshot.children) {
                     val uid = child.key ?: continue
@@ -102,6 +103,7 @@ class AdminUsersActivity : AppCompatActivity() {
 
         sosListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (isFinishing || isDestroyed || !::listContainer.isInitialized) return
                 sosMap.clear()
                 for (userSnap in snapshot.children) {
                     val uid = userSnap.key ?: continue

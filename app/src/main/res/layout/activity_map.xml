@@ -11,13 +11,35 @@
     <!-- §21/§72: global active-SOS strip, present on every user screen. -->
     <include layout="@layout/view_active_sos_banner" />
 
-    <TextView
-        android:id="@+id/textMapRegion"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="18dp"
-        android:textColor="@color/text_secondary"
-        android:textSize="13sp" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/textMapRegion"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/buttonSwitchState"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_badge_pill"
+            android:backgroundTint="@color/brand_primary_light"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="4 States ▼"
+            android:textColor="@color/brand_primary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/textMapConnectivity"

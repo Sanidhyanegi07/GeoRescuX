@@ -104,9 +104,9 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
 
-            <!-- India Wide Card -->
+            <!-- Storage & Fleet Card -->
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardIndia"
+                android:id="@+id/cardMapStorage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
@@ -127,9 +127,9 @@
                     <ImageView
                         android:layout_width="38dp"
                         android:layout_height="38dp"
-                        android:contentDescription="All India"
+                        android:contentDescription="Map Storage"
                         android:src="@drawable/ic_offline_maps"
-                        app:tint="@color/brand_accent" />
+                        app:tint="@color/brand_primary" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -139,32 +139,23 @@
                         android:orientation="vertical">
 
                         <TextView
+                            android:id="@+id/textStorageTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/region_india"
+                            android:text="Offline Map Fleet"
                             android:textColor="@color/text_primary"
                             android:textSize="15sp"
                             android:textStyle="bold" />
 
                         <TextView
+                            android:id="@+id/textStorageDetail"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="28 regions · Complete coverage"
+                            android:text="4 Official States · High-Precision Offline Vector"
                             android:textColor="@color/text_muted"
                             android:textSize="12sp" />
                     </LinearLayout>
-
-                    <Button
-                        android:id="@+id/buttonDownloadIndia"
-                        style="@style/Widget.GeoRescuX.Button.Secondary"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:minWidth="0dp"
-                        android:minHeight="36dp"
-                        android:paddingHorizontal="14dp"
-                        android:text="Download"
-                        android:textSize="12sp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

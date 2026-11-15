@@ -25,7 +25,36 @@ class DistrictCatalogTest {
         val districts = DistrictCatalog.districtsForState("uttarakhand")
 
         assertTrue(districts.isNotEmpty())
+        assertEquals(13, districts.size)
         assertTrue(districts.all { it.stateId == "uttarakhand" })
+    }
+
+    @Test
+    fun `districts for Himachal Pradesh are non-empty and all belong to the state`() {
+        val districts = DistrictCatalog.districtsForState("himachal_pradesh")
+
+        assertTrue(districts.isNotEmpty())
+        assertEquals(12, districts.size)
+        assertTrue(districts.all { it.stateId == "himachal_pradesh" })
+        assertNotNull(districts.find { it.displayName == "Shimla" })
+    }
+
+    @Test
+    fun `districts for Haryana are non-empty and all belong to the state`() {
+        val districts = DistrictCatalog.districtsForState("haryana")
+
+        assertTrue(districts.isNotEmpty())
+        assertTrue(districts.all { it.stateId == "haryana" })
+        assertNotNull(districts.find { it.displayName == "Gurugram" })
+    }
+
+    @Test
+    fun `districts for Uttar Pradesh are non-empty and all belong to the state`() {
+        val districts = DistrictCatalog.districtsForState("uttar_pradesh")
+
+        assertTrue(districts.isNotEmpty())
+        assertTrue(districts.all { it.stateId == "uttar_pradesh" })
+        assertNotNull(districts.find { it.displayName == "Lucknow" })
     }
 
     @Test

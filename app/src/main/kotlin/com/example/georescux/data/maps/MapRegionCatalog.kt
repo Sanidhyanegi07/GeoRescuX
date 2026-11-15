@@ -1,13 +1,18 @@
 package com.example.georescux.data.maps
 
+import android.content.Context
 import android.content.res.AssetManager
 import com.example.georescux.domain.routing.MapRegion
+import java.io.File
 import java.io.IOException
 
 /**
- * Lists the map regions bundled with the application.
- * Stage 7B-1: one small real OSM-derived sample region (Connaught Place,
- * New Delhi). Region packages and downloads belong to later stages.
+ * Official Map Region Catalog for GeoRescuX.
+ * Redesigned exclusively around the four officially supported states:
+ *   1. Uttarakhand (Primary - bundled vector basemap & offline routing graph)
+ *   2. Himachal Pradesh (Secondary - downloadable regional package)
+ *   3. Uttar Pradesh (Secondary - downloadable regional package)
+ *   4. Haryana (Secondary - downloadable regional package)
  */
 object MapRegionCatalog {
     val uttarakhand = MapRegion(
@@ -50,6 +55,7 @@ object MapRegionCatalog {
         tileAssetPath = ""
     )
 
+    @Deprecated("Retired Delhi sample region. Retained only for legacy test fixtures.")
     val sampleRegion = MapRegion(
         id = "sample-region",
         displayName = "Connaught Place, New Delhi (sample)",
@@ -62,16 +68,21 @@ object MapRegionCatalog {
         tileAssetPath = "maps/sample-region/tiles.sqlite",
     )
 
-    val bundledRegions: List<MapRegion> = listOf(sampleRegion, uttarakhand)
-    val availableRegions: List<MapRegion> = listOf(sampleRegion, uttarakhand, himachalPradesh, haryana, uttarPradesh)
+    /** Only the primary state ships bundled vector basemap and graph inside the APK. */
+    val bundledRegions: List<MapRegion> = listOf(uttarakhand)
 
-    fun byId(id: String): MapRegion? = bundledRegions.firstOrNull { it.id == id } ?: availableRegions.firstOrNull { it.id == id }
+    /** The four official supported states for the GeoRescuX mission. */
+    val availableRegions: List<MapRegion> = listOf(uttarakhand, himachalPradesh, uttarPradesh, haryana)
+
+    fun byId(id: String): MapRegion? =
+        availableRegions.firstOrNull { it.id == id }
+            ?: bundledRegions.firstOrNull { it.id == id }
+            ?: if (id == sampleRegion.id) sampleRegion else null
 
     /**
      * True when this region's offline routing graph is actually present on
-     * this device. Bundled regions ship inside the APK; regions that are
-     * merely listed in [availableRegions] are future downloads and must
-     * never be silently substituted with the synthetic demo graph.
+     * this device. Bundled regions ship inside the APK; downloaded packages
+     * are located in local app storage.
      */
     fun isGraphInstalled(assets: AssetManager, region: MapRegion): Boolean = try {
         assets.open(region.graphAssetPath).close(); true
@@ -79,12 +90,17 @@ object MapRegionCatalog {
         false
     }
 
+    fun isGraphInstalled(context: Context, region: MapRegion): Boolean {
+        if (isGraphInstalled(context.assets, region)) return true
+        val localGraph = File(context.filesDir, "routing/${region.id}.json")
+        if (localGraph.exists() && localGraph.length() > 0) return true
+        val extGraph = File(context.getExternalFilesDir(null), "routing/${region.id}.json")
+        return extGraph.exists() && extGraph.length() > 0
+    }
+
     /**
      * True when offline *rendering* data (vector basemap or raster tile
-     * archive) is present. A region can have an installed routing graph but
-     * no offline map — in that state routing works but the map layer needs
-     * a connection. Checked against the real asset rather than the catalog
-     * path so a missing file is never reported as available.
+     * archive) is present either in APK assets or downloaded in app storage.
      */
     fun isOfflineMapInstalled(assets: AssetManager, region: MapRegion): Boolean {
         if (region.tileAssetPath.isBlank()) return false
@@ -95,14 +111,25 @@ object MapRegionCatalog {
         }
     }
 
+    fun isOfflineMapInstalled(context: Context, region: MapRegion): Boolean {
+        if (isOfflineMapInstalled(context.assets, region)) return true
+        val candidates = listOf(
+            File(File(context.filesDir, "maps/${region.id}"), "state.map"),
+            File(File(context.filesDir, "maps"), "${region.id}.map"),
+            File(File(context.filesDir, "osmdroid"), "${region.id}-tiles.map"),
+            File(File(context.filesDir, "osmdroid"), "${region.id}-tiles.sqlite"),
+            File(File(context.getExternalFilesDir(null), "maps/${region.id}"), "state.map"),
+            File(File(context.getExternalFilesDir(null), "maps"), "${region.id}.map"),
+        )
+        return candidates.any { it.exists() && it.length() > 0L }
+    }
+
     /**
-     * The bundled region containing the given position, or null when the
-     * position lies outside every bundled region. Used to auto-select the
-     * regional graph from a location fix; manual selection always remains
-     * possible via [byId].
+     * The region containing the given position, or null when the position
+     * lies outside the 4 officially supported states.
      */
     fun regionForLocation(latitude: Double, longitude: Double): MapRegion? =
-        bundledRegions.firstOrNull { region ->
+        availableRegions.firstOrNull { region ->
             latitude in region.minLatitude..region.maxLatitude &&
                 longitude in region.minLongitude..region.maxLongitude
         }

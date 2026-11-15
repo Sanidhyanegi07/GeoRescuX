@@ -2,36 +2,49 @@ package com.example.georescux.data.maps
 
 import com.example.georescux.domain.routing.SafeHavenFallback
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Verifies the bundled region metadata: bounds are valid, the asset paths
- * match the bundled files, and location-based region selection (Stage 7B-4)
- * resolves the right region.
+ * Verifies the redesigned Four-State Map Region Catalog:
+ * 1. Uttarakhand (Primary, bundled)
+ * 2. Himachal Pradesh (Secondary)
+ * 3. Uttar Pradesh (Secondary)
+ * 4. Haryana (Secondary)
+ *
+ * Ensures Delhi demo and generic sample regions are strictly excluded from
+ * user-facing availableRegions and bundledRegions.
  */
 class MapRegionCatalogTest {
 
     @Test
-    fun `sample region is listed`() {
-        assertEquals("sample-region", MapRegionCatalog.sampleRegion.id)
-        assertEquals(2, MapRegionCatalog.bundledRegions.size)
-        assertEquals(MapRegionCatalog.sampleRegion, MapRegionCatalog.byId("sample-region"))
+    fun `available regions contains exactly the four official states`() {
+        val available = MapRegionCatalog.availableRegions
+        assertEquals(4, available.size)
+        val ids = available.map { it.id }.toSet()
+        assertEquals(
+            setOf("uttarakhand", "himachal_pradesh", "uttar_pradesh", "haryana"),
+            ids
+        )
+        assertFalse(ids.contains("sample-region"))
     }
 
     @Test
-    fun `uttarakhand region is bundled`() {
+    fun `uttarakhand region is bundled as primary`() {
         val region = MapRegionCatalog.uttarakhand
         assertEquals("uttarakhand", region.id)
+        assertEquals("Uttarakhand", region.displayName)
+        assertEquals(1, MapRegionCatalog.bundledRegions.size)
         assertTrue(MapRegionCatalog.bundledRegions.contains(region))
         assertEquals(MapRegionCatalog.uttarakhand, MapRegionCatalog.byId("uttarakhand"))
     }
 
     @Test
-    fun `bounds are valid`() {
-        listOf(MapRegionCatalog.sampleRegion, MapRegionCatalog.uttarakhand).forEach { region ->
+    fun `bounds are valid for all four official states`() {
+        MapRegionCatalog.availableRegions.forEach { region ->
             assertTrue(region.minLatitude < region.maxLatitude)
             assertTrue(region.minLongitude < region.maxLongitude)
             assertTrue(region.minLatitude > -90 && region.maxLatitude < 90)
@@ -40,16 +53,20 @@ class MapRegionCatalogTest {
     }
 
     @Test
-    fun `asset paths point to the bundled sample region files`() {
-        val region = MapRegionCatalog.sampleRegion
-        assertEquals("maps/sample-region/graph.json", region.graphAssetPath)
-        assertEquals("maps/sample-region/tiles.sqlite", region.tileAssetPath)
+    fun `sample region is deprecated and excluded from available and bundled lists`() {
+        val sample = MapRegionCatalog.sampleRegion
+        assertEquals("sample-region", sample.id)
+        assertFalse(MapRegionCatalog.availableRegions.contains(sample))
+        assertFalse(MapRegionCatalog.bundledRegions.contains(sample))
+        // byId still safely resolves legacy test references
+        assertEquals(sample, MapRegionCatalog.byId("sample-region"))
     }
 
     @Test
     fun `uttarakhand asset path follows the route_graph regionId convention`() {
         val region = MapRegionCatalog.uttarakhand
         assertEquals("route_graph_uttarakhand", region.graphAssetPath)
+        assertEquals("maps/uttarakhand-state.map", region.tileAssetPath)
     }
 
     @Test
@@ -67,31 +84,46 @@ class MapRegionCatalogTest {
     }
 
     @Test
-    fun `location inside the sample region selects the sample region`() {
-        // Connaught Place, New Delhi — outside the Uttarakhand bbox.
+    fun `location inside himachal pradesh selects himachal pradesh`() {
+        // Shimla
         assertEquals(
-            MapRegionCatalog.sampleRegion,
-            MapRegionCatalog.regionForLocation(28.6328, 77.2196),
+            MapRegionCatalog.himachalPradesh,
+            MapRegionCatalog.regionForLocation(31.1048, 77.1734),
         )
     }
 
     @Test
-    fun `location outside every bundled region selects nothing`() {
+    fun `location inside haryana selects haryana`() {
+        // Hisar
+        assertEquals(
+            MapRegionCatalog.haryana,
+            MapRegionCatalog.regionForLocation(29.1492, 75.7217),
+        )
+    }
+
+    @Test
+    fun `location inside uttar pradesh selects uttar pradesh`() {
+        // Lucknow
+        assertEquals(
+            MapRegionCatalog.uttarPradesh,
+            MapRegionCatalog.regionForLocation(26.8467, 80.9462),
+        )
+    }
+
+    @Test
+    fun `location outside every official region selects nothing`() {
         assertNull(MapRegionCatalog.regionForLocation(19.0760, 72.8777)) // Mumbai
         assertNull(MapRegionCatalog.regionForLocation(12.9716, 77.5946)) // Bengaluru
     }
 
     @Test
     fun `the bundled real sample region graph works with the stage 7a a star`() {
-        // Reads the actual bundled asset produced by the converter.
         val assetFile = java.io.File("src/main/assets/maps/sample-region/graph.json")
-        if (!assetFile.exists()) return // conversion step not run on this machine
+        if (!assetFile.exists()) return
 
         val graph = com.example.georescux.data.maps.RegionGraphLoader.parse(assetFile.readText())!!
         assertTrue("real region graph should have substantial nodes", graph.nodes.size >= 50)
 
-        // Any edge of the real graph must produce a valid A* route between
-        // its endpoints.
         val edge = graph.edges.first()
         val route = SafeHavenFallback.findRoute(graph, edge.fromNodeId, edge.toNodeId)
         assertNotNull(route)
@@ -99,7 +131,6 @@ class MapRegionCatalogTest {
         assertEquals(edge.toNodeId, route?.nodeIds?.last())
         assertTrue(route!!.totalDistanceMeters > 0.0)
 
-        // And A* must remain usable for any node pair of the graph.
         val first = graph.nodes.first()
         val routeFromFirst = SafeHavenFallback.findRoute(graph, first.id, first.id)
         assertEquals(listOf(first.id), routeFromFirst?.nodeIds)

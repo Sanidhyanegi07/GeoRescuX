@@ -81,7 +81,7 @@ class RouteActivity : AppCompatActivity() {
     private var destinationMarker: Marker? = null
     private var locationStarted = false
     private var staticOverlaysRendered = false
-    private var activeRegion = MapRegionCatalog.sampleRegion
+    private var activeRegion = MapRegionCatalog.uttarakhand
     private var places: List<PlaceEntry> = emptyList()
     private var connectivityBadge: TextView? = null
     private var connectivityCallback: ConnectivityManager.NetworkCallback? = null
@@ -104,7 +104,7 @@ class RouteActivity : AppCompatActivity() {
         setContentView(R.layout.activity_route)
 
         val container = container()
-        activeRegion = MapRegionCatalog.byId(container.activeRegionId) ?: MapRegionCatalog.sampleRegion
+        activeRegion = MapRegionCatalog.byId(container.activeRegionId) ?: MapRegionCatalog.uttarakhand
         bindViewModel()
 
         findViewById<TextView>(R.id.textRegionSubtitle).text =
@@ -729,8 +729,27 @@ class RouteActivity : AppCompatActivity() {
                 staticOverlaysRendered = true
                 renderStaticMapOverlays(loadedGraph, mapView)
                 renderSosMarkers()
-                loadedGraph.nodes.firstOrNull { it.isSafeHaven }?.id?.let { id ->
-                    if (destinationEditText.text.isBlank()) destinationEditText.setText(id)
+
+                // Check if directed to route to a specific emergency or incident
+                val extraLat = intent.getDoubleExtra(EXTRA_DEST_LAT, 0.0)
+                val extraLng = intent.getDoubleExtra(EXTRA_DEST_LNG, 0.0)
+                if (extraLat != 0.0 && extraLng != 0.0) {
+                    val nearest = NearestNode.find(loadedGraph, extraLat, extraLng)
+                    if (nearest != null) {
+                        destinationEditText.setText(nearest.id)
+                        val extraTitle = intent.getStringExtra(EXTRA_DEST_TITLE) ?: "incident"
+                        Toast.makeText(this@RouteActivity, "Routing to $extraTitle (${nearest.id})", Toast.LENGTH_SHORT).show()
+                        uiScope.launch {
+                            viewModel.findRouteFromScreen(
+                                selectedStartNodeId = resolveNodeId(startEditText.text.toString()),
+                                destinationNodeId = nearest.id,
+                            )
+                        }
+                    }
+                } else {
+                    loadedGraph.nodes.firstOrNull { it.isSafeHaven }?.id?.let { id ->
+                        if (destinationEditText.text.isBlank()) destinationEditText.setText(id)
+                    }
                 }
             }
         }
@@ -865,6 +884,7 @@ class RouteActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        findViewById<MapView>(R.id.mapView)?.onResume()
         // Refresh the live layers: an SOS started (or mesh-relayed) while
         // this screen was closed must appear on the map, and the badge must
         // reflect the current network state.
@@ -881,6 +901,7 @@ class RouteActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        findViewById<MapView>(R.id.mapView)?.onPause()
         super.onPause()
         unregisterConnectivityCallback()
         try {
@@ -926,10 +947,15 @@ class RouteActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         uiScope.cancel()
+        findViewById<MapView>(R.id.mapView)?.onDetach()
         super.onDestroy()
     }
 
-    private companion object {
+    companion object {
+        const val EXTRA_DEST_LAT = "EXTRA_DEST_LAT"
+        const val EXTRA_DEST_LNG = "EXTRA_DEST_LNG"
+        const val EXTRA_DEST_TITLE = "EXTRA_DEST_TITLE"
+
         /** How many recent located emergencies to pin on the map. */
         const val RECENT_SOS_MARKERS = 10
     }

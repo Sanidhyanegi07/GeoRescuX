@@ -116,11 +116,15 @@ class AppContainer(
     private val mapRegionSelection = MapRegionSelectionStore(appContext)
 
     @Volatile
-    var activeRegionId: String = mapRegionSelection.load() ?: MapRegionCatalog.sampleRegion.id
+    var activeRegionId: String = mapRegionSelection.load()?.takeIf { 
+        MapRegionCatalog.availableRegions.any { r -> r.id == it }
+    } ?: MapRegionCatalog.uttarakhand.id
         private set
 
     /** True once the user has explicitly chosen a region (first-login flow, spec §6). */
-    val hasSelectedRegion: Boolean get() = mapRegionSelection.load() != null
+    val hasSelectedRegion: Boolean get() = mapRegionSelection.load()?.let { 
+        MapRegionCatalog.availableRegions.any { r -> r.id == it }
+    } ?: false
 
     private val routeRepositories = mutableMapOf<String, RouteRepository>()
 

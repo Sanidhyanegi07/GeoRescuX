@@ -132,7 +132,12 @@ class IncidentDetailsBottomSheet : BottomSheetDialogFragment() {
         // Safe Route button
         view.findViewById<Button>(R.id.buttonSafeRouteAround).setOnClickListener {
             dismiss()
-            startActivity(Intent(requireContext(), RouteActivity::class.java))
+            val intent = Intent(requireContext(), RouteActivity::class.java).apply {
+                putExtra(RouteActivity.EXTRA_DEST_LAT, inc.latitude)
+                putExtra(RouteActivity.EXTRA_DEST_LNG, inc.longitude)
+                putExtra(RouteActivity.EXTRA_DEST_TITLE, inc.getTypeDisplayName())
+            }
+            startActivity(intent)
         }
     }
 

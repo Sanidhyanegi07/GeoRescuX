@@ -49,6 +49,9 @@ object OfflineMapSetup {
         // Bounded tile storage prevents uncontrolled device cache growth.
         Configuration.getInstance().tileFileSystemCacheMaxBytes = 100L * 1024 * 1024
         Configuration.getInstance().tileFileSystemCacheTrimBytes = 80L * 1024 * 1024
+        // Strict in-memory tile cache bounding to prevent OOM/memory exhaustion
+        Configuration.getInstance().cacheMapTileCount = 50.toShort()
+        Configuration.getInstance().cacheMapTileOvershoot = 10.toShort()
         AndroidGraphicFactory.createInstance(activity.application)
     }
 
@@ -69,30 +72,40 @@ object OfflineMapSetup {
         val expectedMap = File(osmdroidBase, "${region.id}-tiles.map")
         val mapCandidates = listOf(
             expectedMap,
-            File(File(activity.filesDir, "output/${region.id}"), "state.map"),
             File(File(activity.filesDir, "maps/${region.id}"), "state.map"),
+            File(File(activity.filesDir, "maps"), "${region.id}.map"),
+            File(File(activity.filesDir, "output/${region.id}"), "state.map"),
+            File(File(activity.getExternalFilesDir(null), "maps/${region.id}"), "state.map"),
+            File(File(activity.getExternalFilesDir(null), "maps"), "${region.id}.map"),
             File(File(activity.getExternalFilesDir(null), "output/${region.id}"), "state.map"),
             File(
                 File(System.getProperty("user.dir") ?: "").parentFile ?: activity.filesDir,
                 "output/${region.id}",
             ).let { File(it, "state.map") },
         )
-        val mapFile = mapCandidates.firstOrNull { it.exists() }
+        val mapFile = mapCandidates.firstOrNull { it.exists() && it.length() > 0L }
 
         val tier = when {
             mapFile != null -> {
-                val forge = org.osmdroid.mapsforge.MapsForgeTileSource.createFromFiles(
-                    arrayOf(mapFile),
-                    org.mapsforge.map.rendertheme.InternalRenderTheme.OSMARENDER,
-                    "RenderTheme.OSMARENDER",
-                )
-                mapView.tileProvider = org.osmdroid.mapsforge.MapsForgeTileProvider(
-                    SimpleRegisterReceiver(activity),
-                    forge,
-                    null,
-                )
-                mapView.setUseDataConnection(false)
-                Tier.VECTOR
+                try {
+                    val forge = org.osmdroid.mapsforge.MapsForgeTileSource.createFromFiles(
+                        arrayOf(mapFile),
+                        org.mapsforge.map.rendertheme.InternalRenderTheme.OSMARENDER,
+                        "RenderTheme.OSMARENDER",
+                    )
+                    mapView.tileProvider = org.osmdroid.mapsforge.MapsForgeTileProvider(
+                        SimpleRegisterReceiver(activity),
+                        forge,
+                        null,
+                    )
+                    mapView.setUseDataConnection(false)
+                    Tier.VECTOR
+                } catch (e: Exception) {
+                    // Safe fallback if vector basemap fails or is corrupted
+                    mapView.setUseDataConnection(true)
+                    mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+                    Tier.ONLINE
+                }
             }
 
             expectedArchive.exists() || expectedZip.exists() -> {

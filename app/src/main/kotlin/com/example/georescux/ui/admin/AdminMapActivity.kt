@@ -132,6 +132,11 @@ class AdminMapActivity : AppCompatActivity() {
     private fun attachSosListener() {
         listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (isFinishing || isDestroyed || !::mapView.isInitialized) return
+                val districtSpinner = findViewById<Spinner>(R.id.spinnerAdminMapDistrict) ?: return
+                val stateSpinner = findViewById<Spinner>(R.id.spinnerAdminMapState) ?: return
+                val metricsContainer = findViewById<LinearLayout>(R.id.layoutDistrictMetrics) ?: return
+
                 emergencies.clear()
                 for (userSnap in snapshot.children) {
                     val isVerified = userSnap.child("isVerified").getValue(Boolean::class.java) ?: false
@@ -151,10 +156,12 @@ class AdminMapActivity : AppCompatActivity() {
                     }
                 }
                 renderMarkers()
-                renderMetrics(findViewById(R.id.layoutDistrictMetrics),
-                    findViewById<Spinner>(R.id.spinnerAdminMapDistrict).selectedItemPosition,
+                renderMetrics(
+                    metricsContainer,
+                    districtSpinner.selectedItemPosition,
                     MapRegionCatalog.availableRegions,
-                    findViewById<Spinner>(R.id.spinnerAdminMapState).selectedItemPosition)
+                    stateSpinner.selectedItemPosition,
+                )
             }
 
             override fun onCancelled(error: DatabaseError) {}
@@ -251,6 +258,20 @@ row.addView(TextView(this).apply {
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
             })
         return row
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::mapView.isInitialized) {
+            mapView.onResume()
+        }
+    }
+
+    override fun onPause() {
+        if (::mapView.isInitialized) {
+            mapView.onPause()
+        }
+        super.onPause()
     }
 
     override fun onDestroy() {

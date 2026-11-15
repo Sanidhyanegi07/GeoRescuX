@@ -10,26 +10,24 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.example.georescux.GeoRescuXApplication
 import com.example.georescux.R
+import com.example.georescux.data.maps.MapPackageManager
 import com.example.georescux.data.maps.MapRegionCatalog
 import com.example.georescux.domain.routing.MapRegion
 import com.example.georescux.ui.common.BottomNav
 import com.example.georescux.ui.common.HelpLauncher
 import com.example.georescux.ui.home.HomeActivity
+import kotlinx.coroutines.launch
 
 /**
- * First-login region selection (spec §6).
- *
- * Shown once, right after a normal user's first successful login, so the
- * user picks the offline package their maps and routing will run from. The
- * architecture stays region/package based: the India-wide dataset is a
- * separate larger package and is never silently bundled into every APK.
- *
- * Only regions whose routing data is actually installed on this device can be
- * activated — the rest are listed with an honest "not downloaded" status and
- * are not selectable, so the app never pretends offline routing exists where
- * the data is missing (spec §17).
+ * Four-State Map Package Selection & Download Management.
+ * Restricts selection exclusively to the four officially supported states:
+ * 1. Uttarakhand (Primary, bundled)
+ * 2. Himachal Pradesh (Secondary, downloadable)
+ * 3. Uttar Pradesh (Secondary, downloadable)
+ * 4. Haryana (Secondary, downloadable)
  */
 class RegionSelectionActivity : AppCompatActivity() {
 
@@ -81,9 +79,7 @@ class RegionSelectionActivity : AppCompatActivity() {
             },
         )
 
-        findViewById<View>(R.id.buttonDownloadIndia)?.setOnClickListener {
-            Toast.makeText(this, "Main India package (~120 GB) requires external storage download.", Toast.LENGTH_LONG).show()
-        }
+        updateStorageSummary()
 
         val continueBtn = findViewById<View>(R.id.buttonRegionContinue) ?: findViewById<View>(R.id.buttonContinue)
         continueBtn?.setOnClickListener { continueWithSelection() }
@@ -93,25 +89,33 @@ class RegionSelectionActivity : AppCompatActivity() {
 
     private var showOnlyDownloaded: Boolean = false
 
+    private fun updateStorageSummary() {
+        val totalBytes = MapPackageManager.getTotalStorageUsageBytes(this)
+        val mb = totalBytes / (1024.0 * 1024.0)
+        findViewById<TextView>(R.id.textStorageDetail)?.text =
+            String.format(java.util.Locale.US, "4 Official States · Local Storage: %.1f MB", mb)
+    }
+
     private fun renderRegions() {
-        val container = findViewById<LinearLayout>(R.id.regionListContainer) ?: return
-        container.removeAllViews()
+        val listContainer = findViewById<LinearLayout>(R.id.regionListContainer) ?: return
+        listContainer.removeAllViews()
 
         MapRegionCatalog.availableRegions
             .filter { it.displayName.lowercase().contains(searchQuery) }
             .filter { region ->
                 if (!showOnlyDownloaded) true
-                else MapRegionCatalog.isGraphInstalled(assets, region)
+                else MapRegionCatalog.isGraphInstalled(this, region) || MapPackageManager.isPackageInstalled(this, region.id)
             }
-            .forEach { region -> container.addView(buildRegionRow(region)) }
+            .forEach { region -> listContainer.addView(buildRegionRow(region)) }
     }
 
     private fun buildRegionRow(region: MapRegion): View {
         val row = LayoutInflater.from(this)
             .inflate(R.layout.item_region, null, false)
 
-        val graphInstalled = MapRegionCatalog.isGraphInstalled(assets, region)
-        val mapInstalled = MapRegionCatalog.isOfflineMapInstalled(assets, region)
+        val graphInstalled = MapRegionCatalog.isGraphInstalled(this, region)
+        val mapInstalled = MapRegionCatalog.isOfflineMapInstalled(this, region) || MapPackageManager.isPackageInstalled(this, region.id)
+        val isReady = graphInstalled || mapInstalled
 
         val name = row.findViewById<TextView>(R.id.regionName)
         val status = row.findViewById<TextView>(R.id.regionStatus)
@@ -122,18 +126,18 @@ class RegionSelectionActivity : AppCompatActivity() {
         name?.text = region.displayName
         status?.text = when {
             graphInstalled && mapInstalled -> getString(R.string.region_status_installed)
+            mapInstalled -> "Offline Map Ready (Routing online)"
             graphInstalled -> getString(R.string.region_status_map_missing)
             else -> getString(R.string.region_status_not_installed)
         }
         status?.setTextColor(
             getTextColor(
-                if (graphInstalled) R.color.safe_green else R.color.text_muted,
+                if (isReady) R.color.safe_green else R.color.text_muted,
             ),
         )
 
-        val installed = graphInstalled
         btnDownload?.backgroundTintList = null
-        if (installed) {
+        if (isReady) {
             btnDownload?.text = if (region.id == selectedRegionId) "Active" else "Select"
             btnDownload?.setBackgroundResource(if (region.id == selectedRegionId) R.drawable.bg_button_primary else R.drawable.bg_button_white)
             btnDownload?.setTextColor(getTextColor(if (region.id == selectedRegionId) R.color.white else R.color.brand_primary))
@@ -143,7 +147,7 @@ class RegionSelectionActivity : AppCompatActivity() {
             btnDownload?.setTextColor(getTextColor(R.color.brand_primary))
         }
 
-        if (installed && region.id == selectedRegionId) {
+        if (isReady && region.id == selectedRegionId) {
             dot?.visibility = View.VISIBLE
             card?.strokeColor = getTextColor(R.color.brand_primary)
             card?.strokeWidth = 2
@@ -153,29 +157,45 @@ class RegionSelectionActivity : AppCompatActivity() {
             card?.strokeWidth = 1
         }
 
-        val clickListener = View.OnClickListener {
-            if (!installed) {
-                Toast.makeText(
-                    this,
-                    "${region.displayName} offline package is not yet bundled in this build.",
-                    Toast.LENGTH_SHORT,
-                ).show()
-                return@OnClickListener
+        btnDownload?.setOnClickListener {
+            if (!isReady) {
+                btnDownload.isEnabled = false
+                btnDownload.text = "0%"
+                lifecycleScope.launch {
+                    val result = MapPackageManager.installPackage(this@RegionSelectionActivity, region.id) { pct ->
+                        runOnUiThread { btnDownload.text = "$pct%" }
+                    }
+                    if (result.isSuccess) {
+                        Toast.makeText(this@RegionSelectionActivity, "${region.displayName} offline package verified & installed.", Toast.LENGTH_SHORT).show()
+                        selectedRegionId = region.id
+                        updateStorageSummary()
+                    } else {
+                        Toast.makeText(this@RegionSelectionActivity, "Download failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
+                    }
+                    renderRegions()
+                }
+            } else {
+                selectedRegionId = region.id
+                renderRegions()
             }
-            selectedRegionId = region.id
-            renderRegions()
         }
 
-        row.setOnClickListener(clickListener)
-        btnDownload?.setOnClickListener(clickListener)
+        row.setOnClickListener {
+            if (isReady) {
+                selectedRegionId = region.id
+                renderRegions()
+            } else {
+                btnDownload?.performClick()
+            }
+        }
 
         return row
     }
 
     private fun continueWithSelection() {
         val region = MapRegionCatalog.byId(selectedRegionId)
-        if (region == null || !MapRegionCatalog.isGraphInstalled(assets, region)) {
-            Toast.makeText(this, "Please select an installed region.", Toast.LENGTH_SHORT).show()
+        if (region == null) {
+            Toast.makeText(this, "Please select an official region.", Toast.LENGTH_SHORT).show()
             return
         }
         container.setActiveRegion(region.id)

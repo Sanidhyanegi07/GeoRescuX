@@ -66,6 +66,7 @@ class AdminDashboardActivity : AppCompatActivity() {
     private val verificationList = mutableListOf<VerificationRequestItem>()
     private var selectedRegion: com.example.georescux.domain.routing.MapRegion? = null
     private var selectedDistrict: com.example.georescux.domain.admin.District? = null
+    private val attachedListeners = mutableListOf<Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>>()
 
     private val adminSettings by lazy { SharedPreferencesAdminSettingsStore(this) }
 
@@ -453,16 +454,22 @@ class AdminDashboardActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun registerListener(ref: com.google.firebase.database.DatabaseReference, listener: ValueEventListener) {
+        ref.addValueEventListener(listener)
+        attachedListeners.add(ref to listener)
+    }
+
     private fun setupRealtimeFirebaseListeners() {
         val statusText = findViewById<TextView>(R.id.textViewAdminStatus)
         val syncStatusText = findViewById<TextView>(R.id.textViewSyncStatus)
 
         // 1. SOS alerts listener
-        database.getReference("sos_alerts").addValueEventListener(object : ValueEventListener {
+        registerListener(database.getReference("sos_alerts"), object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                statusText.text = "Firebase: Connected (Custom Claim Valid)"
-                statusText.setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.safe_green))
-                syncStatusText.text = "Sync: Realtime Active"
+                if (isFinishing || isDestroyed) return
+                statusText?.text = "Firebase: Connected (Custom Claim Valid)"
+                statusText?.setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.safe_green))
+                syncStatusText?.text = "Sync: Realtime Active"
 
                 emergencyList.clear()
 
@@ -513,15 +520,17 @@ class AdminDashboardActivity : AppCompatActivity() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                statusText.text = "Firebase Status: Offline / Permission Denied"
-                statusText.setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.text_error))
-                syncStatusText.text = "Sync: Offline"
+                if (isFinishing || isDestroyed) return
+                statusText?.text = "Firebase Status: Offline / Permission Denied"
+                statusText?.setTextColor(ContextCompat.getColor(this@AdminDashboardActivity, R.color.text_error))
+                syncStatusText?.text = "Sync: Offline"
             }
         })
 
         // 2. Hazards listener
-        database.getReference("hazards").addValueEventListener(object : ValueEventListener {
+        registerListener(database.getReference("hazards"), object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (isFinishing || isDestroyed) return
                 hazardList.clear()
                 for (child in snapshot.children) {
                     val id = child.child("id").getValue(String::class.java) ?: child.key ?: continue
@@ -538,8 +547,9 @@ class AdminDashboardActivity : AppCompatActivity() {
         })
 
         // 3. Blocked roads listener
-        database.getReference("blocked_roads").addValueEventListener(object : ValueEventListener {
+        registerListener(database.getReference("blocked_roads"), object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (isFinishing || isDestroyed) return
                 blockedRoadList.clear()
                 for (child in snapshot.children) {
                     val from = child.child("fromNodeId").getValue(String::class.java) ?: continue
@@ -555,8 +565,9 @@ class AdminDashboardActivity : AppCompatActivity() {
         })
 
         // 4. Incidents listener
-        database.getReference("incidents").addValueEventListener(object : ValueEventListener {
+        registerListener(database.getReference("incidents"), object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (isFinishing || isDestroyed) return
                 incidentList.clear()
                 for (child in snapshot.children) {
                     val id = child.key ?: continue
@@ -570,7 +581,7 @@ class AdminDashboardActivity : AppCompatActivity() {
                 val activeIncidents = incidentList.count {
                     it.status !in setOf("RESOLVED", "CLOSED", "CANCELLED")
                 }
-                findViewById<TextView>(R.id.textViewActiveIncidentsCount).text = activeIncidents.toString()
+                findViewById<TextView>(R.id.textViewActiveIncidentsCount)?.text = activeIncidents.toString()
                 if (currentTab == AdminTab.INCIDENTS) renderCurrentTabContent()
                 updateRecentReportsList()
             }
@@ -579,8 +590,9 @@ class AdminDashboardActivity : AppCompatActivity() {
         })
 
         // 5. Events listener (§49) — drives the Active Events stat.
-        database.getReference("events").addValueEventListener(object : ValueEventListener {
+        registerListener(database.getReference("events"), object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (isFinishing || isDestroyed) return
                 eventList.clear()
                 for (child in snapshot.children) {
                     val type = child.child("type").getValue(String::class.java) ?: "EVENT"
@@ -590,7 +602,7 @@ class AdminDashboardActivity : AppCompatActivity() {
                         ?: System.currentTimeMillis()
                     eventList.add(EventItem(child.key ?: "event", type, desc, status, timestamp))
                 }
-                findViewById<TextView>(R.id.textViewActiveEventsCount).text =
+                findViewById<TextView>(R.id.textViewActiveEventsCount)?.text =
                     eventList.count { it.status == "ACTIVE" }.toString()
             }
 
@@ -598,7 +610,9 @@ class AdminDashboardActivity : AppCompatActivity() {
         })
 
         // 6. Verification requests listener
-        database.getReference("verification_requests").addValueEventListener(object : ValueEventListener {            override fun onDataChange(snapshot: DataSnapshot) {
+        registerListener(database.getReference("verification_requests"), object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (isFinishing || isDestroyed) return
                 verificationList.clear()
                 for (child in snapshot.children) {
                     val uid = child.child("uid").getValue(String::class.java) ?: continue
@@ -608,7 +622,7 @@ class AdminDashboardActivity : AppCompatActivity() {
                     verificationList.add(VerificationRequestItem(uid, name, status, timestamp))
                 }
                 val pending = verificationList.count { it.status == "PENDING" }
-                findViewById<TextView>(R.id.textViewPendingVerificationCount).text = pending.toString()
+                findViewById<TextView>(R.id.textViewPendingVerificationCount)?.text = pending.toString()
                 if (currentTab == AdminTab.VERIFICATIONS) renderCurrentTabContent()
             }
 
@@ -927,7 +941,7 @@ AdminTab.VERIFICATIONS -> {
     private fun buildSystemHealthCard(): View {
         val container = (application as GeoRescuXApplication).appContainer
         val card = layoutInflater.inflate(R.layout.item_alert, findViewById(R.id.adminDataContainer), false)
-        val activeRegion = MapRegionCatalog.byId(container.activeRegionId) ?: MapRegionCatalog.sampleRegion
+        val activeRegion = MapRegionCatalog.byId(container.activeRegionId) ?: MapRegionCatalog.uttarakhand
         val graph = runCatching { container.routeRepository.getGraph() }.getOrNull()
 
         card.findViewById<TextView>(R.id.textAlertTitle).text = "🖥️ System & Network Health"
@@ -1611,5 +1625,24 @@ AdminTab.VERIFICATIONS -> {
             .show()
     }
 
+    override fun onResume() {
+        super.onResume()
+        adminMapView?.onResume()
+    }
+
+    override fun onPause() {
+        adminMapView?.onPause()
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        attachedListeners.forEach { (ref, listener) ->
+            try { ref.removeEventListener(listener) } catch (_: Exception) {}
+        }
+        attachedListeners.clear()
+        adminMapView?.onDetach()
+        adminMapView = null
+        super.onDestroy()
+    }
 }
 

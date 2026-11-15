@@ -6,7 +6,9 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.georescux.GeoRescuXApplication
@@ -14,9 +16,11 @@ import com.example.georescux.R
 import com.example.georescux.data.incident.IncidentFilter
 import com.example.georescux.data.incident.IncidentReport
 import com.example.georescux.data.maps.MapRegionCatalog
+import com.example.georescux.domain.hazard.HazardCorroboration
 import com.example.georescux.domain.incident.IncidentSeverity
 import com.example.georescux.domain.incident.IncidentType
 import com.example.georescux.domain.routing.MapRegion
+import com.example.georescux.domain.sos.SosEmergency
 import com.example.georescux.ui.common.ActiveSosBanner
 import com.example.georescux.ui.common.BottomNav
 import com.example.georescux.ui.common.ConnectivityBadge
@@ -26,20 +30,22 @@ import com.example.georescux.ui.incident.FilterIncidentsBottomSheet
 import com.example.georescux.ui.incident.IncidentDetailsBottomSheet
 import com.example.georescux.ui.incident.IncidentIconFactory
 import com.example.georescux.ui.incident.ReportIncidentBottomSheet
+import com.example.georescux.ui.region.RegionSelectionActivity
 import com.example.georescux.ui.routing.RouteActivity
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
+import java.util.Locale
 
 /**
  * The MAP tab (spec §14): a modern, offline-first map view.
+ * Exclusively focused on the 4 official states: Uttarakhand (Primary),
+ * Himachal Pradesh, Uttar Pradesh, and Haryana.
  *
- * Deliberately separate from Safe Route's routing workflow — this screen is
- * about orientation: pan, zoom, see the current location, the region
- * boundary and the safe havens, then jump into Safe Route to compute a
- * route. Rendering data comes from the same regional package so the map
- * stays usable with no connection wherever that data is installed.
+ * Provides real-time disaster and hazard orientation, active SOS incident pins,
+ * one-click emergency routing, verified vs unverified report distinction, and
+ * instantaneous switching between the 4 official states.
  */
 class MapActivity : AppCompatActivity() {
 
@@ -48,10 +54,12 @@ class MapActivity : AppCompatActivity() {
     private lateinit var mapView: MapView
     private lateinit var connectivityBadge: ConnectivityBadge
     private var locationMarker: Marker? = null
+    private var boundaryOverlay: Polyline? = null
 
     private var currentUserLat: Double? = null
     private var currentUserLng: Double? = null
     private val incidentMarkers = mutableListOf<Marker>()
+    private val sosMarkers = mutableListOf<Marker>()
     private val incidents = mutableListOf<IncidentReport>()
     private var currentFilter: IncidentFilter = IncidentFilter()
 
@@ -65,29 +73,17 @@ class MapActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         activeRegion = MapRegionCatalog.byId(container.activeRegionId)
-            ?: MapRegionCatalog.sampleRegion
+            ?: MapRegionCatalog.uttarakhand
 
         OfflineMapSetup.prepareOsmdroid(this)
         setContentView(R.layout.activity_map)
 
         findViewById<TextView>(R.id.topBarTitle).setText(R.string.map_title)
-        findViewById<TextView>(R.id.textMapRegion).text =
-            "${getString(R.string.map_region_label)} ${activeRegion.displayName}"
-
         mapView = findViewById(R.id.mapView)
         connectivityBadge = ConnectivityBadge(this)
 
-        val result = OfflineMapSetup.configure(this, mapView, activeRegion)
-        findViewById<TextView>(R.id.textMapCacheState).text = result.tier.badgeText
-
-        // Honest coverage notice: routing data may be installed without any
-        // offline rendering package. Say so instead of implying the map works
-        // offline when it does not.
-        val offlineMapInstalled = MapRegionCatalog.isOfflineMapInstalled(assets, activeRegion)
-        findViewById<TextView>(R.id.textNoOfflineMap).visibility =
-            if (offlineMapInstalled) View.GONE else View.VISIBLE
-
-        setupRegionBoundaryOverlay()
+        setupMapForRegion(activeRegion)
+        setupStateSwitcher()
         setupFloatingControls()
         setupIncidentReporting()
         setupQuickFilters()
@@ -102,18 +98,84 @@ class MapActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupMapForRegion(region: MapRegion) {
+        val regionLabel = findViewById<TextView>(R.id.textMapRegion)
+        regionLabel.text = "${getString(R.string.map_region_label)} ${region.displayName}"
+
+        val result = OfflineMapSetup.configure(this, mapView, region)
+        findViewById<TextView>(R.id.textMapCacheState).text = result.tier.badgeText
+
+        val offlineMapInstalled = MapRegionCatalog.isOfflineMapInstalled(this, region)
+        val notice = findViewById<TextView>(R.id.textNoOfflineMap)
+        if (offlineMapInstalled) {
+            notice.visibility = View.GONE
+        } else {
+            notice.visibility = View.VISIBLE
+            notice.text = "Offline package for ${region.displayName} not installed. Tap here to manage downloads."
+            notice.setOnClickListener {
+                startActivity(Intent(this, RegionSelectionActivity::class.java))
+            }
+        }
+
+        setupRegionBoundaryOverlay()
+    }
+
+    private fun setupStateSwitcher() {
+        val clickListener = View.OnClickListener {
+            showStateSelectionDialog()
+        }
+        findViewById<View>(R.id.buttonSwitchState)?.setOnClickListener(clickListener)
+        findViewById<View>(R.id.textMapRegion)?.setOnClickListener(clickListener)
+    }
+
+    private fun showStateSelectionDialog() {
+        val states = MapRegionCatalog.availableRegions
+        val currentIndex = states.indexOfFirst { it.id == activeRegion.id }.coerceAtLeast(0)
+        val names = states.map { state ->
+            val isBundled = state.id == "uttarakhand"
+            val isInstalled = MapRegionCatalog.isOfflineMapInstalled(this, state)
+            when {
+                isBundled -> "🏔️ ${state.displayName} (Bundled • Primary)"
+                isInstalled -> "✓ ${state.displayName} (Installed)"
+                else -> "○ ${state.displayName} (Downloadable)"
+            }
+        }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Select Official State Map")
+            .setSingleChoiceItems(names, currentIndex) { dialog, which ->
+                val selected = states[which]
+                if (selected.id != activeRegion.id) {
+                    activeRegion = selected
+                    container.setActiveRegion(selected.id)
+                    setupMapForRegion(selected)
+                    Toast.makeText(this, "Switched map to ${selected.displayName}", Toast.LENGTH_SHORT).show()
+                }
+                dialog.dismiss()
+            }
+            .setNeutralButton("Manage Packages") { _, _ ->
+                startActivity(Intent(this, RegionSelectionActivity::class.java))
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun bindConnectionBadge() {
         connectivityBadge.bind(findViewById(R.id.textMapConnectivity))
     }
 
     private fun setupFloatingControls() {
         findViewById<View>(R.id.buttonMyLocation).setOnClickListener {
+            if (!hasLocationPermission()) {
+                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                return@setOnClickListener
+            }
             val position = locationMarker?.position
             if (position != null) {
                 mapView.controller.animateTo(position)
                 mapView.controller.setZoom(17.0)
             } else {
-                android.widget.Toast.makeText(this, "Acquiring GPS fix...", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Acquiring GPS fix...", Toast.LENGTH_SHORT).show()
                 startLocationAcquisition()
             }
         }
@@ -123,7 +185,8 @@ class MapActivity : AppCompatActivity() {
 
     private fun setupQuickFilters() {
         findViewById<View>(R.id.chipOpenFilterDialog)?.setOnClickListener {
-            val sheet = FilterIncidentsBottomSheet.newInstance(currentFilter, incidents)
+            val listSnapshot = synchronized(incidents) { incidents.toList() }
+            val sheet = FilterIncidentsBottomSheet.newInstance(currentFilter, listSnapshot)
             sheet.onFilterAppliedListener = { newFilter ->
                 applyFilter(newFilter)
             }
@@ -157,7 +220,9 @@ class MapActivity : AppCompatActivity() {
     private fun applyFilter(filter: IncidentFilter, updateChips: Boolean = true) {
         currentFilter = filter
 
-        val filtered = incidents.filter { currentFilter.matches(it) }
+        val filtered = synchronized(incidents) {
+            incidents.filter { currentFilter.matches(it) }
+        }
         renderIncidentMarkers(filtered)
 
         val pill = findViewById<View>(R.id.layoutActiveFilterStatus)
@@ -180,10 +245,10 @@ class MapActivity : AppCompatActivity() {
         }
 
         if (currentFilter.isActive && filtered.isEmpty()) {
-            android.widget.Toast.makeText(
+            Toast.makeText(
                 this,
                 "No incidents match: ${currentFilter.describe()}",
-                android.widget.Toast.LENGTH_SHORT
+                Toast.LENGTH_SHORT
             ).show()
         }
     }
@@ -260,11 +325,13 @@ class MapActivity : AppCompatActivity() {
                 }
 
                 // 4. Update memory list and re-render pins
-                val existingIdx = incidents.indexOfFirst { it.id == newIncident.id }
-                if (existingIdx >= 0) {
-                    incidents[existingIdx] = newIncident
-                } else {
-                    incidents.add(0, newIncident)
+                synchronized(incidents) {
+                    val existingIdx = incidents.indexOfFirst { it.id == newIncident.id }
+                    if (existingIdx >= 0) {
+                        incidents[existingIdx] = newIncident
+                    } else {
+                        incidents.add(0, newIncident)
+                    }
                 }
                 applyFilter(currentFilter, updateChips = false)
 
@@ -279,18 +346,97 @@ class MapActivity : AppCompatActivity() {
     private fun loadAndObserveIncidents() {
         // 1. Instant local load (offline ready)
         val localIncidents = container.incidentStore.getAllIncidents()
-        incidents.clear()
-        incidents.addAll(localIncidents)
+        synchronized(incidents) {
+            incidents.clear()
+            incidents.addAll(localIncidents)
+        }
         applyFilter(currentFilter, updateChips = false)
+        renderSosMarkers()
 
         // 2. Real-time cloud sync
         container.firebaseIncidentSync.startObserving { updatedList ->
             runOnUiThread {
-                incidents.clear()
-                incidents.addAll(updatedList)
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                synchronized(incidents) {
+                    incidents.clear()
+                    incidents.addAll(updatedList)
+                }
                 applyFilter(currentFilter, updateChips = false)
+                renderSosMarkers()
             }
         }
+    }
+
+    private fun renderSosMarkers() {
+        sosMarkers.forEach {
+            try {
+                mapView.overlayManager.remove(it)
+            } catch (_: Exception) {}
+        }
+        sosMarkers.clear()
+
+        val active = runCatching { container.sosRepository.getActiveEmergency() }.getOrNull()
+        val historyLocated = runCatching { container.sosRepository.getHistory() }.getOrNull()
+            .orEmpty()
+            .filter { it.location != null }
+            .take(10)
+
+        val emergenciesToRender = buildList {
+            if (active?.location != null) add(active)
+            addAll(historyLocated)
+        }
+
+        val alertIcon = ContextCompat.getDrawable(this, android.R.drawable.ic_dialog_alert)
+
+        emergenciesToRender.forEach { emergency ->
+            val loc = emergency.location ?: return@forEach
+            val isThisActive = emergency.isActive
+            val marker = Marker(mapView).apply {
+                position = GeoPoint(loc.latitude, loc.longitude)
+                title = if (isThisActive) "🚨 ACTIVE EMERGENCY SOS" else "SOS Alert Record"
+                snippet = "ID: ${emergency.id.take(12)}…\nTap for action & routing"
+                if (alertIcon != null) icon = alertIcon
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+
+                setOnMarkerClickListener { m, _ ->
+                    m.showInfoWindow()
+                    showEmergencyDetailsDialog(emergency)
+                    true
+                }
+            }
+            mapView.overlays.add(marker)
+            sosMarkers.add(marker)
+        }
+        mapView.invalidate()
+    }
+
+    private fun showEmergencyDetailsDialog(emergency: SosEmergency) {
+        val loc = emergency.location ?: return
+        val uLat = currentUserLat
+        val uLng = currentUserLng
+        val distanceStr = if (uLat != null && uLng != null && uLat != 0.0) {
+            val dist = HazardCorroboration.haversineMeters(uLat, uLng, loc.latitude, loc.longitude)
+            if (dist < 1000) "${dist.toInt()}m away" else String.format(Locale.US, "%.1f km away", dist / 1000.0)
+        } else {
+            "Distance calculating…"
+        }
+
+        val noteText = emergency.note?.takeIf { it.isNotBlank() } ?: "Emergency distress signal"
+        val statusText = if (emergency.isActive) "CRITICAL • ACTIVE" else "RESOLVED / ARCHIVED"
+
+        AlertDialog.Builder(this)
+            .setTitle(if (emergency.isActive) "🚨 Active Emergency Alert" else "Incident Archive")
+            .setMessage("Status: $statusText\nDistance: $distanceStr\nCoordinates: ${loc.latitude}, ${loc.longitude}\nNote: $noteText")
+            .setPositiveButton("Route to Emergency") { _, _ ->
+                val intent = Intent(this, RouteActivity::class.java).apply {
+                    putExtra(RouteActivity.EXTRA_DEST_LAT, loc.latitude)
+                    putExtra(RouteActivity.EXTRA_DEST_LNG, loc.longitude)
+                    putExtra(RouteActivity.EXTRA_DEST_TITLE, "Emergency ${emergency.id.take(8)}")
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     private fun renderIncidentMarkers(list: List<IncidentReport>) {
@@ -339,8 +485,11 @@ class MapActivity : AppCompatActivity() {
      * of the installed offline package (spec §14 "regional boundaries").
      */
     private fun setupRegionBoundaryOverlay() {
+        boundaryOverlay?.let {
+            try { mapView.overlays.remove(it) } catch (_: Exception) {}
+        }
         val boundary = Polyline().apply {
-            outlinePaint.color = ContextCompat.getColor(this@MapActivity, R.color.violet_light)
+            outlinePaint.color = ContextCompat.getColor(this@MapActivity, R.color.brand_primary)
             outlinePaint.strokeWidth = 4f
         }
         val (minLat, maxLat) = activeRegion.minLatitude to activeRegion.maxLatitude
@@ -355,6 +504,8 @@ class MapActivity : AppCompatActivity() {
             ),
         )
         mapView.overlays.add(boundary)
+        boundaryOverlay = boundary
+        mapView.invalidate()
     }
 
     private fun startLocationAcquisition() {
@@ -395,11 +546,13 @@ class MapActivity : AppCompatActivity() {
         super.onResume()
         mapView.onResume()
         ActiveSosBanner.refresh(this)
-        // Refresh incidents when returning to the map
+        renderSosMarkers()
         val local = container.incidentStore.getAllIncidents()
         if (local.isNotEmpty()) {
-            incidents.clear()
-            incidents.addAll(local)
+            synchronized(incidents) {
+                incidents.clear()
+                incidents.addAll(local)
+            }
             applyFilter(currentFilter, updateChips = false)
         }
     }
@@ -413,6 +566,12 @@ class MapActivity : AppCompatActivity() {
         container.firebaseIncidentSync.stopObserving()
         container.locationRepository.stopAcquisition()
         connectivityBadge.unbind()
+        incidentMarkers.forEach { try { mapView.overlayManager.remove(it) } catch (_: Exception) {} }
+        incidentMarkers.clear()
+        sosMarkers.forEach { try { mapView.overlayManager.remove(it) } catch (_: Exception) {} }
+        sosMarkers.clear()
+        boundaryOverlay?.let { try { mapView.overlays.remove(it) } catch (_: Exception) {} }
+        boundaryOverlay = null
         mapView.onDetach()
         super.onDestroy()
     }
