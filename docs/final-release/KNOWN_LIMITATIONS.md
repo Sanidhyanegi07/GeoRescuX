@@ -6,120 +6,150 @@ This document provides a thorough, transparent, and honest disclosure of the cur
 
 ### 1. Physical BLE Multi-Device Communication Unverified
 
-- **Current Evidence:**
-  The Bluetooth Low Energy subsystem (`ReliableBleTransport.kt`, `BlePacketCodec.kt`) is fully implemented in Kotlin and passes all automated unit tests (`BlePacketCodecTest`, `BleTransportTest`). However, tests were conducted entirely inside a single JVM process using mock objects. No physical over-the-air BLE advertisement capture between two or more physical Android phones was performed in this evaluation phase.
+- **Current Implementation:**
+  The Bluetooth Low Energy subsystem (`GeoRescueBleManager.kt`, `GeoRescueBleConnection.kt`, `GeoRescueBleMeshNode.kt`, `GeoRescueBlePacket.kt`) implements a GATT client/server architecture with peer discovery via BLE advertisements and payload exchange over GATT characteristics using JSON-delimited frames.
+- **Existing Evidence:**
+  All packet parsing, serialization, and state transition logic pass automated unit tests (`GeoRescueBlePacketTest`). Testing was conducted entirely inside single-process JVM test environments. No physical over-the-air BLE exchange between two or more physical Android phones was executed.
 - **Technical Consequence:**
-  Real-world BLE advertising is subject to severe platform and environmental constraints:
-  - Aggressive OEM battery-optimization profiles (e.g., Xiaomi MIUI, Samsung OneUI) frequently suspend background BLE scanning or throttle advertising intervals when the screen is turned off.
-  - 2.4 GHz radio frequency interference from Wi-Fi routers and microwave ovens can cause high packet error rates.
-  - Hardware packet size limitations (31-byte legacy advertisement limit vs. 255-byte extended advertisements) may fail on older Android hardware that does not support Bluetooth 5.0 Advertising Extensions.
-- **Required Resolution / Verification:**
-  Deploy the debug APK to at least two physical Android devices with Bluetooth 5.0 support. Measure real-world packet reception rates at graduated distances (5m, 15m, 30m, 50m) across direct line-of-sight and non-line-of-sight (concrete partition) environments.
+  Real-world BLE communication is subject to physical and platform constraints:
+  - Aggressive OEM battery optimizations (e.g., Xiaomi MIUI, Samsung OneUI) frequently suspend background BLE scanning or throttle advertising intervals when the screen is turned off.
+  - 2.4 GHz radio frequency interference in disaster zones can cause high packet loss.
+  - GATT connection negotiation latency can vary substantially across different Bluetooth chipsets.
+- **Required Future Verification:**
+  Deploy the debug APK onto at least two physical Android devices with Bluetooth 5.0 support. Measure real-world packet reception and GATT throughput across line-of-sight and obstructed (concrete partition) environments.
 
 ---
 
 ### 2. Physical Nearby Connections Multi-Device Communication Unverified
 
-- **Current Evidence:**
-  Google Nearby Connections integration (`NearbyConnectionsTransport.kt`, `NearbySosIngestionEngine.kt`) is verified via unit test harnesses (`NearbySosSyncTest`). Automated tests assert that endpoints are discovered and byte payloads are passed to ingestion listeners when mocked callbacks trigger. Physical peer-to-peer Wi-Fi Direct socket negotiation was not verified.
+- **Current Implementation:**
+  Google Nearby Connections integration (`GoogleNearbyClientAdapter.kt`, `NearbySosIngestionHandler.kt`) implements `Strategy.P2P_CLUSTER` using Google Play Services Nearby APIs.
+- **Existing Evidence:**
+  The ingestion pipeline and connection callbacks are verified in unit tests (`NearbySosSyncTest`) using mock adapter interfaces. Physical peer-to-peer Wi-Fi Direct socket negotiation was not verified.
 - **Technical Consequence:**
-  Google Nearby Connections relies on proprietary Google Play Services background binaries. In real disaster conditions:
-  - Establishing a high-speed P2P Wi-Fi Direct group between arbitrary OEM devices can take anywhere from 4 to 15 seconds.
-  - Channel contention on 2.4 GHz / 5 GHz bands can abort the handshake.
-  - If a device lacks Google Play Services (e.g., de-Googled ROMs, Huawei devices), this transport fails completely.
-- **Required Resolution / Verification:**
-  Conduct physical cluster validation across three distinct OEM hardware models (e.g., Samsung Galaxy, Google Pixel, OnePlus) in Airplane Mode with Wi-Fi and Bluetooth enabled. Measure connection negotiation latency and payload transfer completion times.
+  Google Nearby Connections relies on Google Play Services proprietary background binaries. In real disaster conditions:
+  - Establishing a high-speed P2P Wi-Fi Direct cluster between different OEM devices can take between 4 to 15 seconds.
+  - Radio frequency contention on 2.4 GHz / 5 GHz bands can abort the handshake.
+  - If a device lacks Google Play Services (e.g., custom ROMs, non-GMS devices), this transport fails completely.
+- **Required Future Verification:**
+  Conduct physical cluster validation across three distinct OEM hardware models in Airplane Mode with Wi-Fi and Bluetooth enabled. Measure connection negotiation latency and payload transfer completion times.
 
 ---
 
 ### 3. Multi-Hop "A → B → C → Internet" Physical Relay Undemonstrated
 
-- **Current Evidence:**
-  The cross-transport forwarding pipeline (`CrossTransportRelayBridge.kt`, `RelayEngine.kt`, `DurableRelayEngine.kt`) demonstrates correct multi-hop logic, hop decrementing, and seen-event deduplication in synthetic unit tests (`CrossTransportRelayTest`). A physical end-to-end multi-hop propagation chain where an offline Node A transmits to an offline intermediary Node B, which forwards to an internet-connected Node C that synchronizes to Firebase, has not been physically executed.
+- **Current Implementation:**
+  The cross-transport forwarding pipeline (`CrossTransportRelayBridge.kt`, `RelayEngine.kt`, `DurableRelayEngine.kt`) implements multi-hop store-and-forward routing, hop decrementing (`ttl - 1`), and seen-event deduplication.
+- **Existing Evidence:**
+  Deduplication and hop-budget handling pass synthetic unit tests (`CrossTransportRelayTest`). A physical end-to-end multi-hop propagation chain where an offline Node A transmits to an offline intermediary Node B, which forwards to an internet-connected Node C that synchronizes to Firebase, has not been physically executed.
 - **Technical Consequence:**
-  Epidemic store-and-forward mesh topologies suffer from unpredictable delivery latency. Without physical multi-node verification:
+  Store-and-forward mesh topologies suffer from unpredictable delivery latency. Without physical multi-node verification:
   - True end-to-end latency across multiple hops under pedestrian movement speeds is unknown.
   - Battery drain on intermediary relay nodes continuously operating BLE scanning and Nearby advertising has not been benchmarked.
-- **Required Resolution / Verification:**
-  Configure a controlled physical 3-device deployment: Device A (Offline victim in basement), Device B (Offline courier moving between basement and street), Device C (Connected gateway on street with LTE). Measure total elapsed time from Device A's SOS trigger to Device C's Firebase write confirmation.
+- **Required Future Verification:**
+  Deploy a controlled physical 3-device testbed: Device A (Offline victim), Device B (Offline courier moving between partitions), Device C (Connected gateway with LTE). Measure total elapsed time from Device A's SOS trigger to Device C's Firebase write confirmation.
 
 ---
 
 ### 4. Receiver-Acknowledged Durable Custody (P1.8) Not Implemented
 
-- **Current Evidence:**
-  Inspection of `DurableRelayEngine.kt` confirms that when an intermediary device invokes `transport.send(peerId, payload)`, a return value of `true` is treated as a successful delivery. The intermediary node's outbox entry is subsequently marked as delivered and may be cleared.
+- **Current Implementation:**
+  In `RelayEngine.kt` and `DurableRelayEngine.kt`, when an intermediary device invokes `transport.send(peerId, payload)`, a return value of `true` is treated as successful delivery, causing the outbox entry in `relay_outbox.db` to be cleared.
+- **Existing Evidence:**
+  Code inspection confirms that `transport.send() == true` represents local dispatch acceptance by the operating system radio stack. No two-way receiver custody acknowledgement protocol is implemented.
 - **Technical Consequence:**
-  In Android wireless networking, `transport.send() == true` merely indicates that the local operating system kernel accepted the byte buffer into its local transmit queue. It **does not prove**:
-  - That the remote peer's radio received the packets.
+  Local queue acceptance does **not prove**:
+  - That the remote peer's radio received the physical packets.
   - That the remote operating system delivered the bytes to the GeoRescuX application layer.
-  - That the remote GeoRescuX instance successfully committed the alert to SQLite or SharedPreferences storage.
+  - That the remote GeoRescuX instance successfully committed the alert to disk.
   If the link drops immediately after local submission, the packet is permanently lost ("custody drop").
-- **Required Resolution / Verification:**
+- **Required Future Verification:**
   Implement the Phase P1.8 Receiver-Acknowledged Protocol: Intermediary nodes must retain the emergency in `relay_outbox.db` in a `PENDING_ACK` state until an authenticated two-way cryptographic acknowledgement (`ACK_RECEIPT`) is returned by the receiver node.
 
 ---
 
-### 5. Independent Remote Cloud Readback Not Verified
+### 5. Production Relay Cryptographic Authentication Not Fully Wired
 
-- **Current Evidence:**
-  The live emulator run verified local persistence in `sos_store.xml` (`run-as com.example.georescux cat shared_prefs/sos_store.xml`) and confirmed that `SyncingSosRepository` enqueued the emergency. An independent remote readback from a secondary client or external administrative REST query directly against the live Firebase Realtime Database was not verified during this session.
+- **Current Implementation:**
+  `EventSigner.kt` provides ECDSA signing using the Android Keystore (`secp256r1`, `SHA256withECDSA`), and `EventAuthenticator.kt` provides signature verification logic.
+- **Existing Evidence:**
+  In production `GeoRescuXApplication.kt` (line 176), `RelayEngine` is constructed with its default `authenticator = null`. Furthermore, `GeoRescueBlePacket` contains no cryptographic signature wire field.
 - **Technical Consequence:**
-  While the client-side Firebase SDK accepted the write request, network packet loss, restrictive Firebase Security Rules (`database.rules.json`), or missing cloud indexing could theoretically prevent the alert from becoming queryable by first-responder dispatch systems.
-- **Required Resolution / Verification:**
-  Execute an automated verification script that triggers an SOS on the mobile client and simultaneously performs an HTTP GET query against the Firebase REST API (`https://<project-id>.firebaseio.com/sos/<emergency-id>.json`) with an authorized admin bearer token to assert data parity.
+  While cryptographic signing components exist and pass unit tests (`EventAuthenticatorTest.kt`), **mesh packets transmitted over the BLE and Nearby relay paths in the production build are not cryptographically signed or authenticated at runtime**. A malicious actor could theoretically craft and inject unauthenticated distress packets into the mesh.
+- **Required Future Verification:**
+  Add a `signature` field to `GeoRescueBlePacket`, wire `EventAuthenticator` into `GeoRescuXApplication.relayEngine`, and enforce signature rejection on all inbound peer events.
 
 ---
 
-### 6. Simulated Emulator Location Coordinates
+### 6. Independent Remote Cloud Readback Not Verified
 
-- **Current Evidence:**
-  The live smoke test verified that `LocationRepositoryImpl.kt` transitioned from `SEARCHING` to `ACQUIRED` and recorded coordinates `latitude: 39.237255, longitude: -123.1500317` with `accuracyMeters: 5`. These coordinates were injected by the Android Emulator's virtual sensor environment.
+- **Current Implementation:**
+  `FirebaseSosCloudDataSource.kt` uploads active alerts to the path `/sos_alerts/{uid}/{alertId}`.
+- **Existing Evidence:**
+  The live smoke test verified that local persistence in `sos_store.xml` committed and that `SyncingSosRepository` enqueued the emergency. An independent remote readback from a secondary client or external administrative REST query directly against the live Firebase Realtime Database was not verified during this session.
+- **Technical Consequence:**
+  While the client-side Firebase SDK accepted the write request, network packet loss, restrictive Firebase Security Rules (`database.rules.json`), or missing cloud indexing could theoretically prevent the alert from becoming queryable by first-responder dispatch systems.
+- **Required Future Verification:**
+  Execute an automated verification script that triggers an SOS on the mobile client and simultaneously performs an authenticated HTTP GET query against the Firebase REST API (`https://<project-id>.firebaseio.com/sos_alerts/<uid>/<alert-id>.json`) with an authorized admin bearer token to assert data parity.
+
+---
+
+### 7. Simulated Emulator Location Coordinates
+
+- **Current Implementation:**
+  `LocationRepositoryImpl.kt` acquires coordinates via Google Play Services `FusedLocationProviderClient` with a fallback to Android `LocationManager.GPS_PROVIDER`.
+- **Existing Evidence:**
+  The live smoke test verified that location state transitioned from `SEARCHING` to `ACQUIRED` and recorded coordinates `latitude: 39.237255, longitude: -123.1500317` with `accuracyMeters: 5`. These coordinates were injected by the Android Emulator's virtual sensor environment.
 - **Technical Consequence:**
   Virtual location providers bypass all real-world GNSS physical constraints:
   - In deep mountain canyons, ravines, or collapsed concrete structures, GPS signals experience multi-path reflection or total satellite lock loss.
   - Real hardware GPS requires a Time-To-First-Fix (TTFF) that can take up to 45 seconds during cold satellite acquisition.
   - Rapid battery depletion during continuous high-accuracy GPS sampling was not measured.
-- **Required Resolution / Verification:**
+- **Required Future Verification:**
   Test on physical hardware outdoors in dense urban and rural terrain. Verify location fallback behavior when satellite signals are obstructed (e.g., transition to `LocationStatus.LAST_KNOWN` or degraded accuracy flags).
 
 ---
 
-### 7. Live Admin Dashboard Session Not Evaluated in Emulator Run
+### 8. Live Admin Dashboard Session Not Evaluated in Emulator Run
 
-- **Current Evidence:**
-  The security enforcement gates (`AdminAuthGuard.kt`, `FirebaseRoleResolver.kt`, `RoleRoutingCoordinator.kt`) pass all 11 automated security tests in `RoleRoutingCoordinatorTest.kt` and `AdminAuthorizationSecurityTest.kt`. In the live emulator run, the active session belonged to `georescux.test2026@example.com`, which is a standard authenticated user account.
+- **Current Implementation:**
+  The security enforcement gates (`AdminAuthGuard.kt`, `FirebaseRoleResolver.kt`, `RoleRoutingCoordinator.kt`) restrict administrative screens to accounts with Firebase custom claims `{"admin": true}`.
+- **Existing Evidence:**
+  All 11 automated security tests in `RoleRoutingCoordinatorTest.kt` passed, verifying fail-closed behavior on timeout, missing claims, or network error. In the live emulator run, the active session belonged to a standard user account, correctly routing to `HomeActivity`.
 - **Technical Consequence:**
   The live test verified that standard users are strictly prevented from accessing the admin dashboard (fail-closed behavior). However, interactive features of `AdminDashboardActivity.kt` (such as real-time incident status modification, manual road hazard insertion, and dynamic evacuation zone broadcasting) were not exercised live in the emulator.
-- **Required Resolution / Verification:**
+- **Required Future Verification:**
   Configure a dedicated admin test account with `admin: true` custom claims in the Firebase Authentication console. Sign in on the emulator and perform an interactive demonstration of incident dispatch and road block management.
 
 ---
 
-### 8. Cold-Start Application Launch Duration (~14.7 Seconds)
+### 9. Cold-Start Application Launch Duration (~14.7 Seconds)
 
-- **Current Evidence:**
-  Android's ActivityManager reported:
-  `TotalTime: 14716ms`, `WaitTime: 14720ms` during the initial cold start of `MainActivity`.
+- **Current Implementation:**
+  `MainActivity.kt` renders `activity_main.xml` synchronously in `onCreate()` and resolves user authorization asynchronously with a 3000ms bounded timeout.
+- **Existing Evidence:**
+  ActivityManager reported: `TotalTime: 14716ms`, `WaitTime: 14720ms` during the cold launch of `MainActivity` on virtual hardware.
 - **Technical Consequence:**
-  While the branded loading screen (`activity_main.xml`) renders immediately and eliminates the critical window-focus ANR, a 14-second total launch time is sluggish. This delay is attributed to:
+  While the branded loading screen renders immediately and eliminates the window-focus ANR, a 14-second total launch time is sluggish. This delay is attributed to:
   - Virtual machine overhead on host hardware.
   - Dalvik/ART class loading and DEX verification across multiple multidex files (`classes.dex` through `classes18.dex`).
   - Synchronous initialization of FirebaseApp and Google Play Services client libraries in `Application.onCreate()`.
-- **Required Resolution / Verification:**
-  1. Profile startup using Android Studio App Startup Profiler / Simpleperf.
+- **Required Future Verification:**
+  1. Profile startup using Android Studio App Startup Profiler.
   2. Implement Android Jetpack `androidx.startup` library to lazily initialize non-critical components.
-  3. Generate and bundle baseline profiles (`BaselineProfileRule`) to enable AOT (Ahead-Of-Time) compilation on physical devices, reducing launch latency by 30–50%.
+  3. Generate and bundle baseline profiles (`BaselineProfileRule`) to enable Ahead-Of-Time (AOT) compilation on physical devices, reducing launch latency.
 
 ---
 
-### 9. Production Emergency Certification Not Established
+### 10. Production Emergency Certification Not Established
 
-- **Current Evidence:**
-  GeoRescuX is an academic research prototype developed as a Bachelor of Technology capstone project. It has not undergone formal regulatory certification (such as FCC Part 15 wireless certification, RED compliance in the EU, or safety-critical software audits like DO-178C or ISO 26262).
+- **Current Implementation:**
+  GeoRescuX is an academic research prototype developed as a Bachelor of Technology capstone project.
+- **Existing Evidence:**
+  The application has undergone unit testing (582 tests) and single-device emulator verification.
 - **Technical Consequence:**
-  The application must not be advertised or deployed as a commercial, life-critical emergency service to the general public without formal validation and coordination with official government disaster management agencies (e.g., NDMA / SDRF).
-- **Required Resolution / Verification:**
+  The platform has not undergone formal regulatory certification (such as FCC Part 15 wireless certification, RED compliance in the EU, or safety-critical software audits like DO-178C or ISO 26262). The application must not be advertised or deployed as a commercial, life-critical emergency service to the general public without formal validation and coordination with official government disaster management agencies (e.g., NDMA / SDRF).
+- **Required Future Verification:**
   Undergo formal independent security audits, penetration testing, and controlled field exercises in collaboration with civil defense and search-and-rescue authorities.
 
 ---
