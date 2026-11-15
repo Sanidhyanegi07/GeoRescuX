@@ -44,9 +44,11 @@ import com.example.georescux.domain.sos.UpdateSosLocationUseCase
 import com.example.georescux.work.WorkManagerSyncScheduler
 import com.example.georescux.data.auth.DeviceIdProvider
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -54,7 +56,11 @@ import kotlinx.coroutines.launch
  * created once here and handed to the screens that need it — simple
  * and explicit, with no dependency-injection framework.
  */
-class AppContainer(context: Context) {
+class AppContainer(
+    context: Context,
+    val backgroundScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    val nearbyIngestionDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(1),
+) {
 
     private val appContext: Context = context.applicationContext
 
@@ -265,37 +271,39 @@ class AppContainer(context: Context) {
     }
     val sosRepository: SosRepository by lazy { sosBleBridgeRepository }
 
+    val nearbySosIngestionHandler: com.example.georescux.data.relay.NearbySosIngestionHandler by lazy {
+        com.example.georescux.data.relay.NearbySosIngestionHandler(
+            sosStore = sosStore,
+            selfOriginId = { selfOriginId },
+            onNotifyAlert = { originId, startedAtMs, note ->
+                com.example.georescux.data.notification.SosAlertNotifier.notify(
+                    context = appContext,
+                    originId = originId,
+                    startedAtMs = startedAtMs,
+                    note = note,
+                )
+            },
+            onMarkPendingSync = { emergencyId ->
+                authRepository.currentUserId?.let { uid ->
+                    syncStateStore.setSosAlertPending(uid, emergencyId, pending = true)
+                }
+                syncRetryCoordinator.retryPendingNow()
+            },
+            scope = backgroundScope,
+            dispatcher = nearbyIngestionDispatcher,
+        )
+    }
+
     init {
         relayConnectionManager.attachRelayEngine(relayEngine)
         relayConnectionManager.setOnEventReceivedListener { envelope ->
             hazardEventRouteBridge.onEventAccepted(envelope.event)
-
-            if (envelope.event.type == IncidentType.SOS) {
-                val emergency = com.example.georescux.data.sos.SosIncomingEventCoordinator.processIncomingSos(
-                    event = envelope.event,
-                    sosStore = sosStore,
-                    selfOriginId = selfOriginId,
-                ) ?: return@setOnEventReceivedListener
-
-                // Gap B fix: post a visible heads-up notification so the user on this device
-                // is immediately alerted — without this, the alert was saved silently and only
-                // visible if the user manually opened the Alerts screen.
-                if (emergency.isActive) {
-                    com.example.georescux.data.notification.SosAlertNotifier.notify(
-                        context = appContext,
-                        originId = envelope.event.originId,
-                        startedAtMs = emergency.startedAtMs,
-                        note = emergency.note,
-                    )
-                }
-
-                // If signed in, mark pending so this device uploads the relayed Nearby emergency to Firebase
-                authRepository.currentUserId?.let { uid ->
-                    syncStateStore.setSosAlertPending(uid, emergency.id, pending = true)
-                }
-                syncRetryCoordinator.retryPendingNow()
-            }
+            nearbySosIngestionHandler.handleEnvelope(envelope)
         }
+    }
+
+    fun shutdown() {
+        backgroundScope.cancel()
     }
 
     val startSosUseCase = StartSosUseCase(sosRepository)
@@ -394,5 +402,6 @@ class GeoRescuXApplication : Application() {
         appContainer.syncRetryCoordinator.stop()
         appContainer.relayConnectionManager.stopMesh()
         runCatching { appContainer.bleManager.shutdown() }
+        appContainer.shutdown()
     }
 }

@@ -119,7 +119,7 @@ class SosViewModel(
                     _uiState.value = _uiState.value.copy(emergency = null, errorMessage = null)
                 } else {
                     transition(SosEvent.STOP_FAILED)             // STOPPING -> ACTIVE
-                    val activeEmergency = sosRepository.getActiveEmergency()
+                    val activeEmergency = sosRepository.getActiveEmergency() ?: current.emergency
                     _uiState.value = _uiState.value.copy(
                         emergency = activeEmergency,
                         errorMessage = "Failed to complete emergency. Please retry.",

@@ -313,4 +313,53 @@ class SosViewModelLocationTest {
 
         assertEquals(1, repository.historyList.size)
     }
+
+    @Test
+    fun `failed completion preserves existing emergency details and allows subsequent retry`() {
+        val (viewModel, repositories) = activeViewModel()
+        val (repository, locationRepository) = repositories
+        viewModel.beginLocationAcquisition()
+        repository.failComplete = true
+
+        // 1. Initial stop attempt fails
+        viewModel.stopEmergency()
+
+        // 2. State remains ACTIVE, emergency snapshot preserved, error message shown, location acquisition alive
+        assertEquals(SosState.ACTIVE, viewModel.uiState.value.state)
+        assertNotNull(viewModel.uiState.value.emergency)
+        assertEquals("alert-1", viewModel.uiState.value.emergency?.id)
+        assertNotNull(viewModel.uiState.value.errorMessage)
+        assertFalse(locationRepository.stopped)
+
+        // 3. Storage recovers and user retries
+        repository.failComplete = false
+        viewModel.stopEmergency()
+
+        // 4. Retry succeeds: moves to IDLE, location acquisition stopped, error message cleared
+        assertEquals(SosState.IDLE, viewModel.uiState.value.state)
+        assertNull(viewModel.uiState.value.emergency)
+        assertNull(viewModel.uiState.value.errorMessage)
+        assertTrue(locationRepository.stopped)
+        assertEquals(1, repository.historyList.size)
+        assertEquals("alert-1", repository.historyList[0].id)
+    }
+
+    @Test
+    fun `failed completion retains UI emergency snapshot even if repository returns null`() {
+        val (viewModel, repositories) = activeViewModel()
+        val (repository, locationRepository) = repositories
+        viewModel.beginLocationAcquisition()
+        // Simulate severe store failure where active record in repository was lost in memory
+        repository.failComplete = true
+        repository.active = null
+
+        viewModel.stopEmergency()
+
+        // Defensive fallback: UI retains current.emergency even if getActiveEmergency() was null
+        assertEquals(SosState.ACTIVE, viewModel.uiState.value.state)
+        assertNotNull("Emergency must not be wiped to null", viewModel.uiState.value.emergency)
+        assertEquals("alert-1", viewModel.uiState.value.emergency?.id)
+        assertNotNull(viewModel.uiState.value.errorMessage)
+        assertFalse(locationRepository.stopped)
+    }
 }

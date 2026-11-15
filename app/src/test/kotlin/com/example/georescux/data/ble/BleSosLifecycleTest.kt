@@ -1279,6 +1279,7 @@ class BleSosLifecycleTest {
     class RealisticFailingSharedPreferences(
         initialData: Map<String, Any?> = emptyMap(),
         var simulateDiskFailure: Boolean = true,
+        var throwOnApply: Boolean = false,
     ) : android.content.SharedPreferences {
         val inMemoryMap = HashMap<String, Any?>(initialData)
         val diskMap = HashMap<String, Any?>(initialData)
@@ -1348,6 +1349,9 @@ class BleSosLifecycleTest {
             }
 
             override fun apply() {
+                if (throwOnApply) {
+                    throw RuntimeException("Simulated apply failure during rollback")
+                }
                 applyToMap(inMemoryMap)
                 if (!simulateDiskFailure) {
                     applyToMap(diskMap)
@@ -1444,54 +1448,159 @@ class BleSosLifecycleTest {
     }
 
     @Test
-    fun `Correction C - Realistic commit failure mutates in-memory map but leaves disk unwritten on ordinary write`() {
-        val realisticPrefs = RealisticFailingSharedPreferences(simulateDiskFailure = true)
-        val store1 = SharedPreferencesSosStore(realisticPrefs)
+    fun `Priority E - Test 1 - Failed completion restores current-process active SOS`() {
+        val initialActive = SosEmergency(id = "sos-active-1", startedAtMs = 10_000L, sequence = 1L, note = "Test trapped")
+        val initialActiveJson = SosEmergencyJson.toJson(initialActive).toString()
 
-        val packet = GeoRescueBlePacket(
-            packetId = "pkt-realistic-ord",
-            originDeviceId = originId,
-            originEmergencyId = emergencyId,
-            timestampMs = 10_000L,
-            ttl = 3,
-            type = GeoRescueBlePacketType.SOS,
-            status = BleSosBridge.SOS_STATUS_ACTIVE,
-            payload = mapOf(
-                "emergencyId" to emergencyId,
-                "status" to "ACTIVE",
-                "startedAtMs" to "10000",
-                "sequence" to "1",
-            ),
+        val realisticPrefs = RealisticFailingSharedPreferences(
+            initialData = mapOf("active_emergency" to initialActiveJson, "sos_history" to "[]"),
+            simulateDiskFailure = true
         )
-        val event = bridge.toIncidentEvent(packet)!!
+        val store1 = SharedPreferencesSosStore(realisticPrefs)
+        val repo = SosRepositoryImpl(store1)
 
         val executor = Executors.newSingleThreadExecutor()
         val future = executor.submit(java.util.concurrent.Callable {
-            SosIncomingEventCoordinator.processIncomingSos(event, store1)
+            repo.completeEmergency(25_000L)
         })
-        val result = future.get(5, TimeUnit.SECONDS)
+        val completed = future.get(5, TimeUnit.SECONDS)
         executor.shutdown()
 
-        // 1. Coordinator correctly propagates false and returns null
-        assertNull("Coordinator must return null on commit failure", result)
+        // 1. Completion returns failure (null)
+        assertNull("completeEmergency must return null when commit fails", completed)
 
-        // 2. Stage 2 in-memory map was updated by commitToMemory before disk write failed
-        val currentProcessHistory = store1.loadHistory()
-        assertTrue("In-memory map reflects the write attempt", currentProcessHistory.any { it.id == "MESH_${originId}_$emergencyId" })
+        // 2. loadActive() still returns the original active SOS in the same running process
+        val restoredActive = store1.loadActive()
+        assertNotNull("Active SOS must be restored in memory after failed completion", restoredActive)
+        assertEquals("sos-active-1", restoredActive!!.id)
+        assertEquals(10_000L, restoredActive.startedAtMs)
+        assertEquals(1L, restoredActive.sequence)
+        assertEquals("Test trapped", restoredActive.note)
+        assertTrue(restoredActive.isActive)
 
-        // 3. Stage 5: Store recreation over the SAME preference instance sees mutated in-memory state
-        val storeRecreatedSameProcess = SharedPreferencesSosStore(realisticPrefs)
-        assertEquals(1, storeRecreatedSameProcess.loadHistory().size)
-
-        // 4. Simulated process restart / reloading from disk shows disk map was NEVER written
-        realisticPrefs.reloadFromDisk()
-        val storeAfterProcessRestart = SharedPreferencesSosStore(realisticPrefs)
-        assertTrue("Disk map was never written on commit failure", storeAfterProcessRestart.loadHistory().isEmpty())
+        // 3. History remains restored to its previous state (empty)
+        val history = store1.loadHistory()
+        assertTrue("History must remain empty as before the failed completion", history.isEmpty())
     }
 
     @Test
-    fun `Correction C - Realistic commit failure mutates in-memory map but leaves disk unwritten on legacy migration`() {
-        val oldRecordId = "MESH_BLE_${originId}_realFail"
+    fun `Priority E - Test 2 - New store instance sees restored active SOS`() {
+        val initialActive = SosEmergency(id = "sos-active-1", startedAtMs = 10_000L, sequence = 1L)
+        val initialActiveJson = SosEmergencyJson.toJson(initialActive).toString()
+
+        val realisticPrefs = RealisticFailingSharedPreferences(
+            initialData = mapOf("active_emergency" to initialActiveJson, "sos_history" to "[]"),
+            simulateDiskFailure = true
+        )
+        val store1 = SharedPreferencesSosStore(realisticPrefs)
+        val repo = SosRepositoryImpl(store1)
+
+        val executor = Executors.newSingleThreadExecutor()
+        executor.submit(java.util.concurrent.Callable {
+            repo.completeEmergency(25_000L)
+        }).get(5, TimeUnit.SECONDS)
+        executor.shutdown()
+
+        // Construct a new store instance over the same preferences instance
+        val newStore = SharedPreferencesSosStore(realisticPrefs)
+        val active = newStore.loadActive()
+        assertNotNull("New store instance over same preferences sees restored active SOS", active)
+        assertEquals("sos-active-1", active!!.id)
+        assertTrue(active.isActive)
+    }
+
+    @Test
+    fun `Priority E - Test 3 - Retry succeeds after storage recovers`() {
+        val initialActive = SosEmergency(id = "sos-active-1", startedAtMs = 10_000L, sequence = 1L)
+        val initialActiveJson = SosEmergencyJson.toJson(initialActive).toString()
+
+        val realisticPrefs = RealisticFailingSharedPreferences(
+            initialData = mapOf("active_emergency" to initialActiveJson, "sos_history" to "[]"),
+            simulateDiskFailure = true
+        )
+        val store1 = SharedPreferencesSosStore(realisticPrefs)
+        val repo = SosRepositoryImpl(store1)
+
+        // 1. Initial attempt fails
+        val executor1 = Executors.newSingleThreadExecutor()
+        val firstAttempt = executor1.submit(java.util.concurrent.Callable {
+            repo.completeEmergency(25_000L)
+        }).get(5, TimeUnit.SECONDS)
+        executor1.shutdown()
+        assertNull(firstAttempt)
+
+        // 2. Verify active SOS is still accessible in memory
+        val activeBeforeRetry = repo.getActiveEmergency()
+        assertNotNull("Active emergency must be accessible for retry", activeBeforeRetry)
+        assertEquals("sos-active-1", activeBeforeRetry!!.id)
+
+        // 3. Storage recovers
+        realisticPrefs.simulateDiskFailure = false
+
+        // 4. Retry completion
+        val executor2 = Executors.newSingleThreadExecutor()
+        val retried = executor2.submit(java.util.concurrent.Callable {
+            repo.completeEmergency(35_000L)
+        }).get(5, TimeUnit.SECONDS)
+        executor2.shutdown()
+
+        // 5. Completion succeeds
+        assertNotNull("Retry must succeed once storage recovers", retried)
+        assertEquals("sos-active-1", retried!!.id)
+        assertEquals(2L, retried.sequence)
+        assertEquals(35_000L, retried.stoppedAtMs)
+        assertFalse(retried.isActive)
+
+        // 6. Active SOS is removed
+        assertNull("Active emergency must now be null", repo.getActiveEmergency())
+        assertNull(store1.loadActive())
+
+        // 7. Exactly one history record exists
+        val history = store1.loadHistory()
+        assertEquals(1, history.size)
+        assertEquals("sos-active-1", history[0].id)
+        assertEquals(2L, history[0].sequence)
+        assertEquals(35_000L, history[0].stoppedAtMs)
+    }
+
+    @Test
+    fun `Priority E - Test 4 - Failed history replacement restores previous history`() {
+        val hist1 = SosEmergency(id = "hist-1", startedAtMs = 1000L, stoppedAtMs = 2000L)
+        val hist2 = SosEmergency(id = "hist-2", startedAtMs = 3000L, stoppedAtMs = 4000L)
+        val initialHistoryJson = org.json.JSONArray()
+            .put(SosEmergencyJson.toJson(hist1))
+            .put(SosEmergencyJson.toJson(hist2))
+            .toString()
+
+        val realisticPrefs = RealisticFailingSharedPreferences(
+            initialData = mapOf("sos_history" to initialHistoryJson),
+            simulateDiskFailure = true
+        )
+        val store1 = SharedPreferencesSosStore(realisticPrefs)
+
+        val newRecord = SosEmergency(id = "hist-3", startedAtMs = 5000L, stoppedAtMs = 6000L)
+
+        val executor = Executors.newSingleThreadExecutor()
+        val success = executor.submit(java.util.concurrent.Callable {
+            store1.replaceInHistory("hist-3", newRecord)
+        }).get(5, TimeUnit.SECONDS)
+        executor.shutdown()
+
+        // 1. Must return false
+        assertFalse("replaceInHistory must return false on failed commit", success)
+
+        // 2. Previous history records must be restored and intact
+        val history = store1.loadHistory()
+        assertEquals(2, history.size)
+        val ids = history.map { it.id }.toSet()
+        assertTrue(ids.contains("hist-1"))
+        assertTrue(ids.contains("hist-2"))
+        assertFalse("New failed record must not be in history", ids.contains("hist-3"))
+    }
+
+    @Test
+    fun `Priority E - Test 5 - Failed legacy migration preserves legacy record`() {
+        val oldRecordId = "MESH_BLE_${originId}_oldPkt1"
         val oldActive = SosEmergency(id = oldRecordId, startedAtMs = 10_000L, stoppedAtMs = null)
         val initialHistoryJson = org.json.JSONArray().put(SosEmergencyJson.toJson(oldActive)).toString()
 
@@ -1520,34 +1629,26 @@ class BleSosLifecycleTest {
         val event = bridge.toIncidentEvent(completionPacket)!!
 
         val executor = Executors.newSingleThreadExecutor()
-        val future = executor.submit(java.util.concurrent.Callable {
+        val result = executor.submit(java.util.concurrent.Callable {
             SosIncomingEventCoordinator.processIncomingSos(event, store1)
-        })
-        val result = future.get(5, TimeUnit.SECONDS)
+        }).get(5, TimeUnit.SECONDS)
         executor.shutdown()
 
-        // 1. Coordinator returns null on persistence failure
-        assertNull("processIncomingSos must return null when migration persistence fails", result)
+        // 1. Migration returns null
+        assertNull("processIncomingSos must return null when migration fails", result)
 
-        // 2. In memory, editor mutated the map to replace the old record
+        // 2. Legacy record remains restored in running process
         val inMemHistory = store1.loadHistory()
-        assertTrue("In memory, canonical record exists", inMemHistory.any { it.id == "MESH_${originId}_$emergencyId" })
-        assertFalse("In memory, old record was evicted", inMemHistory.any { it.id == oldRecordId })
+        assertTrue("Legacy record must be restored in running process memory", inMemHistory.any { it.id == oldRecordId && it.isActive })
+        assertFalse("Canonical record must not remain in history", inMemHistory.any { it.id == "MESH_${originId}_$emergencyId" })
 
-        // 3. Store recreated over same instance sees mutated in-memory state
-        val storeRecreated = SharedPreferencesSosStore(realisticPrefs)
-        assertTrue(storeRecreated.loadHistory().any { it.id == "MESH_${originId}_$emergencyId" })
-
-        // 4. Reload from disk restores the original pre-P0 record because disk was untouched
-        realisticPrefs.reloadFromDisk()
-        val storeFromDisk = SharedPreferencesSosStore(realisticPrefs)
-        val diskHistory = storeFromDisk.loadHistory()
-        assertTrue("Disk retains the old legacy record", diskHistory.any { it.id == oldRecordId && it.isActive })
-        assertFalse("Disk does not contain the canonical record", diskHistory.any { it.id == "MESH_${originId}_$emergencyId" })
+        // 3. New store instance over same preferences also sees restored legacy record
+        val newStore = SharedPreferencesSosStore(realisticPrefs)
+        assertTrue(newStore.loadHistory().any { it.id == oldRecordId && it.isActive })
     }
 
     @Test
-    fun `Correction C - Realistic commit failure mutates in-memory map but leaves disk unwritten on emergency completion`() {
+    fun `Priority E - Test 7 - No duplicate emergency after failed completion`() {
         val initialActive = SosEmergency(id = "sos-real-active", startedAtMs = 10_000L, sequence = 1L)
         val initialActiveJson = SosEmergencyJson.toJson(initialActive).toString()
 
@@ -1559,31 +1660,83 @@ class BleSosLifecycleTest {
         val repo = SosRepositoryImpl(store1)
 
         val executor = Executors.newSingleThreadExecutor()
-        val future = executor.submit(java.util.concurrent.Callable {
+        val completed = executor.submit(java.util.concurrent.Callable {
             repo.completeEmergency(25_000L)
-        })
-        val completed = future.get(5, TimeUnit.SECONDS)
+        }).get(5, TimeUnit.SECONDS)
         executor.shutdown()
 
-        // 1. completeEmergency returns null on persistence failure
-        assertNull("completeEmergency must return null when commit fails", completed)
+        assertNull(completed)
 
-        // 2. In memory, Editor.commit() removed active_emergency
-        assertNull("In memory, active_emergency was removed", store1.loadActive())
-        val inMemHistory = store1.loadHistory()
-        assertTrue("In memory, history contains completed record", inMemHistory.any { it.id == "sos-real-active" })
+        // Attempt to start a second emergency while first is still active
+        val second = repo.startEmergency("sos-second", 30_000L)
+        assertNull("Second emergency must be rejected while first is still active following failure", second)
+        assertEquals("sos-real-active", repo.getActiveEmergency()?.id)
+    }
 
-        // 3. Store recreated over same prefs observes in-memory state
-        val storeRecreated = SharedPreferencesSosStore(realisticPrefs)
-        assertNull(storeRecreated.loadActive())
+    @Test
+    fun `Priority E - Test 8 - Successful completion remains unchanged`() {
+        val initialActive = SosEmergency(id = "sos-success-path", startedAtMs = 10_000L, sequence = 1L)
+        val initialActiveJson = SosEmergencyJson.toJson(initialActive).toString()
 
-        // 4. Reload from disk recovers the active emergency because disk write failed
-        realisticPrefs.reloadFromDisk()
-        val storeFromDisk = SharedPreferencesSosStore(realisticPrefs)
-        val recovered = storeFromDisk.loadActive()
-        assertNotNull("Disk still has active emergency", recovered)
-        assertEquals("sos-real-active", recovered!!.id)
-        assertTrue(recovered.isActive)
-        assertTrue("Disk history is still empty", storeFromDisk.loadHistory().isEmpty())
+        val realisticPrefs = RealisticFailingSharedPreferences(
+            initialData = mapOf("active_emergency" to initialActiveJson, "sos_history" to "[]"),
+            simulateDiskFailure = false
+        )
+        val store1 = SharedPreferencesSosStore(realisticPrefs)
+        val repo = SosRepositoryImpl(store1)
+
+        val executor = Executors.newSingleThreadExecutor()
+        val completed = executor.submit(java.util.concurrent.Callable {
+            repo.completeEmergency(25_000L)
+        }).get(5, TimeUnit.SECONDS)
+        executor.shutdown()
+
+        assertNotNull("Successful completion must return completed record", completed)
+        assertEquals("sos-success-path", completed!!.id)
+        assertEquals(2L, completed.sequence)
+        assertEquals(25_000L, completed.stoppedAtMs)
+        assertFalse(completed.isActive)
+
+        assertNull("Active emergency must be removed", store1.loadActive())
+        val history = store1.loadHistory()
+        assertEquals(1, history.size)
+        assertEquals("sos-success-path", history[0].id)
+        assertEquals(2L, history[0].sequence)
+    }
+
+    @Test
+    fun `Priority E - Test 9 - Rollback failure contains exception without unhandled crash (exception containment only, not recovery)`() {
+        // NOTE: In RealisticFailingSharedPreferences, throwOnApply throws at the beginning of apply()
+        // BEFORE applyToMap(inMemoryMap) can execute. Because commit() previously mutated inMemoryMap
+        // by removing active_emergency, and the thrown exception aborts the rollback editor before
+        // inMemoryMap can be restored, in-memory state is NOT recovered in this scenario.
+        // This test verifies EXCEPTION CONTAINMENT only: runCatching prevents the exception
+        // from escaping, logs the diagnostic error, and ensures completeEmergency returns null
+        // rather than crashing the caller or leaving an unhandled runtime failure.
+        val initialActive = SosEmergency(id = "sos-rollback-fail", startedAtMs = 10_000L, sequence = 1L)
+        val initialActiveJson = SosEmergencyJson.toJson(initialActive).toString()
+
+        val realisticPrefs = RealisticFailingSharedPreferences(
+            initialData = mapOf("active_emergency" to initialActiveJson, "sos_history" to "[]"),
+            simulateDiskFailure = true,
+            throwOnApply = true
+        )
+        val store1 = SharedPreferencesSosStore(realisticPrefs)
+        val repo = SosRepositoryImpl(store1)
+
+        val executor = Executors.newSingleThreadExecutor()
+        val completed = executor.submit(java.util.concurrent.Callable {
+            repo.completeEmergency(25_000L)
+        }).get(5, TimeUnit.SECONDS)
+        executor.shutdown()
+
+        // 1. completeEmergency safely returns null without unhandled crash
+        assertNull("completeEmergency must return null when rollback itself fails", completed)
+
+        // 2. Explicitly demonstrate that in-memory state is NOT recovered (exception containment only)
+        assertNull(
+            "In this simulated failure, inMemoryMap was not restored because apply threw before mutating memory",
+            store1.loadActive()
+        )
     }
 }

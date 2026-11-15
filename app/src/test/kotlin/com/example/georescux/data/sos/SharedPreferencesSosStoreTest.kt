@@ -232,5 +232,122 @@ class SharedPreferencesSosStoreTest {
         assertFalse(historyAfter[0].isActive)
         assertEquals("Active help - resolved", historyAfter[0].note)
     }
+
+    internal class FailingCommitAndApplyPrefs(
+        val initialMap: MutableMap<String, Any?> = mutableMapOf(),
+        var failCommit: Boolean = true,
+        var throwOnApply: Boolean = true,
+    ) : SharedPreferences {
+        val map = HashMap<String, Any?>(initialMap)
+
+        override fun getAll(): MutableMap<String, *> = HashMap(map)
+        override fun getString(key: String, defValue: String?): String? = map[key] as? String ?: defValue
+        override fun getStringSet(key: String, defValues: MutableSet<String>?): MutableSet<String>? =
+            (map[key] as? Set<*>)?.filterIsInstance<String>()?.toMutableSet() ?: defValues
+        override fun getInt(key: String, defValue: Int): Int = map[key] as? Int ?: defValue
+        override fun getLong(key: String, defValue: Long): Long = map[key] as? Long ?: defValue
+        override fun getFloat(key: String, defValue: Float): Float = map[key] as? Float ?: defValue
+        override fun getBoolean(key: String, defValue: Boolean): Boolean = map[key] as? Boolean ?: defValue
+        override fun contains(key: String): Boolean = map.containsKey(key)
+        override fun edit(): SharedPreferences.Editor = FailingEditor(this)
+        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+
+        class FailingEditor(private val parent: FailingCommitAndApplyPrefs) : SharedPreferences.Editor {
+            private val modifications = mutableMapOf<String, Any?>()
+            private val removals = mutableSetOf<String>()
+
+            override fun putString(key: String, value: String?): SharedPreferences.Editor {
+                modifications[key] = value
+                removals.remove(key)
+                return this
+            }
+            override fun putStringSet(key: String, values: MutableSet<String>?): SharedPreferences.Editor = this
+            override fun putInt(key: String, value: Int): SharedPreferences.Editor = this
+            override fun putLong(key: String, value: Long): SharedPreferences.Editor = this
+            override fun putFloat(key: String, value: Float): SharedPreferences.Editor = this
+            override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor = this
+            override fun remove(key: String): SharedPreferences.Editor {
+                removals.add(key)
+                modifications.remove(key)
+                return this
+            }
+            override fun clear(): SharedPreferences.Editor = this
+            override fun commit(): Boolean {
+                if (parent.failCommit) return false
+                apply()
+                return true
+            }
+            override fun apply() {
+                if (parent.throwOnApply) {
+                    throw RuntimeException("Simulated apply failure during rollback")
+                }
+                for (key in removals) parent.map.remove(key)
+                for ((key, value) in modifications) {
+                    if (value == null) parent.map.remove(key)
+                    else parent.map[key] = value
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `main-thread persistence guard rejects completeActive, replaceInHistory, and addToHistory without mutating preferences`() {
+        val storeWithMain = SharedPreferencesSosStore(fakePrefs, isMainThreadProvider = { true })
+        val emergency = SosEmergency(id = "test-1", startedAtMs = 1000L)
+
+        assertFalse("completeActive must return false on main thread", storeWithMain.completeActive(emergency))
+        assertFalse("replaceInHistory must return false on main thread", storeWithMain.replaceInHistory("test-1", emergency))
+        assertFalse("addToHistory must return false on main thread", storeWithMain.addToHistory(emergency))
+        assertTrue("Preferences must remain completely unmutated", fakePrefs.map.isEmpty())
+    }
+
+    @Test
+    fun `rollback failure produces diagnostic logging without crashing application on completeActive`() {
+        val initialActive = SosEmergency(id = "active-1", startedAtMs = 1000L)
+        val initialJson = SosEmergencyJson.toJson(initialActive).toString()
+        val failingPrefs = FailingCommitAndApplyPrefs(
+            initialMap = mutableMapOf("active_emergency" to initialJson),
+            failCommit = true,
+            throwOnApply = true,
+        )
+        val loggedErrors = mutableListOf<Triple<String, String, Throwable>>()
+        val testStore = SharedPreferencesSosStore(
+            failingPrefs,
+            isMainThreadProvider = { false },
+            errorLogger = { tag, msg, err -> loggedErrors.add(Triple(tag, msg, err)) },
+        )
+
+        val result = testStore.completeActive(initialActive.copy(stoppedAtMs = 2000L))
+
+        assertFalse("Must return false when commit fails", result)
+        assertEquals(1, loggedErrors.size)
+        assertEquals("SharedPreferencesSosStore", loggedErrors[0].first)
+        assertTrue(loggedErrors[0].second.contains("completeActive"))
+        assertEquals("Simulated apply failure during rollback", loggedErrors[0].third.message)
+    }
+
+    @Test
+    fun `rollback failure produces diagnostic logging without crashing application on replaceInHistory`() {
+        val failingPrefs = FailingCommitAndApplyPrefs(
+            failCommit = true,
+            throwOnApply = true,
+        )
+        val loggedErrors = mutableListOf<Triple<String, String, Throwable>>()
+        val testStore = SharedPreferencesSosStore(
+            failingPrefs,
+            isMainThreadProvider = { false },
+            errorLogger = { tag, msg, err -> loggedErrors.add(Triple(tag, msg, err)) },
+        )
+        val emergency = SosEmergency(id = "hist-1", startedAtMs = 1000L)
+
+        val result = testStore.replaceInHistory("hist-1", emergency)
+
+        assertFalse("Must return false when commit fails", result)
+        assertEquals(1, loggedErrors.size)
+        assertEquals("SharedPreferencesSosStore", loggedErrors[0].first)
+        assertTrue(loggedErrors[0].second.contains("replaceInHistory"))
+        assertEquals("Simulated apply failure during rollback", loggedErrors[0].third.message)
+    }
 }
 
