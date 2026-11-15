@@ -17,13 +17,14 @@ enum class AuthVerdict { OK, MALFORMED, MISSING_SIGNATURE, BAD_SIGNATURE, EXPIRE
 class ReplayGuard {
     private val lastSequenceByOrigin = HashMap<String, Long>()
 
-    /** Accepts only monotonic sequences per origin; sequence 0 = unordered, always accepted. */
+    /** Accepts only monotonic sequences per origin and optional stream (e.g. emergencyId); sequence 0 = unordered, always accepted. */
     @Synchronized
-    fun accept(originId: String, sequence: Long): Boolean {
+    fun accept(originId: String, sequence: Long, streamId: String? = null): Boolean {
         if (sequence <= 0) return true
-        val last = lastSequenceByOrigin[originId] ?: Long.MIN_VALUE
+        val key = if (streamId != null) "${originId}_$streamId" else originId
+        val last = lastSequenceByOrigin[key] ?: Long.MIN_VALUE
         if (sequence <= last) return false
-        lastSequenceByOrigin[originId] = sequence
+        lastSequenceByOrigin[key] = sequence
         return true
     }
 }

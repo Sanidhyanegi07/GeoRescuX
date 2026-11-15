@@ -179,7 +179,23 @@ class AppContainer(
         )
     }
     val durableRelayEngine: com.example.georescux.data.relay.DurableRelayEngine by lazy {
-        com.example.georescux.data.relay.DurableRelayEngine(relayEngine, seenEventStore)
+        com.example.georescux.data.relay.DurableRelayEngine(
+            delegate = relayEngine,
+            store = seenEventStore,
+            outboundStore = seenEventStore as? com.example.georescux.data.relay.RelayOutboundQueue,
+        )
+    }
+
+    // Cross-Transport Relay Bridge (BLE ⇄ Nearby)
+    val crossTransportRelayBridge: com.example.georescux.data.relay.CrossTransportRelayBridge by lazy {
+        com.example.georescux.data.relay.CrossTransportRelayBridge(
+            bleManager = bleManager,
+            relayEngine = durableRelayEngine,
+            selfOriginId = { selfOriginId },
+            deduplicator = com.example.georescux.domain.relay.CrossTransportDeduplicator(
+                sosStoreProvider = { sosStore },
+            ),
+        )
     }
 
     // Hazard Corroboration & Route Bridge
@@ -191,7 +207,7 @@ class AppContainer(
     }
     val reportHazardUseCase: com.example.georescux.domain.hazard.ReportHazardUseCase by lazy {
         com.example.georescux.domain.hazard.ReportHazardUseCase(
-            relayEngine,
+            durableRelayEngine,
             selfOriginId,
         )
     }
@@ -208,7 +224,7 @@ class AppContainer(
     private val sosRelayRepository: SosRepository by lazy {
         com.example.georescux.data.sos.SosRelayRepository(
             delegate = syncingSosRepository,
-            relayEngine = relayEngine,
+            relayEngine = durableRelayEngine,
             selfOriginId = selfOriginId,
         )
     }
@@ -237,6 +253,8 @@ class AppContainer(
                 packet: com.example.georescux.domain.ble.GeoRescueBlePacket,
                 fromPeerId: String?,
             ) {
+                // Ignore locally published packets (own SOS or relayed from Nearby)
+                if (fromPeerId == null) return
                 // Ignore locally originated packets (already persisted by local SOS layer)
                 if (packet.originDeviceId == selfOriginId) return
                 val event = bleSosBridge.toIncidentEvent(packet) ?: return
@@ -244,6 +262,7 @@ class AppContainer(
                     event = event,
                     sosStore = sosStore,
                     selfOriginId = selfOriginId,
+                    nowMs = System.currentTimeMillis(),
                 ) ?: return
 
                 if (emergency.isActive) {
@@ -259,6 +278,9 @@ class AppContainer(
                     syncStateStore.setSosAlertPending(uid, emergency.id, pending = true)
                 }
                 syncRetryCoordinator.retryPendingNow()
+
+                // Cross-Transport Relay: Forward accepted BLE SOS to Nearby
+                crossTransportRelayBridge.forwardBleToNearby(packet, event)
             }
         })
         manager
@@ -289,13 +311,17 @@ class AppContainer(
                 }
                 syncRetryCoordinator.retryPendingNow()
             },
+            onForwardToBle = { envelope, emergency ->
+                crossTransportRelayBridge.forwardNearbyToBle(envelope, emergency)
+            },
             scope = backgroundScope,
             dispatcher = nearbyIngestionDispatcher,
+            nowMs = { System.currentTimeMillis() },
         )
     }
 
     init {
-        relayConnectionManager.attachRelayEngine(relayEngine)
+        relayConnectionManager.attachRelayEngine(durableRelayEngine)
         relayConnectionManager.setOnEventReceivedListener { envelope ->
             hazardEventRouteBridge.onEventAccepted(envelope.event)
             nearbySosIngestionHandler.handleEnvelope(envelope)

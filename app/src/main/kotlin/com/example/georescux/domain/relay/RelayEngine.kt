@@ -44,33 +44,35 @@ data class RelayEnvelope(
     val fromPeerId: String? = null,
 )
 
-class RelayEngine(
-    private val selfOriginId: String,
-    private val transport: RelayTransport,
+open class RelayEngine(
+    open val selfOriginId: String,
+    open val transport: RelayTransport,
     private val replayGuard: ReplayGuard = ReplayGuard(),
     private val authenticator: com.example.georescux.domain.security.EventAuthenticator? = null,
     private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
 
+    private val lock = Any()
     private val seenEventIds = HashSet<String>()
     private val activeEnvelopes = Collections.synchronizedList(mutableListOf<RelayEnvelope>())
     private val outbox = HashMap<String, MutableList<RelayEnvelope>>()
     private val sentPeersMap = HashMap<String, MutableSet<String>>()
 
     /** A locally produced event enters the relay (e.g. SOS, injected hazard). */
-    fun onLocalEvent(event: IncidentEvent, payload: String = event.canonicalString()): RelayDecision =
+    open fun onLocalEvent(event: IncidentEvent, payload: String = event.canonicalString()): RelayDecision =
         ingest(RelayEnvelope(event, payload), fromLocal = true)
 
     /** An event received from a peer. */
-    fun onEventReceived(envelope: RelayEnvelope): RelayDecision =
+    open fun onEventReceived(envelope: RelayEnvelope): RelayDecision =
         ingest(envelope, fromLocal = false)
 
     /** Flush pending sends to a peer that became reachable again. */
-    fun onPeerAvailable(peerId: String): Int {
+    open fun onPeerAvailable(peerId: String): Int = synchronized(lock) {
         var delivered = 0
         val peerPending = outbox.remove(peerId) ?: emptyList()
         peerPending.forEach { envelope ->
-            val sentSet = sentPeersMap.getOrPut(envelope.event.eventId) { HashSet() }
+            val key = dedupKey(envelope.event)
+            val sentSet = sentPeersMap.getOrPut(key) { HashSet() }
             if (peerId !in sentSet) {
                 if (transport.send(peerId, envelope.payload)) {
                     sentSet.add(peerId)
@@ -83,7 +85,8 @@ class RelayEngine(
 
         val unexpired = activeEnvelopes.filter { !isExpired(it.event) && it.fromPeerId != peerId }
         unexpired.forEach { envelope ->
-            val sentSet = sentPeersMap.getOrPut(envelope.event.eventId) { HashSet() }
+            val key = dedupKey(envelope.event)
+            val sentSet = sentPeersMap.getOrPut(key) { HashSet() }
             if (peerId !in sentSet) {
                 if (transport.send(peerId, envelope.payload)) {
                     sentSet.add(peerId)
@@ -93,10 +96,17 @@ class RelayEngine(
                 }
             }
         }
-        return delivered
+        delivered
     }
 
-    fun pendingCountFor(peerId: String): Int = outbox[peerId]?.size ?: 0
+    open fun pendingCountFor(peerId: String): Int = synchronized(lock) {
+        outbox[peerId]?.size ?: 0
+    }
+
+    /** Returns true if the given event/sequence key has been confirmed sent to at least one peer. */
+    open fun isDelivered(eventKey: String): Boolean = synchronized(lock) {
+        sentPeersMap[eventKey]?.isNotEmpty() == true
+    }
 
     /**
      * Directly marks [eventId] as seen without running it through the full ingest pipeline.
@@ -104,11 +114,32 @@ class RelayEngine(
      * seen-event state on startup without triggering the [ReplayGuard] sequence check
      * (which would produce [RelayDecision.STALE_SEQUENCE] for any event with sequence ≤ 0).
      */
-    fun seedSeenEventId(eventId: String) {
-        seenEventIds.add(eventId)
+    open fun seedSeenEventId(eventId: String) {
+        synchronized(lock) {
+            seenEventIds.add(eventId)
+        }
     }
 
-    private fun ingest(envelope: RelayEnvelope, fromLocal: Boolean): RelayDecision {
+    /**
+     * Restores an active unexpired envelope into the relay engine queue across restarts.
+     */
+    open fun seedActiveEnvelope(envelope: RelayEnvelope) {
+        synchronized(lock) {
+            val key = dedupKey(envelope.event)
+            if (!isExpired(envelope.event) && activeEnvelopes.none { dedupKey(it.event) == key }) {
+                activeEnvelopes.add(envelope)
+            }
+        }
+    }
+
+    open fun activeEnvelopes(): List<RelayEnvelope> = synchronized(lock) {
+        activeEnvelopes.toList()
+    }
+
+    fun dedupKey(event: IncidentEvent): String =
+        if (event.sequence > 0L) "${event.eventId}:${event.sequence}" else event.eventId
+
+    private fun ingest(envelope: RelayEnvelope, fromLocal: Boolean): RelayDecision = synchronized(lock) {
         val event = envelope.event
         if (event.eventId.isBlank() || event.originId.isBlank() || event.occurredAtMs <= 0 || event.ttlSeconds < 0) {
             return RelayDecision.MALFORMED
@@ -120,22 +151,25 @@ class RelayEngine(
                 return RelayDecision.REJECTED_SIGNATURE
             }
         }
-        if (!fromLocal && !replayGuard.accept(event.originId, event.sequence)) {
+        val emergencyId = event.payload["emergencyId"]
+        if (!fromLocal && !replayGuard.accept(event.originId, event.sequence, streamId = emergencyId)) {
             return RelayDecision.STALE_SEQUENCE
         }
-        if (!seenEventIds.add(event.eventId)) return RelayDecision.DUPLICATE
+        val key = dedupKey(event)
+        if (!seenEventIds.add(key)) return RelayDecision.DUPLICATE
         
         envelope.fromPeerId?.let { sender ->
-            sentPeersMap.getOrPut(event.eventId) { HashSet() }.add(sender)
+            sentPeersMap.getOrPut(key) { HashSet() }.add(sender)
         }
         
-        return forward(envelope)
+        forward(envelope)
     }
 
     private fun forward(envelope: RelayEnvelope): RelayDecision {
         activeEnvelopes.add(envelope)
         var anySuccess = false
-        val sentSet = sentPeersMap.getOrPut(envelope.event.eventId) { HashSet() }
+        val key = dedupKey(envelope.event)
+        val sentSet = sentPeersMap.getOrPut(key) { HashSet() }
         val peers = transport.availablePeers().filter { it != envelope.fromPeerId && it !in sentSet }
         if (peers.isNotEmpty()) {
             peers.forEach { peer ->
@@ -151,5 +185,9 @@ class RelayEngine(
     }
 
     private fun isExpired(event: IncidentEvent): Boolean =
-        event.occurredAtMs + event.ttlSeconds * 1000 < nowMs()
+        com.example.georescux.data.relay.CrossTransportRelayBridge.isEventExpired(
+            event.occurredAtMs,
+            event.ttlSeconds,
+            nowMs()
+        )
 }

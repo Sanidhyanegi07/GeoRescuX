@@ -11,22 +11,41 @@ import android.database.sqlite.SQLiteOpenHelper
  */
 class SQLiteSeenEventStore(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DB_NAME, null, DB_VERSION),
-    SeenEventStore {
+    SeenEventStore,
+    RelayOutboundQueue {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             """
-            CREATE TABLE $TABLE_SEEN_EVENTS (
+            CREATE TABLE IF NOT EXISTS $TABLE_SEEN_EVENTS (
                 $COL_EVENT_ID TEXT PRIMARY KEY,
                 $COL_SEEN_AT INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS $TABLE_OUTBOUND_ENVELOPES (
+                $COL_OUT_EVENT_ID TEXT PRIMARY KEY,
+                $COL_OUT_JSON TEXT NOT NULL,
+                $COL_OUT_QUEUED_AT INTEGER NOT NULL
             )
             """.trimIndent()
         )
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_SEEN_EVENTS")
-        onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS $TABLE_OUTBOUND_ENVELOPES (
+                    $COL_OUT_EVENT_ID TEXT PRIMARY KEY,
+                    $COL_OUT_JSON TEXT NOT NULL,
+                    $COL_OUT_QUEUED_AT INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+        }
     }
 
     override fun loadAllSeenEventIds(): Set<String> {
@@ -63,12 +82,63 @@ class SQLiteSeenEventStore(context: Context) :
         db.delete(TABLE_SEEN_EVENTS, "$COL_SEEN_AT < ?", arrayOf(cutoffMs.toString()))
     }
 
+    // --- RelayOutboundQueue ---
+
+    override fun loadQueued(): List<com.example.georescux.domain.relay.RelayEnvelope> {
+        val db = readableDatabase
+        val rows = mutableListOf<com.example.georescux.domain.relay.RelayEnvelope>()
+        db.query(
+            TABLE_OUTBOUND_ENVELOPES,
+            arrayOf(COL_OUT_JSON),
+            null,
+            null,
+            null,
+            null,
+            "$COL_OUT_QUEUED_AT ASC"
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                val json = cursor.getString(0)
+                RelayEnvelopeSerializer.deserialize(json)?.let { rows.add(it) }
+            }
+        }
+        return rows
+    }
+
+    override fun enqueue(envelope: com.example.georescux.domain.relay.RelayEnvelope, queuedAtMs: Long) {
+        val json = RelayEnvelopeSerializer.serialize(envelope)
+        val key = if (envelope.event.sequence > 0L) "${envelope.event.eventId}:${envelope.event.sequence}" else envelope.event.eventId
+        val values = ContentValues().apply {
+            put(COL_OUT_EVENT_ID, key)
+            put(COL_OUT_JSON, json)
+            put(COL_OUT_QUEUED_AT, queuedAtMs)
+        }
+        writableDatabase.insertWithOnConflict(
+            TABLE_OUTBOUND_ENVELOPES,
+            null,
+            values,
+            SQLiteDatabase.CONFLICT_REPLACE
+        )
+    }
+
+    override fun remove(eventId: String) {
+        writableDatabase.delete(
+            TABLE_OUTBOUND_ENVELOPES,
+            "$COL_OUT_EVENT_ID = ? OR $COL_OUT_EVENT_ID LIKE ?",
+            arrayOf(eventId, "$eventId:%")
+        )
+    }
+
     companion object {
         const val DB_NAME = "georescux_relay_seen_events.db"
-        const val DB_VERSION = 1
+        const val DB_VERSION = 2
 
         const val TABLE_SEEN_EVENTS = "seen_events"
         const val COL_EVENT_ID = "event_id"
         const val COL_SEEN_AT = "seen_at_ms"
+
+        const val TABLE_OUTBOUND_ENVELOPES = "relay_outbound_envelopes"
+        const val COL_OUT_EVENT_ID = "event_id"
+        const val COL_OUT_JSON = "envelope_json"
+        const val COL_OUT_QUEUED_AT = "queued_at_ms"
     }
 }

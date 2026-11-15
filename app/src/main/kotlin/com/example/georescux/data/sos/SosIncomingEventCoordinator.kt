@@ -180,12 +180,25 @@ object SosIncomingEventCoordinator {
         )
     }
 
+    private val ingestionLock = Any()
+
+    /**
+     * Determines whether an emergency timestamp has expired, safe against negative values and Long overflow.
+     */
+    fun isEventExpired(occurredAtMs: Long, ttlSeconds: Long, nowMs: Long): Boolean {
+        if (occurredAtMs <= 0L || ttlSeconds <= 0L || nowMs <= 0L) return true
+        val ttlMs = if (ttlSeconds > Long.MAX_VALUE / 1000L) Long.MAX_VALUE else ttlSeconds * 1000L
+        val expiryTimeMs = if (Long.MAX_VALUE - ttlMs < occurredAtMs) Long.MAX_VALUE else occurredAtMs + ttlMs
+        return expiryTimeMs < nowMs
+    }
+
     /**
      * Full production entry point for processing an incoming [IncidentEvent] against [sosStore].
      *
      * Handles:
-     * - Filtering out non-SOS events and own-device echoes.
+     * - Filtering out non-SOS events, own-device echoes, and expired events.
      * - Correlation and ordering protection via [correlate].
+     * - Atomic deduplication and persistence across concurrent BLE and Nearby paths.
      * - Updating [sosStore] via [LocalSosStore.addToHistory].
      *
      * Returns the reconciled [SosEmergency] if updated/saved, or `null` if ignored.
@@ -194,9 +207,22 @@ object SosIncomingEventCoordinator {
         event: IncidentEvent,
         sosStore: LocalSosStore,
         selfOriginId: String? = null,
-    ): SosEmergency? {
+        nowMs: Long? = null,
+    ): SosEmergency? = synchronized(ingestionLock) {
         if (event.type != IncidentType.SOS) return null
         if (selfOriginId != null && event.originId == selfOriginId) return null
+
+        // Expiry check: reject expired events before persistence when nowMs is provided
+        if (nowMs != null) {
+            val candidateTimestamp: Long = if (isCompletionEvent(event)) {
+                event.payload["stoppedAtMs"]?.toLongOrNull() ?: event.occurredAtMs
+            } else {
+                event.payload["startedAtMs"]?.toLongOrNull() ?: event.occurredAtMs
+            }
+            if (isEventExpired(candidateTimestamp, event.ttlSeconds, nowMs)) {
+                return null
+            }
+        }
 
         val emergencyId = IncidentMapper.emergencyIdFor(event)
         val meshId = computeMeshId(event.originId, emergencyId)

@@ -30,6 +30,8 @@ class NearbySosIngestionHandler(
     private val onMarkPendingSync: (emergencyId: String) -> Unit,
     private val scope: CoroutineScope,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(1),
+    private val onForwardToBle: ((envelope: RelayEnvelope, emergency: com.example.georescux.domain.sos.SosEmergency) -> Unit)? = null,
+    private val nowMs: (() -> Long)? = null,
 ) {
 
     fun handleEnvelope(envelope: RelayEnvelope): Job? {
@@ -42,6 +44,7 @@ class NearbySosIngestionHandler(
                     event = event,
                     sosStore = sosStore,
                     selfOriginId = selfOriginId(),
+                    nowMs = nowMs?.invoke(),
                 ) ?: return@launch
 
                 if (emergency.isActive) {
@@ -49,6 +52,8 @@ class NearbySosIngestionHandler(
                 }
 
                 onMarkPendingSync(emergency.id)
+
+                onForwardToBle?.invoke(envelope, emergency)
             } catch (e: Exception) {
                 runCatching {
                     Log.e(TAG, "Failed to process incoming Nearby SOS event", e)
