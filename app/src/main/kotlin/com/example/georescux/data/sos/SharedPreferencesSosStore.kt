@@ -39,8 +39,8 @@ class SharedPreferencesSosStore(private val prefs: SharedPreferences) : LocalSos
 
     override fun addToHistory(emergency: SosEmergency) {
         val existing = parseHistoryJson(prefs.getString(KEY_HISTORY, "[]"))
-        val combined = existing + emergency
-        val kept = SosHistoryPolicy.keepNewest(combined, SosHistoryPolicy.MAX_HISTORY)
+        val updated = existing.filterNot { it.id == emergency.id } + emergency
+        val kept = SosHistoryPolicy.keepNewest(updated, SosHistoryPolicy.MAX_HISTORY)
         val array = JSONArray()
         // Store in chronological order (oldest first) so array[length - 1] is newest
         kept.asReversed().forEach {

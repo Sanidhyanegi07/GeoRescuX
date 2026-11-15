@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import com.example.georescux.domain.sos.SosEmergency
 import com.example.georescux.domain.sos.SosHistoryPolicy
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -12,7 +13,7 @@ import org.junit.Test
 
 class SharedPreferencesSosStoreTest {
 
-    private class FakeSharedPreferences : SharedPreferences {
+    internal class FakeSharedPreferences : SharedPreferences {
         val map = mutableMapOf<String, Any?>()
 
         override fun getAll(): MutableMap<String, *> = HashMap(map)
@@ -208,6 +209,28 @@ class SharedPreferencesSosStoreTest {
         val validIds = history2.map { it.id }.toSet()
         assertTrue("valid-1" in validIds)
         assertTrue("valid-2" in validIds)
+    }
+
+    @Test
+    fun `adding an updated emergency with the same ID replaces the old entry rather than appending a duplicate`() {
+        val active = SosEmergency(id = "sos-replace-1", startedAtMs = 10_000L, stoppedAtMs = null, note = "Active help")
+        store.addToHistory(active)
+
+        val historyBefore = store.loadHistory()
+        assertEquals(1, historyBefore.size)
+        assertEquals("sos-replace-1", historyBefore[0].id)
+        assertTrue(historyBefore[0].isActive)
+
+        val completed = active.copy(stoppedAtMs = 25_000L, note = "Active help - resolved")
+        store.addToHistory(completed)
+
+        val historyAfter = store.loadHistory()
+        assertEquals(1, historyAfter.size) // Exactly one entry, not two
+        assertEquals("sos-replace-1", historyAfter[0].id)
+        assertEquals(10_000L, historyAfter[0].startedAtMs)
+        assertEquals(25_000L, historyAfter[0].stoppedAtMs)
+        assertFalse(historyAfter[0].isActive)
+        assertEquals("Active help - resolved", historyAfter[0].note)
     }
 }
 

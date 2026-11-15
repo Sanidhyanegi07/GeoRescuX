@@ -74,23 +74,55 @@ enum class IncidentSyncState { LOCAL_ONLY, QUEUED, RELAYED, SYNCING, SYNCED, CON
  */
 object IncidentMapper {
 
+    const val STATUS_ACTIVE = "ACTIVE"
+    const val STATUS_COMPLETED = "COMPLETED"
+
+    /**
+     * Resolves the stable emergency identity from an [IncidentEvent].
+     * Prefers `payload["emergencyId"]`; falls back to stripping the lifecycle
+     * transition suffix from `eventId` for backward compatibility.
+     */
+    fun emergencyIdFor(event: IncidentEvent): String =
+        event.payload["emergencyId"]
+            ?: event.eventId.removeSuffix(":COMPLETED").removeSuffix(":STOP")
+
+    /**
+     * Derives an [IncidentEvent] from a [SosEmergency].
+     * Distinguishes the event's unique identity ([IncidentEvent.eventId]) from the
+     * identity of the emergency it describes ([SosEmergency.id]):
+     * - An active (start) event uses the emergency's ID.
+     * - A completed (stop) event uses a deterministic lifecycle transition ID
+     *   ("${emergency.id}:COMPLETED"), so it is not suppressed by RelayEngine's
+     *   deduplication of the start event, while repeated transmissions of the
+     *   completion event itself remain deduplicated.
+     */
     fun fromSos(
         emergency: SosEmergency,
         originId: String,
         pendingCloudBackup: Boolean,
-    ): IncidentEvent = IncidentEvent(
-        eventId = emergency.id,
-        originId = originId,
-        type = IncidentType.SOS,
-        occurredAtMs = emergency.startedAtMs,
-        latitude = emergency.location?.latitude,
-        longitude = emergency.location?.longitude,
-        severity = IncidentSeverity.CRITICAL,
-        sequence = 0L,
-        syncState = if (pendingCloudBackup) IncidentSyncState.QUEUED else IncidentSyncState.SYNCED,
-        payload = buildMap {
-            put("status", if (emergency.stoppedAtMs == null) "ACTIVE" else "COMPLETED")
-            emergency.locationStatus?.let { put("locationStatus", it.name) }
-        },
-    )
+    ): IncidentEvent {
+        val isCompleted = emergency.stoppedAtMs != null
+        val eventId = if (isCompleted) "${emergency.id}:COMPLETED" else emergency.id
+        return IncidentEvent(
+            eventId = eventId,
+            originId = originId,
+            type = IncidentType.SOS,
+            occurredAtMs = emergency.stoppedAtMs ?: emergency.startedAtMs,
+            latitude = emergency.location?.latitude,
+            longitude = emergency.location?.longitude,
+            severity = IncidentSeverity.CRITICAL,
+            sequence = 0L,
+            syncState = if (pendingCloudBackup) IncidentSyncState.QUEUED else IncidentSyncState.SYNCED,
+            payload = buildMap {
+                put("emergencyId", emergency.id)
+                put("status", if (isCompleted) STATUS_COMPLETED else STATUS_ACTIVE)
+                put("startedAtMs", emergency.startedAtMs.toString())
+                if (isCompleted) {
+                    put("stoppedAtMs", emergency.stoppedAtMs!!.toString())
+                }
+                emergency.locationStatus?.let { put("locationStatus", it.name) }
+                emergency.note?.let { put("note", it) }
+            },
+        )
+    }
 }

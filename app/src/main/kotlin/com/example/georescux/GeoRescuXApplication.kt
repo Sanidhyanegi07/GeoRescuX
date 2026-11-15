@@ -269,39 +269,20 @@ class AppContainer(context: Context) {
             hazardEventRouteBridge.onEventAccepted(envelope.event)
 
             if (envelope.event.type == IncidentType.SOS) {
-                val event = envelope.event
-                if (event.originId == selfOriginId) return@setOnEventReceivedListener
-                val status = event.payload["status"] ?: "ACTIVE"
-                val locationStatusName = event.payload["locationStatus"]
-                val locStatus = locationStatusName?.let { runCatching { SosLocationStatus.valueOf(it) }.getOrNull() }
-                val location = if (event.latitude != null && event.longitude != null) {
-                    SosLocation(
-                        latitude = event.latitude,
-                        longitude = event.longitude,
-                        accuracyMeters = 0f,
-                        timestampMs = event.occurredAtMs,
-                        provider = "mesh_relay"
-                    )
-                } else null
-
-                val emergency = SosEmergency(
-                    id = "MESH_${event.originId}_${event.eventId}",
-                    startedAtMs = event.occurredAtMs,
-                    stoppedAtMs = if (status == "COMPLETED") event.occurredAtMs + 1000L else null,
-                    location = location,
-                    locationStatus = locStatus ?: (if (location != null) SosLocationStatus.ACQUIRED else null),
-                    note = event.payload["note"],
-                )
-                sosStore.addToHistory(emergency)
+                val emergency = com.example.georescux.data.sos.SosIncomingEventCoordinator.processIncomingSos(
+                    event = envelope.event,
+                    sosStore = sosStore,
+                    selfOriginId = selfOriginId,
+                ) ?: return@setOnEventReceivedListener
 
                 // Gap B fix: post a visible heads-up notification so the user on this device
                 // is immediately alerted — without this, the alert was saved silently and only
                 // visible if the user manually opened the Alerts screen.
-                if (status != "COMPLETED") {
+                if (emergency.isActive) {
                     com.example.georescux.data.notification.SosAlertNotifier.notify(
                         context = appContext,
-                        originId = event.originId,
-                        startedAtMs = event.occurredAtMs,
+                        originId = envelope.event.originId,
+                        startedAtMs = emergency.startedAtMs,
                         note = emergency.note,
                     )
                 }
