@@ -46,7 +46,7 @@ This document provides a thorough, transparent, and honest disclosure of the cur
   Store-and-forward mesh topologies suffer from unpredictable delivery latency. Without physical multi-node verification:
   - True end-to-end latency across multiple hops under pedestrian movement speeds is unknown.
   - Battery drain on intermediary relay nodes continuously operating BLE scanning and Nearby advertising has not been benchmarked.
-  - **Hop-Budget Enforcement Asymmetry:** The carried hop budget is explicitly decremented during BLE ↔ Nearby cross-transport conversion (`remainingHops = packet.ttl - 1` in `CrossTransportRelayBridge.kt`) and during BLE mesh node forwarding (`GeoRescueBleMeshNode.kt`). However, within `RelayEngine.kt`, same-transport Nearby relaying relies on time-based duration expiry (`isEventExpired(occurredAtMs, ttlSeconds, nowMs)`) and deduplication (`CrossTransportDeduplicator`) rather than a universal per-node hop decrement on every same-transport handoff.
+  - **Hop-Budget Enforcement Asymmetry:** The carried hop budget is explicitly decremented during BLE ↔ Nearby cross-transport conversion (`remainingHops = packet.ttl - 1` in `CrossTransportRelayBridge.kt`) and during BLE mesh node forwarding (`GeoRescueBleMeshNode.kt`). However, within `RelayEngine.kt`, same-transport Nearby relaying relies on time-based duration expiry (`isEventExpired(occurredAtMs, ttlSeconds, nowMs)`) and deduplication (`CrossTransportDeduplicator`) rather than a universal per-node hop decrement on every same-transport handoff. Deduplication suppresses recognized duplicate event IDs within its retention window, but does not provide a mathematical guarantee against every possible cyclic broadcast across complex, partitioned topologies.
 - **Required Future Verification:**
   Deploy a controlled physical 3-device testbed: Device A (Offline victim), Device B (Offline courier moving between partitions), Device C (Connected gateway with LTE). Measure total elapsed time from Device A's SOS trigger to Device C's Firebase write confirmation.
 
@@ -158,10 +158,11 @@ This document provides a thorough, transparent, and honest disclosure of the cur
 ### 11. Safe Route Pro Synthetic Hazard Fixtures & Shelter Categorization
 
 - **Current Implementation:**
-  `SafeRoutePlanner.kt`, `RouteRepositoryImpl.kt`, and `RoadHazard.kt` calculate evacuation routes that avoid blocked road segments and penalize high-hazard corridors in the offline road graph.
+  `RouteRepositoryImpl.kt`, `RoadHazard.kt`, and `AStarPathfinder.kt` calculate evacuation routes that avoid blocked road segments and penalize high-hazard corridors in the offline road graph.
 - **Existing Evidence:**
   Algorithmic detour and penalty calculation pass automated unit tests in `SafeRouteOfflineEngineTest.kt` using synthetic test fixtures (road closures simulated via `repo.setRoadBlocked` and hazard penalties simulated via `RoadHazard.penaltyMeters`).
 - **Technical Consequence:**
+  - Local graph-based routing with blocked-edge avoidance and synthetic hazard penalties demonstrated in tests. Real-world hazard-feed integration and hazard accuracy remain unverified.
   - The application does **not** ingest real-time official hazard feeds (such as live landslide telemetry, radar rainfall feeds, or active civil defense alerts).
   - Safe havens are nodes tagged as designated shelters in the packaged OpenStreetMap road graph (`isSafeHaven = true`), rather than government-certified evacuation shelters.
   - Offline-calculated paths cannot guarantee physical passability in rapidly evolving catastrophic conditions.

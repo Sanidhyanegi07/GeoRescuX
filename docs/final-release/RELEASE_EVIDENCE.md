@@ -21,6 +21,7 @@ This document records the empirical baseline data, build artifacts, test outputs
     5. `docs/final-release/RELEASE_EVIDENCE.md`
   - **Untracked Files:** **ZERO.** No new temporary files, build outputs, or scripts exist in the repository root.
   - **Staged / Committed / Pushed Changes:** **ZERO.** No Git history alteration, no staging (`git add`), no resets, and no remote pushes (`git push`) were performed. All working-tree documentation refinements remain uncommitted per preservation rules.
+- **Verification Qualification:** Branch, HEAD, commit lineage, and working-tree status are recorded repository observations from the active Git workspace; they are not independently verifiable from a standalone documentation ZIP lacking `.git/` metadata.
 
 ---
 
@@ -37,6 +38,7 @@ This document records the empirical baseline data, build artifacts, test outputs
   - **Errors:** **0**
   - **Skipped / Ignored:** **0**
   - **Pass Rate:** **100.0%**
+- **Verification Qualification:** The 582 passing unit tests (0 failures, 0 errors, 0 skipped across 73 suites) are recorded execution results from the verified build environment. They are not independently reproducible from the documentation ZIP alone, as raw XML test reports (`app/build/test-results/testDebugUnitTest/`) are excluded from documentation packages.
 
 #### Target Subsystem: `RoleRoutingCoordinatorTest`
 Report File: `TEST-com.example.georescux.ui.main.RoleRoutingCoordinatorTest.xml`
@@ -66,6 +68,7 @@ Report File: `TEST-com.example.georescux.ui.main.RoleRoutingCoordinatorTest.xml`
 - **Archive Verification:**
   - Verified presence of `res/layout/activity_main.xml` within the APK zip structure.
   - Verified DEX output partitions (`classes.dex` through `classes18.dex`).
+- **Verification Qualification:** The APK size (42,750,105 bytes) and SHA-256 checksum (`4EE47BF18A994018D5C5C253743743370BEFB762C53428133773621151BCC838`) are recorded artifact metadata from the local Gradle build. They do not constitute proof that the binary APK is bundled inside the documentation-only distribution archive.
 
 ---
 
@@ -95,6 +98,7 @@ Report File: `TEST-com.example.georescux.ui.main.RoleRoutingCoordinatorTest.xml`
   - `Activity: com.example.georescux/.MainActivity`
   - `TotalTime: 14716ms`
   - `WaitTime: 14720ms`
+- **Verification Qualification:** The 14.716-second cold-start launch duration is recorded runtime telemetry from virtual hardware (`emulator-5554`), reflecting emulator virtualization and Android OS class verification overhead.
 - **Logcat Activity Transition:**
   ```
   11-15 22:55:33.229 ActivityTaskManager: START u0 {cmp=com.example.georescux/.MainActivity} ...
@@ -145,6 +149,63 @@ Report File: `TEST-com.example.georescux.ui.main.RoleRoutingCoordinatorTest.xml`
 3. **Local Store vs Cloud Readback:** Local non-volatile persistence in `sos_store.xml` is verified. Independent remote cloud query via external REST endpoints directly against `/sos_alerts/{uid}/{alertId}` was not executed.
 4. **Relay Cryptographic Authentication Status:** ECDSA signing primitives (`EventSigner.kt`, `EventAuthenticator.kt`) exist in code and pass unit tests, but production `RelayEngine` in `GeoRescuXApplication.kt` is initialized with default `authenticator = null`, and `GeoRescueBlePacket` contains no signature field. Cryptographic mesh authentication is therefore implemented in code but unenforced in the production relay path.
 5. **Zero Code Pollution:** No application source code, manifests, Firebase rules, or Git commit histories were modified or polluted during this documentation phase.
+
+---
+
+### 8. Evidence Packaging and Independent Reproducibility
+
+This subsection explicitly clarifies what is included versus excluded in the final release documentation distribution archive, and provides the exact procedure required for independent reproduction:
+
+#### A. Files Physically Included in Documentation Archive
+The standalone documentation ZIP includes only the final release Markdown documentation files located in `docs/final-release/`:
+1. `FINAL_PROJECT_REPORT.md` (System architecture, technical specifications, and verification summary)
+2. `FEATURE_VERIFICATION_MATRIX.md` (Detailed feature-by-feature verification status, evidence, and limitation matrix)
+3. `DEMONSTRATION_CHECKLIST.md` (Step-by-step evaluator walkthrough and 20 comprehensive technical viva Q&As)
+4. `KNOWN_LIMITATIONS.md` (Engineering risk analysis, unverified subsystems, and known limitations)
+5. `RELEASE_EVIDENCE.md` (This empirical verification evidence log)
+
+#### B. Artifacts Excluded from Documentation Archive
+To keep documentation archives portable, lightweight, and text-focused, raw binary and build artifacts are excluded:
+- **Raw Test Report XMLs:** The 73 individual XML result files in `app/build/test-results/testDebugUnitTest/` are not bundled in the documentation ZIP.
+- **Compiled Binary APK:** The physical `app-debug.apk` binary (42,750,105 bytes) is not bundled in the documentation ZIP.
+- **Git Repository Metadata:** The `.git/` version control tree is excluded from standalone documentation ZIP exports.
+
+#### C. Requirements for Independent Evaluator Reproduction
+An external auditor or examiner wishing to independently reproduce all recorded execution results and artifact metadata should follow these steps using the complete GeoRescuX repository source checkout:
+1. **Source Code Checkout:**
+   Clone or extract the repository at commit `abb0ad7` (or release baseline `a05fea2`).
+2. **Prerequisites:**
+   - JDK 17 (Java Development Kit 17.0.x).
+   - Android SDK platform-tools and build-tools (minSdk 24, compileSdk 35, targetSdk 35).
+   - Android NDK (r25+ with CMake supporting C++20 for `libgeorescux_routing.so`).
+3. **Reproduce Automated Unit Test Suite (582 Tests):**
+   Run from the repository root:
+   ```powershell
+   .\gradlew.bat testDebugUnitTest --rerun-tasks
+   ```
+   Verify that Gradle reports `BUILD SUCCESSFUL`, generates all 73 XML files in `app/build/test-results/testDebugUnitTest/`, and confirms:
+   - Total Tests: **582**
+   - Failures: **0**, Errors: **0**, Skipped: **0**
+   - Specifically verify `RoleRoutingCoordinatorTest` (11/11 passed).
+4. **Reproduce Debug APK Compilation & Checksum:**
+   Run from the repository root:
+   ```powershell
+   .\gradlew.bat assembleDebug
+   ```
+   Inspect the output at `app/build/outputs/apk/debug/app-debug.apk`. Calculate its SHA-256 hash:
+   ```powershell
+   Get-FileHash app/build/outputs/apk/debug/app-debug.apk -Algorithm SHA256
+   ```
+   Confirm file size (`42,750,105` bytes) and SHA-256 hash (`4EE47BF18A994018D5C5C253743743370BEFB762C53428133773621151BCC838`).
+5. **Reproduce Emulator Cold-Start Runtime Telemetry:**
+   Launch an Android Virtual Device (AVD) running Google Pixel 6 (API Level 34/35) and execute:
+   ```powershell
+   adb install -r -d app/build/outputs/apk/debug/app-debug.apk
+   adb shell am force-stop com.example.georescux
+   adb logcat -c
+   adb shell am start -W -n com.example.georescux/.MainActivity
+   ```
+   Observe the immediate branded loading screen (`activity_main.xml`), asynchronous role resolution with bounded 3000ms timeout, and cold-start launch duration.
 
 ---
 *Evidence log certified against GeoRescuX release candidate artifact `app-debug.apk`.*

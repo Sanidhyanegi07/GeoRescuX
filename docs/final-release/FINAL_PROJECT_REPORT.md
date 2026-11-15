@@ -40,7 +40,7 @@ Severe natural disasters (such as flash floods, landslides, cloudbursts, and ear
 GeoRescuX addresses these challenges through the following technical mechanisms:
 - **Local-First Persistence Authority:** Emergency data is committed to local non-volatile storage (`SharedPreferencesSosStore` backed by `sos_store.xml` and SQLite) before initiating any network transmission. Local emergency lifecycles operate independently of network status.
 - **Dual-Layer Hybrid Peer-to-Peer Mesh:** Provides peer discovery and alerting through Android Bluetooth Low Energy (BLE) GATT client-server connections and Google Nearby Connections (`Strategy.P2P_CLUSTER`).
-- **Cross-Transport Relay Bridge:** Connects BLE GATT and Nearby transports via a unified bridge (`CrossTransportRelayBridge.kt`), translating payloads, decrementing carried hop budgets on cross-transport conversion, and suppressing cyclic loops using deduplication caches.
+- **Cross-Transport Relay Bridge:** Connects BLE GATT and Nearby transports via a unified bridge (`CrossTransportRelayBridge.kt`), translating payloads, decrementing carried hop budgets on cross-transport conversion, and mitigating cyclic broadcast loops using deduplication caches and duration-based expiry.
 - **Native C++ Offline Spatial & Routing Core:** Graph search algorithms (bi-directional A* and heuristic pathfinding) are implemented in native C++20 (`app/src/main/cpp/`) accessed via JNI (`GeoRescueNativeRouting.kt`), paired with a pure Kotlin fallback engine (`SafeHavenFallback.kt`).
 - **Fail-Closed Administrative Authorization:** Administrative capabilities are restricted using server-verified Firebase Auth Custom Claims (`claims["admin"] == true`), guarded by an asynchronous bounded-timeout coordinator (`RoleRoutingCoordinator.kt`) that fails closed upon timeout or credential ambiguity.
 
@@ -51,7 +51,7 @@ GeoRescuX addresses these challenges through the following technical mechanisms:
 1. Maintain **local emergency state persistence** across application process termination (`am force-stop` verification).
 2. Eliminate startup window-focus ANRs by rendering a branded loading screen synchronously on launch, with a **bounded 3000ms role-resolution timeout**.
 3. Implement an **in-memory and durable cross-transport forwarding bridge** between BLE and Nearby Connections.
-4. Provide **offline evacuation route calculation** with dynamic hazard-avoidance heuristics and designated safe-haven fallbacks.
+4. Provide **offline evacuation route calculation**: Local graph-based routing with blocked-edge avoidance and synthetic hazard penalties demonstrated in tests. Real-world hazard-feed integration and hazard accuracy remain unverified, with designated safe havens serving as offline destination nodes.
 5. Enforce **fail-closed administrative gating**, preventing unverified users from accessing command screens.
 6. Achieve a **regression-free automated test suite** validating state machines, codecs, deduplicators, and security boundaries.
 
@@ -74,7 +74,7 @@ flowchart TD
     subgraph Domain_Layer ["Domain Layer (Business Rules & Entities)"]
         SosStateMachine["SosStateMachine\n(HOLD -> COUNTDOWN -> ACTIVE -> TERMINAL)"]
         RoleRoutingCoordinator["RoleRoutingCoordinator\n(Bounded 3000ms Timeout & Atomic Navigation Guard)"]
-        SafeRoutePlanner["SafeRoutePlanner\n(Hazard Cost Evaluator & Safe Haven Selector)"]
+        RouteCostPolicy["RouteCostPolicy & RoadHazard\n(Graph Cost Evaluator & Hazard Penalties)"]
         AdminAuthGuard["AdminAuthGuard\n(Custom Claims Verification Gate)"]
         EventAuthenticator["EventAuthenticator / EventSigner\n(EC P-256 & SHA256withECDSA Signing Abstraction)"]
     end
@@ -205,15 +205,15 @@ stateDiagram-v2
 
 ### 10. Safe Route & Safe Route Pro
 
-- **Standard Safe Route:** Calculates the shortest geographical path from the user's location to designated relief shelters using an offline road network graph (`RouteRepositoryImpl.kt`).
+- **Standard Safe Route:** Calculates the shortest geographical path from the user's location to designated safe-haven destination nodes using an offline road network graph ([`RouteRepositoryImpl.kt`](../../app/src/main/kotlin/com/example/georescux/data/routing/RouteRepositoryImpl.kt) and [`AStarPathfinder.kt`](../../app/src/main/kotlin/com/example/georescux/domain/routing/AStarPathfinder.kt)).
 - **Safe Route Pro Implementation:**
-  - Evaluates local road hazards (`RoadHazard.kt`) such as simulated road blockages or structural damage.
+  - Local graph-based routing with blocked-edge avoidance and synthetic hazard penalties demonstrated in tests. Real-world hazard-feed integration and hazard accuracy remain unverified.
   - Implements blocked-edge avoidance (`repo.setRoadBlocked(from, to, true)`) and synthetic hazard cost penalties (`RoadHazard.penaltyMeters`) as tested in [SafeRouteOfflineEngineTest.kt](../../app/src/test/kotlin/com/example/georescux/ui/routing/SafeRouteOfflineEngineTest.kt).
-  - Routes toward designated safe-haven nodes marked with `isSafeHaven = true` in the offline graph data.
+  - Routes toward designated safe-haven destination nodes marked with `isSafeHaven = true` in the offline road graph data.
   - In the live emulator run, the dynamic UI banner (`bannerSafeRoutePro`) successfully bound to the active emergency state.
 - **Important Engineering Distinctions & Caveats:**
-  - *No Live Sensor Feeds:* Safe Route Pro does not ingest real-time satellite imagery, meteorological flood gauges, or automated landslide sensor feeds.
-  - *No Official Certification:* Designated safe havens are nodes tagged in the local OpenStreetMap graph dataset; they are not officially certified or vetted by government disaster authorities.
+  - *No Live Sensor Feeds:* Safe Route Pro does not detect live environmental conditions (e.g., active flooding, landslides, or debris) and does not ingest real-time satellite feeds or official telemetry.
+  - *No Official Certification:* Designated safe havens are nodes tagged in the local OpenStreetMap graph dataset (`isSafeHaven = true`); they are not officially certified or vetted emergency shelters.
   - *Synthetic Verification Boundary:* Unit tests verify that the A* algorithm mathematically detours around blocked edges and penalizes hazardous segments in synthetic test graphs; this does not prove real-world topological safety or guarantee hazard-free passage in an actual disaster.
 
 ---
@@ -279,8 +279,8 @@ In GeoRescuX, message propagation bounds are governed by four distinct mechanism
    if (isEventExpired(event.occurredAtMs, event.ttlSeconds, nowMs())) return false
    ```
    Expired events are discarded regardless of remaining hop count.
-4. **Loop Suppression (Deduplication):** [CrossTransportDeduplicator](../../app/src/main/kotlin/com/example/georescux/domain/relay/CrossTransportDeduplicator.kt) combines an in-memory sliding-window cache of recent event UUIDs with an SQLite persistent seen-event store (`SQLiteSeenEventStore.kt`). Identical event IDs are dropped at the ingress boundary.
-- **Important Distinction:** The carried hop budget is explicitly decremented during cross-transport conversions and BLE mesh node forwarding. However, this is **not a universally guaranteed per-node hop limit** across arbitrary homogeneous networks, as `RelayEngine` primarily relies on time-based `ttlSeconds` expiry and seen-ID deduplication rather than decrementing an integer counter on every internal queue transition.
+4. **Loop Mitigation (Deduplication):** [CrossTransportDeduplicator](../../app/src/main/kotlin/com/example/georescux/domain/relay/CrossTransportDeduplicator.kt) combines an in-memory sliding-window cache of recent event UUIDs with an SQLite persistent seen-event store (`SQLiteSeenEventStore.kt`). Identical event IDs are dropped at the ingress boundary. Deduplication suppresses recognized duplicate events within the active cache window, but does not mathematically guarantee the elimination of every possible cyclic broadcast across complex or partitioned topologies.
+- **Important Distinction:** The carried hop budget is explicitly decremented during cross-transport conversions (`remainingHops = packet.ttl - 1`) and BLE mesh node forwarding (`packet.forNextHop()`). However, this is **not a universal per-node hop limit** across arbitrary networks, as Nearby forwarding in `RelayEngine` relies on time-based `ttlSeconds` expiry and seen-ID deduplication rather than decrementing an integer counter on every internal same-transport hop.
 - **Durable Outbox:** [DurableRelayEngine](../../app/src/main/kotlin/com/example/georescux/data/relay/DurableRelayEngine.kt) enqueues outgoing envelopes into an SQLite outbox (`relay_outbox.db`).
 - **Custody Boundary:** `transport.send() == true` indicates that the local transport accepted the envelope into its dispatch queue. It does **not** prove remote physical reception or disk persistence on the receiving device. A two-way receiver custody acknowledgement protocol is not implemented.
 

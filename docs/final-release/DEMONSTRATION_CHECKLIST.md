@@ -144,11 +144,12 @@ When presenting to evaluators, explicitly distinguish between what is running li
 1. An in-memory sliding-window cache of recent event UUIDs for immediate O(1) duplicate rejection.
 2. A persistent SQLite seen-store (`SQLiteSeenEventStore.kt`) ensuring that even across application process restarts, previously ingested emergency events within the retention window are recognized as duplicates and suppressed from rebroadcast.
 
-### Q10: How does the Time-To-Live (TTL) / Hop Limit prevent infinite loops?
-**Answer:** Packet propagation bounds are enforced across both transports:
-1. In the BLE mesh subsystem, each forwarding node decrements `ttl` (`packet.forNextHop()`), and packets reaching `ttl <= 1` are ingested locally but not re-propagated.
-2. During BLE ↔ Nearby cross-transport conversion (`CrossTransportRelayBridge.kt`), the carried hop budget is explicitly decremented (`remainingHops = packet.ttl - 1`).
-3. Within the Nearby transport relay (`RelayEngine.kt`), packet expiration is governed by temporal duration (`isEventExpired(occurredAtMs, ttlSeconds, nowMs)`) and deduplication cache rejection, bounding geographic spread and eliminating cyclic broadcast loops.
+### Q10: How do Time-To-Live (TTL) and deduplication mitigate broadcast loops?
+**Answer:** Packet propagation bounds and broadcast loop mitigations are enforced across both transports using distinct mechanisms rather than a universal per-node hop limit:
+1. **BLE Mesh Forwarding:** In the BLE mesh subsystem (`GeoRescueBleMeshNode.kt`), each forwarding node decrements the packet's integer `ttl` field via `packet.forNextHop()`. Packets reaching `ttl <= 1` are ingested locally but not re-propagated.
+2. **Cross-Transport Conversion:** During BLE ↔ Nearby cross-transport conversion (`CrossTransportRelayBridge.kt`), the carried hop budget is explicitly decremented (`remainingHops = packet.ttl - 1`).
+3. **Nearby Forwarding:** Within the Google Nearby Connections relay (`RelayEngine.kt`), packet lifetime is bounded by temporal duration expiry (`isEventExpired(occurredAtMs, ttlSeconds, nowMs)`).
+4. **Deduplication:** An in-memory sliding-window cache and SQLite seen-store (`CrossTransportDeduplicator`) suppress recognized duplicate event IDs within their retention window. While this mitigates broadcast storm amplification, deduplication and time-based expiry mitigate rather than mathematically guarantee the elimination of every possible cyclic broadcast across complex or partitioned topologies.
 
 ### Q11: What happens if an active emergency is created while the phone is completely offline?
 **Answer:** The emergency is written immediately to `LocalSosStore` (`sos_store.xml`). Concurrently, an un-synced dirty flag is recorded in `SyncStateStore`. The app activates BLE/Nearby mesh broadcasts. The local UI functions normally. Once `AndroidConnectivityMonitor` detects internet connectivity, `SyncingSosRepository` automatically uploads the pending emergency to Firebase.
@@ -176,10 +177,10 @@ When presenting to evaluators, explicitly distinguish between what is running li
 4. Native execution avoids JVM memory allocations and garbage-collection latency spikes during intensive graph search. If the native shared library fails to load or link, `GeoRescueNativeRouting` catches the exception and falls back safely to pure Kotlin routing (`SafeHavenFallback.kt` / `AStarPathfinder.kt`).
 
 ### Q18: What is Safe Route Pro and how does it handle hazards?
-**Answer:** Safe Route Pro evaluates dynamic disaster hazards (such as road blockages, flooding, and debris):
-1. Algorithmic detour behavior is validated using synthetic unit test fixtures (`SafeRouteOfflineEngineTest.kt`), where road segments are marked blocked (`repo.setRoadBlocked`) or assigned synthetic cost penalties (`RoadHazard.penaltyMeters`), computing evacuation paths around hazard zones.
-2. Safe havens are nodes designated as emergency shelters in the offline OpenStreetMap road graph (`isSafeHaven = true`), rather than government-certified facilities.
-3. The platform does not ingest live official sensor feeds or government telemetry; path calculations rely entirely on local road graph data and locally recorded hazard attributes without guaranteeing absolute physical safety.
+**Answer:** Safe Route Pro is implemented via `RouteRepositoryImpl.kt`, `RoadHazard.kt`, and `AStarPathfinder.kt`. Local graph-based routing with blocked-edge avoidance and synthetic hazard penalties demonstrated in tests. Real-world hazard-feed integration and hazard accuracy remain unverified:
+1. **Demonstrated Capabilities:** In automated unit tests (`SafeRouteOfflineEngineTest.kt`), the on-device pathfinder computes evacuation routes on local graphs, bypassing edges marked as blocked (`repo.setRoadBlocked(from, to, true)`) and calculating detours when synthetic hazard penalties (`RoadHazard.penaltyMeters`) are introduced.
+2. **Safe Haven Classification:** Safe havens are destination nodes designated with `isSafeHaven = true` within the offline OpenStreetMap road graph data; they are not officially certified shelters.
+3. **Absence of Live Telemetry:** The application does not detect or ingest live environmental conditions (such as active flooding, landslides, or road debris), nor does it integrate with real-time civil defense sensor feeds. Real-world hazard boundaries and travel safety are unverified.
 
 ### Q19: What is the current status of cryptographic authentication in the mesh?
 **Answer:** Cryptographic signing is implemented in `EventSigner.kt` using Android Keystore EC P-256 with `SHA256withECDSA`, and `EventAuthenticator.kt` provides verification logic. However, in production `GeoRescuXApplication.kt`, `RelayEngine` is initialized with default `authenticator = null`, and `GeoRescueBlePacket` contains no signature field. Thus, cryptographic authentication is implemented in code but not fully wired or enforced in the production mesh path.
