@@ -50,4 +50,12 @@
     <string name="profile_change_region">Change region</string>
     <string name="profile_emergency_contacts">Emergency Contacts</string>
     <string name="profile_log_out">Log Out</string>
+
+    <!-- Role verification & Loading (MainActivity) -->
+    <string name="role_verifying">Verifying authorization…</string>
+    <string name="role_retrying">Retrying authorization verification…</string>
+    <string name="role_timeout_message">Authorization verification timed out. You may continue to the dashboard or retry.</string>
+    <string name="role_failed_message">Could not verify administrative privileges. You may continue to the dashboard or retry.</string>
+    <string name="role_retry_button">Retry Admin Verification</string>
+    <string name="role_continue_button">Continue to Dashboard</string>
 </resources>
