@@ -1,150 +1,265 @@
-# GeoRescuX — Project-Based Learning (PBL) Comprehensive Explanation
-**Course**: TCS-307: Object Oriented Programming with C++  
-**Department**: Computer Science & Engineering  
+# GeoRescuX — Project-Based Learning (PBL) Comprehensive Project Explanation
 **Institution**: Graphic Era Hill University (GEHU), Bhimtal Campus  
-**Project Title**: GeoRescuX — Autonomous Offline-First Disaster Emergency Response, Resilient P2P BLE Mesh, & High-Performance C++20 Spatial Engine  
-**Track**: Disaster Management Software Track (Problem Statement SIH26206)  
+**Department**: Department of Computer Science and Engineering  
+**Course Code**: TCS-307 — Object-Oriented Programming with C++  
+**Project Title**: GeoRescuX: Autonomous Offline-First Disaster Emergency Response, Resilient P2P BLE Mesh & High-Performance C++20 Spatial Engine  
 
 ---
 
-## 1. Executive Summary & Problem Context
+## 1. Executive Summary & Problem Overview
 
-### 1.1 Problem Statement & Background
-In catastrophic disaster events—such as Himalayan flash floods (e.g., Kedarnath, Chamoli), severe earthquakes, cloudbursts, and landslides—conventional emergency communication infrastructure collapses within minutes:
-1. **Cellular Base Transceiver Stations (BTS) Lose Power or Fiber Backhaul**: Victims and rescue teams find themselves in immediate "zero-connectivity zones."
-2. **Roads & Bridges Severed**: Traditional GPS navigation apps (Google Maps, Apple Maps) require live internet servers to calculate routes and fail to factor in real-time landslide roadblocks, washed-out bridges, or steep slope-induced fatigue.
-3. **Emergency Broadcast Failure**: Citizens cannot report medical emergencies, trapped casualties, or requests for evacuation; central authorities have zero visibility into ground conditions.
+### What is GeoRescuX?
+**GeoRescuX** is a mission-critical, offline-first mobile emergency response and disaster routing platform designed specifically for catastrophic scenarios in the Himalayan belt and northern India (such as Uttarakhand cloudbursts, landslides, flash floods, and earthquakes).
 
-### 1.2 GeoRescuX Solution
-**GeoRescuX** is an autonomous, local-first disaster response system engineered specifically to function when all external infrastructure fails. It combines:
-* An **Android Client Application (Kotlin)** providing citizen emergency activation, offline vector map visualization, and administrative coordination.
-* A **High-Performance Native Spatial & Routing Engine (C++20 via NDK/JNI)** executing A* pathfinding, topographic elevation cost modeling, KD-Tree spatial queries, and hazard containment directly in native memory without internet.
-* A **Peer-to-Peer Bluetooth Low Energy (BLE) Mesh Network** creating an ad-hoc, multi-hop store-and-forward relay network between offline devices.
-* An **Opportunistic Cloud Synchronization Layer (Firebase RTDB)** ensuring that as soon as any single device in the mesh reaches cellular, satellite, or WiFi range, buffered disaster telemetry is securely synchronized to emergency coordinators.
+### The Real-World Problem
+During major natural disasters:
+1. **Cellular Base Stations (BTS) Collapse**: Power grids fail, fiber optic cables are severed, and cellular towers become inoperable within minutes.
+2. **Victims are Isolated**: Traditional emergency applications (like dialing 112 or using Google Maps) fail immediately because they require active internet connections and remote cloud servers.
+3. **Evacuation Routes are Blocked**: Roads are severed by landslides and debris flows. Standard navigation apps do not know which mountain corridors are blocked and may direct evacuees into active hazard zones.
+4. **First Responders Face Blind Triage**: Rescue teams have no real-time visibility into who is trapped, where victims are grouped, or what medical triage category they fall into.
+
+### The GeoRescuX Solution
+GeoRescuX is designed to operate autonomously **when all external infrastructure has failed**:
+- **Zero-Signal SOS Activation**: Victims can trigger a distress alert with GPS telemetry without cellular data, SIM card reception, or WiFi.
+- **P2P Bluetooth Low Energy (BLE) Mesh**: Emergency packets jump device-to-device across multi-hop Bluetooth connections (up to 5 hops) until reaching an edge gateway node or responder.
+- **100% Offline Vector Maps & Native C++20 Routing**: High-performance topological road routing (A* pathfinding, hazard avoidance, elevation impedance) executes on-device in native C++20 with sub-millisecond latency.
+- **Authentic Four-State Coverage**: Complete offline support for Uttarakhand (primary, bundled), Himachal Pradesh, Haryana, and Uttar Pradesh.
+- **Store-and-Forward Cloud Sync**: The instant any device in the mesh reaches cellular or satellite uplink, buffered records synchronize to Firebase Realtime Database protected by least-privilege zero-trust security rules.
 
 ---
 
-## 2. Complete End-to-End Application Workflow
+## 2. Phase 1 — Problem Statement & Initial Design (TCS-307 Checkpoints)
+
+### Checkpoint 1: Clearly Defined Problem Statement
+* **Academic Definition**: A concise, unambiguous formulation of the specific challenge being addressed, detailing the target environment, affected stakeholders, and operational failure modes.
+* **GeoRescuX Implementation**: In disaster-stricken Himalayan regions, conventional emergency communication systems fail due to BTS outages, leaving victims stranded without navigational guidance or communication. GeoRescuX solves this by creating a decentralized, offline-first, dual-layer architecture combining Android mobile mobility with a high-performance native C++20 spatial/routing engine and an ad-hoc BLE store-and-forward mesh network.
+* **Viva Explanation**:
+  > *"Sir/Ma'am, our problem statement addresses communication and navigation failure during disasters. In events like the Chamoli flash flood or Kedarnath cloudburst, cellular networks collapse. GeoRescuX ensures that victims can still activate SOS alerts, navigate around blocked mountain roads to safe havens completely offline using our native C++ routing engine, and propagate distress messages through peer-to-peer Bluetooth mesh without internet."*
+
+---
+
+### Checkpoint 2: Project Objectives and Scope
+* **Academic Definition**: The measurable targets of the system and its operational boundaries.
+* **GeoRescuX Objectives**:
+  1. Develop an offline-first navigation engine executing in native C++20 for deterministic performance on resource-constrained mobile hardware.
+  2. Implement an ad-hoc peer-to-peer Bluetooth Low Energy mesh protocol with duplicate packet filtering and time-to-live (TTL) bounding.
+  3. Pre-process real OpenStreetMap topological graphs for four official disaster-prone states: Uttarakhand, Himachal Pradesh, Haryana, and Uttar Pradesh.
+  4. Ensure zero-dependency offline safe-haven discovery (hospitals, police stations, fire stations, and disaster management centers).
+  5. Provide an enterprise administrative triage portal with heuristic priority scoring and verified Custom Claims authorization.
+* **Scope Boundaries**:
+  - *Geographic Scope*: Exactly 4 northern states (Uttarakhand, Himachal Pradesh, Haryana, Uttar Pradesh). Non-supported regions (Delhi enclave, Rajasthan, Bihar, foreign coordinates) are strictly rejected by our polygon ray-casting classifier.
+  - *Hardware Scope*: Standard Android devices (SDK 24+ / Android 7.0 through Android 15), utilizing hardware BLE 4.2+ and GNSS GPS receivers.
+* **Viva Explanation**:
+  > *"Our scope is focused on the disaster-prone northern Indian corridor across four states. We don't try to load the entire country's multi-gigabyte map; instead, we partition real OpenStreetMap data into state-level binary vector maps and routing graphs that run directly inside the device's RAM."*
+
+---
+
+### Checkpoint 3: Required Features and Modules
+The project is divided into cohesive, decoupled subsystems:
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor Victim as Citizen / Field Responder
-    participant UI as Android UI (Kotlin)
-    participant LocalStore as Local Store (SharedPreferences/SQLite)
-    participant NativeCPP as Native C++20 Routing Engine (JNI)
-    participant Mesh as BLE Mesh Foreground Service
-    participant Gateway as Nearby Gateway Device
-    participant Firebase as Firebase RTDB Cloud
+graph TD
+    subgraph UI_Layer [User Interface & Presentation]
+        A1[MainActivity / Dashboard]
+        A2[SosActivity - Distress Flow]
+        A3[MapActivity - OsmDroid Vector Map]
+        A4[RouteActivity - Safe Route Pro]
+        A5[AdminDashboardActivity - Command Console]
+    end
 
-    Note over Victim,NativeCPP: Zero-Connectivity Zone (No Cellular / No Internet)
-    Victim->>UI: Long-Press SOS (1 Second Hold)
-    UI->>LocalStore: Save SOS Record (ACTIVE, GPS Telemetry)
-    UI->>NativeCPP: findRoute(startNode, destinationNode, hazardPenalties)
-    NativeCPP-->>UI: Return EvacuationRoute (Safe Haven Path, Distance, Elevation)
-    UI->>Mesh: Broadcast Emergency Packet (TTL=5, Unique UUID)
+    subgraph Native_CPP [Native C++20 Core Engine]
+        B1[RouteGraph & AStarPathfinder]
+        B2[BidirectionalAStar & CH]
+        B3[KDTree & SpatialClustering]
+        B4[ElevationCostModel & GeodesicMath]
+        B5[BloomFilterDeduplicator]
+        B6[PacketAuthenticator & MeshCodec]
+        B7[TriageEngine - START Protocol]
+    end
 
-    Note over Mesh,Gateway: P2P Multi-Hop BLE Mesh Relay
-    Mesh->>Gateway: Relay Packet Over BLE GATT (Hop 1)
-    Gateway->>Gateway: BloomFilter Deduplication Check
+    subgraph Data_Sync [Data & Transport Layer]
+        C1[GeoRescueBleForegroundService]
+        C2[BleManager - Central & Peripheral]
+        C3[LocalSosStore & SharedPreferences]
+        C4[SyncingSosRepository]
+        C5[Firebase Realtime Database]
+    end
 
-    Note over Gateway,Firebase: Opportunistic Uplink Re-establishment
-    Gateway->>Firebase: Synchronize Queued Alerts to /sos_alerts/$uid/$alertId
-    Firebase-->>UI: Live Admin Dashboard Updates (/admin_alerts)
+    UI_Layer -->|JNI Calls| Native_CPP
+    UI_Layer --> Data_Sync
+    Data_Sync -->|Native Codec / Deduplication| Native_CPP
 ```
 
-### Detailed Walkthrough of User Interactions
-
-#### Step 1: Emergency SOS Trigger (Citizen)
-1. The user launches GeoRescuX. If cellular and GPS are active, current coordinates are displayed; if offline, cached offline places and nearest nodes are loaded.
-2. In an emergency, the user presses and holds the primary red SOS button for 1 second.
-3. A 3-second haptic/audio countdown activates with an immediate cancel option to prevent accidental triggers.
-4. Once armed (`ACTIVE`), an immutable emergency record is saved in local app-private storage (`SharedPreferencesSosStore`). A foreground notification keeps the emergency active even if the screen locks.
-
-#### Step 2: Native C++ Topological Evacuation Routing
-1. The app invokes `GeoRescueNativeRoutingBridge.cpp` via JNI.
-2. The native C++ engine uses the active state's routing graph (e.g., Uttarakhand: 117,972 nodes, 138,164 edges).
-3. The native pathfinder runs the **A\* Algorithm with Haversine Admissible Heuristic** and incorporates **Tobler's Hiking Elevation Cost Penalties** to avoid steep ascents and dangerous slopes.
-4. If a road segment is blocked by a landslide or flood hazard, `HazardPolygon.cpp` dynamically marks edges as impassable, and the engine calculates a safe detour to the nearest reachable disaster safe haven (hospital, police station, or relief camp).
-
-#### Step 3: P2P Bluetooth Low Energy Mesh Propagation
-1. The citizen's phone acts as both a BLE Advertiser and Scanner (`GeoRescueBleForegroundService`).
-2. The emergency packet (containing victim UUID, timestamp, latitude, longitude, and medical notes) is encoded into a compact byte array (`MeshPacketCodec.cpp`).
-3. The packet is broadcast over BLE advertisements with a Time-To-Live (TTL) of 5 hops.
-4. Any neighboring offline phone running GeoRescuX receives the packet, validates it against a local Bloom filter (`BloomFilterDeduplicator.cpp`) to prevent broadcast loops, decrements the TTL, and forwards it to surrounding devices.
-
-#### Step 4: Opportunistic Cloud Uplink & Disaster Coordination
-1. When any citizen or volunteer device in the mesh reaches a rescue outpost with cellular or satellite connectivity, `SyncingSosRepository.kt` automatically drains the local offline store.
-2. Data is uploaded to Firebase Realtime Database at `/sos_alerts/{uid}/{alertId}` under strict least-privilege security rules.
-3. Incident coordinators on the **Admin Dashboard** (`AdminDashboardActivity.kt`) observe incoming alerts in real-time, view victim clusters on `AdminMapActivity`, and triage emergency rescue teams.
+* **Module 1: Citizen SOS Subsystem** (`app/src/main/kotlin/.../ui/sos/`):
+  - 1-second hold activation with tactile vibration feedback.
+  - 5-second cancelable countdown modal to prevent false alarms.
+  - Asynchronous GPS telemetry capture (latitude, longitude, altitude, accuracy).
+  - Situation note entry (up to 120 characters).
+* **Module 2: Native C++20 Spatial & Routing Engine** (`app/src/main/cpp/`):
+  - Topological road graph representation (`RouteGraph.cpp`).
+  - Admissible A* shortest path search with Haversine distance heuristic (`AStarPathfinder.cpp`).
+  - Bidirectional A* pathfinding (`BidirectionalAStar.cpp`).
+  - Dynamic hazard penalty and severed road containment (`RoadHazard.h`, `HazardPolygon.cpp`).
+  - 3D Terrain slope and elevation fatigue impedance (`ElevationCostModel.cpp`).
+  - 2D KD-Tree spatial index for $O(\log N)$ nearest-safe-haven snapping (`KDTree.cpp`).
+  - MASS/START disaster triage decision engine (`TriageEngine.cpp`).
+* **Module 3: Offline Mapping & Boundary Classification** (`app/src/main/kotlin/.../maps/`):
+  - Mapsforge binary vector basemap rendering via osmdroid (`OfflineMapSetup.kt`).
+  - Point-in-polygon ray-casting state boundary classifier with authentic 2,000–7,500 point polygons (`StateBoundaryClassifier.kt`).
+  - Authentic OpenStreetMap-derived emergency safe haven catalog (`SafeHavenIndex.kt`).
+* **Module 4: Resilient BLE Mesh Relay** (`app/src/main/kotlin/.../ble/`):
+  - Android 14 compliant Foreground Service (`GeoRescueBleForegroundService.kt`).
+  - Simultaneous advertising (Peripheral) and scanning (Central).
+  - Hop-limited store-and-forward relay with TTL decrement.
+  - Native 64KB Bloom filter deduplication (`BloomFilterDeduplicator.cpp`).
+* **Module 5: Cloud Synchronization & Admin Command Console** (`app/src/main/kotlin/.../admin/`):
+  - Least-privilege Firebase Realtime Database rules (`database.rules.json`).
+  - Verified administrative authorization through Firebase Auth Custom Claims (`auth.token.admin == true`).
+  - Heuristic emergency prioritization based on triage severity, verification status, and elapsed time (`EmergencyPriorityCalculator.kt`).
 
 ---
 
-## 3. Subsystem Architecture & Technology Stack
+### Checkpoint 4: Appropriate C++ Concepts Identified
+To achieve microsecond-level pathfinding and memory efficiency on mobile hardware, specific C++ concepts were chosen:
 
-```
-+-----------------------------------------------------------------------------------+
-|                           CITIZEN & RESPONDER MOBILE LAYER                        |
-|                                                                                   |
-|  [MainActivity]     [SosActivity]     [MapActivity]     [RouteActivity]           |
-|         │                 │                 │                  │                  |
-|         ▼                 ▼                 ▼                  ▼                  |
-|  [AuthViewModel]   [SosViewModel]   [OfflineMapSetup]   [RouteRepositoryImpl]     |
-+───────────────────────────────────┬───────────────────────────────────────────────+
-                                    │
-                         JNI Native Function Calls
-                                    │
-+───────────────────────────────────▼───────────────────────────────────────────────+
-|                       NATIVE C++20 SPATIAL & ROUTING CORE                         |
-|                                                                                   |
-|  [AStarPathfinder.cpp]     [KDTree.cpp]           [HazardPolygon.cpp]             |
-|  [RouteGraph.cpp]          [ElevationCostModel]   [MeshPacketCodec.cpp]           |
-|  [BidirectionalAStar.cpp]  [ContractionHierarch]  [BloomFilterDeduplicator.cpp]   |
-+───────────────────────────────────┬───────────────────────────────────────────────+
-                                    │
-                   Hardware & Storage Communications
-                                    │
-+───────────────────────────────────▼───────────────────────────────────────────────+
-|                  LOCAL HARDWARE, SENSORS & STORAGE SUBSYSTEM                      |
-|                                                                                   |
-|  • Bluetooth LE GATT Controller (2.4 GHz RF Mesh Relay)                           |
-|  • GPS / FusedLocationProvider (Best-effort satellite GNSS telemetry)            |
-|  • Mapsforge Binary Vector Engine (Offline state.map tile rendering)              |
-|  • App-Private FilesDir & SQLite (Offline JSON graphs, ICE contacts, incidents)   |
-+───────────────────────────────────────────────────────────────────────────────────+
-```
-
----
-
-## 4. Four-State Offline Mapping & Routing Architecture
-
-GeoRescuX officially supports four disaster-prone Northern Indian states:
-1. **Uttarakhand (Primary Region)**:
-   * **Bundled in APK**: `app/src/main/assets/maps/uttarakhand-state.map` (26.4 MB) and `route_graph_uttarakhand` (117,972 nodes, 138,164 edges).
-   * **Instant Zero-Config Operation**: Renders vector maps and routes out of the box with zero internet.
-2. **Himachal Pradesh (Secondary Region)**:
-   * 18.2 MB Mapsforge binary vector basemap (`state.map`) and 47,137-node routing graph connecting Shimla, Solan, and mountain corridors.
-3. **Haryana (Secondary Region)**:
-   * 37.4 MB Mapsforge binary vector basemap (`state.map`) and 203,741-node routing graph covering Gurugram, Faridabad, and adjoining plain transit corridors.
-4. **Uttar Pradesh (Secondary Region)**:
-   * 156.6 MB high-detail Mapsforge vector basemap (`state.map`) and 514,366-node routing graph connecting Lucknow, Kanpur, Varanasi, and the Gangetic basin.
-
-### Key Mapping Innovations
-* **Geometric State Boundary Classification (`StateBoundaryClassifier.kt`)**: Implements an $O(1)$ bounding-box prefilter followed by ray-casting point-in-polygon geometry on authentic 2,000–7,500 vertex GeoJSON polygons, strictly rejecting non-supported areas (such as Delhi, Rajasthan, and Bihar) without false bounding-box acceptance.
-* **Authentic Safe-Haven Network (`SafeHavenIndex.kt`)**: 64 real OpenStreetMap facilities per state (district disaster management HQs, hospitals, police, and fire stations) sorted by Haversine distance.
-* **Corrupt File Defense (`MapPackageManager.kt`)**: Enforces Mapsforge magic byte verification (`mapsforge binary OSM\x00\x00\x00`), atomic staging replacement via `.downloading` temporary files, and SHA-256 manifest validation.
-
----
-
-## 5. Team Task Distribution (SIH 2026 Evidence)
-
-Based on official project documentation (`README.md`, `FINAL_AUDIT_REPORT.md`):
-
-| Team Member | Engineering Role | Core Responsibilities & Evidence |
+| C++ Concept | Applied In File | Justification in Disaster Context |
 | :--- | :--- | :--- |
-| **Sanidhya Negi** | System Architect & Lead Engineer | Native C++20 spatial architecture, JNI bridges, Android core architecture, least-privilege Firebase security rules. |
-| **Tushar** | Mobile & BLE Mesh Specialist | P2P Bluetooth Low Energy GATT advertising/scanning, multi-hop relay service, Nearby Connections. |
-| **Rudraksh** | Geospatial & Native Routing Engineer | OpenStreetMap ingestion pipeline, A* pathfinding, hazard containment polygons, KD-Tree indexing. |
-| **Nehal** | Frontend & UI/UX Architect | Material 3 activities, active SOS banner, offline map canvas, emergency contact address book. |
-| **Dheeraj** | Backend & Simulation Engineer | C++ Drogon simulation servers, Firebase Cloud Functions, admin provisioning scripts. |
-| **Nirmay** | QA & Security Systems Auditor | 631 unit test execution, Firebase emulator rule matrix, memory leak and lifecycle testing. |
+| **Object-Oriented Encapsulation** | `BloomFilterDeduplicator.h`, `RouteGraph.h` | Prevents unauthorized modification of packet bitsets and internal adjacency structures. |
+| **Data-Oriented Structs (PODs)** | `RouteNode.h`, `RouteEdge.h`, `RoadHazard.h` | Guarantees cache-line locality on mobile ARM CPUs for high-speed sequential iterations. |
+| **STL Priority Queues** | `AStarPathfinder.cpp`, `BidirectionalAStar.cpp` | Provides $O(\log N)$ min-heap open-set extraction for A* graph exploration. |
+| **STL Unordered Associative Maps** | `RouteGraph.cpp`, `SlidingWindowReplayGuard.h` | Provides $O(1)$ average-time node lookups and packet sequence tracking. |
+| **Generic Template Programming** | `spatial/RTree.h` | Enables spatial indexing over arbitrary bounding box payload types without code duplication. |
+| **Bit Manipulation & Bitsets** | `BloomFilterDeduplicator.cpp`, `SlidingWindowReplayGuard.cpp` | Stores 65,536 filter bits in 8 KB RAM; implements a 64-bit sliding window anti-replay bitmask. |
+| **Const-Correctness & References** | All C++ methods (e.g. `const RouteGraph&`) | Prevents expensive deep-copying of megabyte-scale graph structures into function call stacks. |
+| **RAII (Resource Acquisition Is Initialization)** | `KDTree.h`, JNI string releases | Automatic destruction of allocated heap buffers, preventing native memory leaks on Android. |
+
+---
+
+### Checkpoint 5: Classes and Objects Identified / Designed
+The system's native core is structured around domain-driven C++ classes:
+
+1. **`RouteGraph`**:
+   - *Responsibility*: Owns the graph nodes, edges, road hazards, and adjacency index.
+   - *Key Members*: `std::vector<RouteNode> nodes`, `std::vector<RouteEdge> edges`, `std::unordered_map<std::string, std::vector<std::pair<RouteEdge, RouteNode>>> adjacency`.
+   - *Key Methods*: `node(id)`, `neighbors(id)`, `edgeBetween(u, v)`, `rebuildAdjacency()`.
+2. **`AStarPathfinder`**:
+   - *Responsibility*: Stateless pathfinding engine executing A* heuristic shortest path search.
+   - *Key Methods*: `findRoute(const RouteGraph&, startId, destId)`, `haversineMeters(from, to)`.
+3. **`BloomFilterDeduplicator`**:
+   - *Responsibility*: High-speed, probabilistic duplicate packet detection for the mesh.
+   - *Key Members*: `std::vector<uint64_t> activeBuffer_`, `std::vector<uint64_t> previousBuffer_`.
+   - *Key Methods*: `checkAndMark(senderHash, seqNum)`, `rotateEpoch()`.
+4. **`KDTree`**:
+   - *Responsibility*: 2-dimensional spatial partitioning tree for coordinates (latitude, longitude).
+   - *Key Methods*: `build(points)`, `findNearest(lat, lon)`.
+5. **`ElevationCostModel`**:
+   - *Responsibility*: Computes physiological energy expenditure multipliers using Tobler's Hiking Function.
+   - *Key Methods*: `calculateImpedanceMultiplier(fromElev, toElev, distanceMeters, isInjured)`.
+6. **`TriageEngine`**:
+   - *Responsibility*: Automates the Simple Triage and Rapid Treatment (START) clinical protocol.
+   - *Key Methods*: `evaluateStart(VictimAssessment)` $\rightarrow$ `TriageResult`.
+
+---
+
+### Checkpoint 6 & 7: Basic Program Flow, Algorithms & Pseudocode
+
+#### Complete Application Workflow: From Launch to Emergency Response
+1. **Cold Launch**:
+   - `GeoRescuXApplication` initializes the DI container, sets up offline storage, and registers the osmdroid base directory.
+   - `MainActivity` checks authentication status: if logged in, navigates to `HomeActivity`; otherwise, routes to `LoginActivity`.
+2. **Citizen Distress Trigger (`SosActivity`)**:
+   - Victim holds the SOS button for 1 second.
+   - `SosViewModel` starts a 5-second cancelable countdown.
+   - If not canceled, state transitions to `ACTIVE`:
+     - Creates local `SosEmergency` record in `LocalSosStore`.
+     - Acquires GPS coordinates asynchronously.
+     - Hands distress packet to `GeoRescueBleForegroundService`.
+     - `GeoRescueBleForegroundService` transmits raw bytes over Bluetooth Low Energy GATT and Google Nearby Connections.
+3. **P2P Relay & Cloud Synchronization**:
+   - Surrounding offline citizen phones receive the BLE packet.
+   - `BloomFilterDeduplicator` checks whether the packet hash has been processed. If new, it re-transmits the packet with `TTL - 1`.
+   - When any device in the mesh reconnects to WiFi or LTE, `SyncingSosRepository` pushes the alert to Firebase Realtime Database at `/sos_alerts/{uid}/{alertId}`.
+4. **Offline Safe Evacuation (`RouteActivity`)**:
+   - Victim opens Safe Route.
+   - `SafeHavenIndex` retrieves the nearest verified safe havens (hospitals, disaster centers).
+   - JNI invokes `GeoRescueNativeRouting.findRoute` in C++20.
+   - Native C++ A* explores the road network, avoiding reported landslides and blocked edges.
+   - Evacuation route polyline is rendered on the offline Mapsforge vector map.
+
+#### Core Pathfinding Algorithm: A* with Admissible Haversine Heuristic
+The A* pathfinder calculates the minimum cost $f(n) = g(n) + h(n)$ where:
+- $g(n)$: Exact road distance traveled from origin to node $n$, including terrain slope penalties.
+- $h(n)$: Straight-line Haversine great-circle distance from $n$ to destination (guaranteed admissible, never overestimates).
+
+```text
+Algorithm: Native C++ A* Evacuation Route Search
+Input: RouteGraph G, Start Node S, Destination Node D
+Output: EvacuationRoute (list of node IDs, total distance in meters)
+
+1. If S == D, Return Single Node Route
+2. Initialize Min-Priority Queue PQ ordered by f(n)
+3. Initialize gCost map with all nodes = INFINITY, gCost[S] = 0.0
+4. Initialize parent map to reconstruct path
+5. Push (nodeId: S, costSoFar: 0.0, estimatedTotal: h(S, D)) into PQ
+6. While PQ is not empty:
+     a. Current = PQ.pop()
+     b. If Current.nodeId == D:
+          Break (Destination Reached)
+     c. If Current.costSoFar > gCost[Current.nodeId]:
+          Continue (Outdated entry in queue)
+     d. For each (Edge, Neighbor) in G.neighbors(Current.nodeId):
+          i. If Edge.isBlocked == True:
+               Continue (Road impassable)
+          ii. LegDistance = Edge.distanceMeters + HazardPenalty(Edge)
+          iii. Tentative_gCost = gCost[Current.nodeId] + LegDistance
+          iv. If Tentative_gCost < gCost[Neighbor.id]:
+               gCost[Neighbor.id] = Tentative_gCost
+               Parent[Neighbor.id] = Current.nodeId
+               fCost = Tentative_gCost + Haversine(Neighbor, D)
+               PQ.push(nodeId: Neighbor.id, costSoFar: Tentative_gCost, estimatedTotal: fCost)
+7. If D not in Parent:
+     Return RouteNotFound
+8. Reconstruct path by backtracking from D to S using Parent map
+9. Return EvacuationRoute(nodeIds, gCost[D])
+```
+
+---
+
+## 3. Phase 2 — Implementation & C++ OOPS Mapping (Detailed Below in Master Mapping File)
+
+*(Note: See [CPP_OOPS_CONCEPT_MAPPING.md](file:///c:/Users/sanid/Documents/GitHub/GeoRescuX/CPP_OOPS_CONCEPT_MAPPING.md) for the exhaustive file-by-file mapping).*
+
+---
+
+## 4. Phase 3 — Evaluation, Demonstration Sequence & Team Contributions
+
+### Recommended Live Demonstration Sequence for the Examiner
+
+1. **Step 1: Baseline Architecture Overview (30 Seconds)**
+   - Show the device running the GeoRescuX APK.
+   - Explain the dual-tier architecture: Kotlin for Android lifecycle and UI, Native C++20 for high-performance spatial algorithms and routing.
+2. **Step 2: Demonstrate Strict Offline Mapping & Boundary Classification**
+   - Place device in **Airplane Mode** (disable WiFi and Mobile Data).
+   - Open **Map Screen**: Show Uttarakhand's vector map rendering instantly from local storage.
+   - Zoom in on Dehradun/Rishikesh to demonstrate road network vector lines and landmark details.
+   - Switch to **Himachal Pradesh**, **Haryana**, or **Uttar Pradesh**: Show that the offline Mapsforge vector basemap opens and renders without internet.
+3. **Step 3: Trigger Citizen SOS Flow**
+   - From Dashboard, press and hold the SOS button.
+   - Show the 5-second countdown with cancellation option.
+   - Allow countdown to elapse: observe transition to `ACTIVE` emergency state with GPS coordinates displayed.
+4. **Step 4: Demonstrate Safe Route Navigation & Hazard Detour**
+   - Tap "Safe Route Here" to open `RouteActivity`.
+   - Point out nearest verified emergency safe haven (e.g. District Disaster HQ / Hospital).
+   - Show the green evacuation route generated by our native C++ A* engine.
+   - Simulate a road blockage / hazard on the primary road: observe that the route dynamically reroutes through an alternative path.
+5. **Step 5: Code Inspection in C++**
+   - Open Android Studio / VS Code to `app/src/main/cpp/`.
+   - Walk the examiner through `RouteGraph.h` (encapsulation), `AStarPathfinder.cpp` (priority queue and algorithms), `BloomFilterDeduplicator.h` (bitset hashing), and `GeoRescueNativeRoutingBridge.cpp` (JNI binding).
+
+### Team Task Distribution (Based on Repository Evidence)
+* **Sanidhya Negi**: System Architect & Lead Engineer (Native C++ core, CMake integration, JNI bindings, project architecture).
+* **Tushar**: Mobile & BLE Mesh Specialist (BLE GATT service, packet serialization, BluetoothStateReceiver).
+* **Rudraksh**: Geospatial & Native Routing Engineer (OpenStreetMap PBF ingestion, A* algorithm, elevation impedance).
+* **Nehal**: Frontend & UI/UX Architect (Material layouts, OsmDroid MapActivity, custom navigation bars).
+* **Dheeraj**: Backend & Simulation Engineer (Drogon C++ backend, Firebase Cloud Functions).
+* **Nirmay**: QA & Security Systems Auditor (Firebase security rules test matrix, unit test assertions, lint compliance).
