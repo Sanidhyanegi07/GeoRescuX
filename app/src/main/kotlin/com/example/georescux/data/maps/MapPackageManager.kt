@@ -6,6 +6,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.security.MessageDigest
 
 /**
@@ -14,14 +17,23 @@ import java.security.MessageDigest
  * 2. Himachal Pradesh (Secondary, downloadable package)
  * 3. Uttar Pradesh (Secondary, downloadable package)
  * 4. Haryana (Secondary, downloadable package)
+ *
+ * Enforces strict package integrity:
+ * - Rejects non-Mapsforge files (e.g. raw OSM PBFs).
+ * - Enforces independent trusted SHA-256 and size verification.
+ * - Performs atomic installation using temporary files with rollback.
+ * - Separates routing-graph availability from map-rendering availability.
  */
 object MapPackageManager {
 
+    const val MAPSFORGE_MAGIC = "mapsforge binary OSM"
+
     enum class PackageStatus(val label: String) {
         BUNDLED("Bundled (Ready)"),
-        INSTALLED("Downloaded & Ready"),
-        DOWNLOADING("Downloading…"),
-        NOT_DOWNLOADED("Available for Download")
+        INSTALLED("Installed (Offline Ready)"),
+        AVAILABLE_LOCAL("Ready to Install (Local)"),
+        AVAILABLE_REMOTE("Available for Download"),
+        UNAVAILABLE("Package Unavailable")
     }
 
     data class StateMapPackage(
@@ -34,12 +46,17 @@ object MapPackageManager {
         val localFilePath: String? = null,
         val storageUsageBytes: Long = 0L,
         val downloadUrl: String? = null,
+        val isMapInstalled: Boolean = false,
+        val isGraphInstalled: Boolean = false,
     ) {
         val sizeFormatted: String
             get() {
                 val mb = fileSizeBytes / (1024.0 * 1024.0)
                 return String.format(java.util.Locale.US, "%.1f MB", mb)
             }
+
+        val isFullyReady: Boolean
+            get() = (isBundled || isMapInstalled) && isGraphInstalled
     }
 
     val OFFICIAL_PACKAGE_METADATA = listOf(
@@ -49,7 +66,9 @@ object MapPackageManager {
             fileSizeBytes = 26437682L,
             sha256Checksum = "7397b4e7d92e46c897741fc5e837623746f1ac0abdb6d1facc979fb7d0d75778",
             isBundled = true,
-            status = PackageStatus.BUNDLED
+            status = PackageStatus.BUNDLED,
+            isMapInstalled = true,
+            isGraphInstalled = true
         ),
         StateMapPackage(
             regionId = "himachal_pradesh",
@@ -57,7 +76,7 @@ object MapPackageManager {
             fileSizeBytes = 18189967L,
             sha256Checksum = "eb80ba5856b5e57382386aa9ddf86c03bf7d4e268d53ce9f4ef3f931624bb012",
             isBundled = false,
-            status = PackageStatus.NOT_DOWNLOADED
+            status = PackageStatus.UNAVAILABLE
         ),
         StateMapPackage(
             regionId = "haryana",
@@ -65,7 +84,7 @@ object MapPackageManager {
             fileSizeBytes = 37401197L,
             sha256Checksum = "34e9813089cef556427c561e74542b69f125ba9485fdc17977acecfe47dc389f",
             isBundled = false,
-            status = PackageStatus.NOT_DOWNLOADED
+            status = PackageStatus.UNAVAILABLE
         ),
         StateMapPackage(
             regionId = "uttar_pradesh",
@@ -73,15 +92,8 @@ object MapPackageManager {
             fileSizeBytes = 156576178L,
             sha256Checksum = "f7c995832817a1f3e48cc4dc0ae9b52149455f95577765f5532c747db5ff4d3c",
             isBundled = false,
-            status = PackageStatus.NOT_DOWNLOADED
+            status = PackageStatus.UNAVAILABLE
         )
-    )
-
-    private val PBF_METADATA = mapOf(
-        "uttarakhand" to Pair(33279165L, "85f3d87ce808465811af0b69bf6a56b37979d9facc1f0bfd761fae9595daf4fb"),
-        "himachal_pradesh" to Pair(23531962L, "872ab2813665ab3442426ddcaf66faaa53ee9864c660b47bfcbe1902fb5b7b11"),
-        "haryana" to Pair(52129382L, "8d0236f90d64c36e8fe46c5b4fb9310178b087c8664f45b75a394c0a039aabf9"),
-        "uttar_pradesh" to Pair(199231906L, "cf5a0759df391c82a441094af1a6b11449757cdb8156ba5aad4de5d69ea05c27"),
     )
 
     fun getPackageDirectory(filesDir: File, regionId: String): File {
@@ -91,45 +103,112 @@ object MapPackageManager {
     fun getPackageDirectory(context: Context, regionId: String): File =
         getPackageDirectory(context.filesDir, regionId)
 
-    fun getOfficialPackages(filesDir: File): List<StateMapPackage> {
+    /**
+     * Checks if a file has genuine Mapsforge binary map format header.
+     * Mapsforge map files begin with the 20-byte magic ASCII string: "mapsforge binary OSM".
+     */
+    fun isMapsforgeFile(file: File): Boolean {
+        if (!file.exists() || !file.isFile || file.length() < 20L) return false
+        return try {
+            FileInputStream(file).use { fis ->
+                val buffer = ByteArray(20)
+                val read = fis.read(buffer)
+                read == 20 && buffer.toString(Charsets.US_ASCII) == MAPSFORGE_MAGIC
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Checks if a file has genuine SQLite database format header (for raster tile archives).
+     */
+    fun isSqliteArchiveFile(file: File): Boolean {
+        if (!file.exists() || !file.isFile || file.length() < 16L) return false
+        return try {
+            FileInputStream(file).use { fis ->
+                val buffer = ByteArray(16)
+                val read = fis.read(buffer)
+                read == 16 && buffer.toString(Charsets.US_ASCII).startsWith("SQLite format 3")
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun getOfficialPackages(filesDir: File, externalFilesDir: File? = null): List<StateMapPackage> {
         return OFFICIAL_PACKAGE_METADATA.map { meta ->
             val regionDir = getPackageDirectory(filesDir, meta.regionId)
             val stateMap = File(regionDir, "state.map")
-            val pbfFile = File(regionDir, "state.osm.pbf")
-            val existingFile = when {
-                stateMap.exists() && stateMap.length() > 0L -> stateMap
-                pbfFile.exists() && pbfFile.length() > 0L -> pbfFile
-                else -> null
-            }
+            val isMapInstalled = (meta.isBundled) || (stateMap.exists() && isMapsforgeFile(stateMap))
+            val graphFile = File(regionDir, "route_graph_${meta.regionId}")
+            val isGraphInstalled = meta.isBundled || (graphFile.exists() && graphFile.length() > 0L)
+
+            val localStagedSource = findCandidateSource(filesDir, externalFilesDir, meta.regionId)
 
             val status = when {
                 meta.isBundled -> PackageStatus.BUNDLED
-                existingFile != null -> PackageStatus.INSTALLED
-                else -> PackageStatus.NOT_DOWNLOADED
+                isMapInstalled -> PackageStatus.INSTALLED
+                localStagedSource != null -> PackageStatus.AVAILABLE_LOCAL
+                meta.downloadUrl != null -> PackageStatus.AVAILABLE_REMOTE
+                else -> PackageStatus.UNAVAILABLE
             }
+
+            val installedFile = if (stateMap.exists() && isMapsforgeFile(stateMap)) stateMap else null
 
             meta.copy(
                 status = status,
-                localFilePath = existingFile?.absolutePath,
-                storageUsageBytes = existingFile?.length() ?: 0L
+                localFilePath = installedFile?.absolutePath,
+                storageUsageBytes = installedFile?.length() ?: 0L,
+                isMapInstalled = isMapInstalled,
+                isGraphInstalled = isGraphInstalled
             )
         }
     }
 
     fun getOfficialPackages(context: Context): List<StateMapPackage> =
-        getOfficialPackages(context.filesDir)
+        getOfficialPackages(context.filesDir, context.getExternalFilesDir(null))
 
+    /**
+     * Truthfully verifies whether genuine Mapsforge rendering map is installed.
+     * Bundled regions (Uttarakhand) return true. Downloaded regions return true
+     * only when state.map is confirmed to exist and possess the Mapsforge binary header.
+     * PBF files NEVER count as an installed map.
+     */
     fun isPackageInstalled(filesDir: File, regionId: String): Boolean {
         if (regionId == "uttarakhand") return true // Bundled in APK
         val regionDir = getPackageDirectory(filesDir, regionId)
         val stateMap = File(regionDir, "state.map")
-        val pbfFile = File(regionDir, "state.osm.pbf")
-        return (stateMap.exists() && stateMap.length() > 0L) || (pbfFile.exists() && pbfFile.length() > 0L)
+        return stateMap.exists() && isMapsforgeFile(stateMap)
     }
 
     fun isPackageInstalled(context: Context, regionId: String): Boolean =
         isPackageInstalled(context.filesDir, regionId)
 
+    /**
+     * Locates a genuine Mapsforge .map source from trusted candidate paths.
+     * OSM PBF files are never considered candidate map sources.
+     */
+    fun findCandidateSource(filesDir: File, externalFilesDir: File? = null, regionId: String): File? {
+        val candidates = buildList {
+            add(File(filesDir, "output/$regionId/state.map"))
+            add(File(filesDir, "maps/$regionId/state.map"))
+            if (externalFilesDir != null) {
+                add(File(externalFilesDir, "output/$regionId/state.map"))
+                add(File(externalFilesDir, "maps/$regionId/state.map"))
+            }
+            add(File("/sdcard/Download/georescux/$regionId/state.map"))
+            add(File("output/$regionId/state.map"))
+        }
+        return candidates.firstOrNull { it.exists() && isMapsforgeFile(it) }
+    }
+
+    /**
+     * Installs and verifies a map package with atomic replacement, temporary file isolation,
+     * and strict SHA-256 and magic-byte integrity validation.
+     *
+     * Existing valid packages are preserved if installation fails.
+     */
     suspend fun installPackage(
         filesDir: File,
         regionId: String,
@@ -145,74 +224,114 @@ object MapPackageManager {
 
         val targetFile = File(targetDir, "state.map")
         val targetTemp = File(targetDir, "state.map.downloading")
+        val backupFile = File(targetDir, "state.map.bak")
 
         try {
             if (targetTemp.exists()) targetTemp.delete()
+            if (backupFile.exists()) backupFile.delete()
             onProgress?.invoke(5)
 
-            // Look for existing source in candidate locations
-            val candidateSources = buildList {
-                if (customSourceFile != null) add(customSourceFile)
-                add(File(filesDir, "output/$regionId/state.osm.pbf"))
-                add(File(filesDir, "output/$regionId/state.map"))
-                if (externalFilesDir != null) {
-                    add(File(externalFilesDir, "output/$regionId/state.osm.pbf"))
-                    add(File(externalFilesDir, "output/$regionId/state.map"))
-                    add(File(externalFilesDir, "maps/$regionId/state.osm.pbf"))
-                    add(File(externalFilesDir, "maps/$regionId/state.map"))
+            // 1. Resolve source (custom, local candidate, or remote download)
+            val sourceFile = when {
+                customSourceFile != null -> {
+                    if (!customSourceFile.exists()) {
+                        return@withContext Result.failure(java.io.FileNotFoundException("Source file does not exist: ${customSourceFile.absolutePath}"))
+                    }
+                    if (!isMapsforgeFile(customSourceFile)) {
+                        return@withContext Result.failure(IllegalArgumentException("Source file is not a valid Mapsforge binary map: missing '$MAPSFORGE_MAGIC' header"))
+                    }
+                    customSourceFile
                 }
-                add(File("/sdcard/Download/georescux/$regionId/state.osm.pbf"))
-                add(File("/sdcard/Download/georescux/$regionId/state.map"))
-                add(File("output/$regionId/state.osm.pbf"))
-                add(File("output/$regionId/state.map"))
+                else -> findCandidateSource(filesDir, externalFilesDir, regionId)
             }
-            val source = candidateSources.firstOrNull { it.exists() && it.length() > 0L }
 
-            if (source == null) {
+            val expectedSize = meta.fileSizeBytes
+            val expectedChecksum = meta.sha256Checksum
+
+            if (sourceFile != null) {
+                // Source must be verified as genuine Mapsforge map
+                if (!isMapsforgeFile(sourceFile)) {
+                    return@withContext Result.failure(IllegalArgumentException("Source file for $regionId is not a valid Mapsforge map"))
+                }
+
+                // Check size matches official metadata
+                if (sourceFile.length() != expectedSize) {
+                    return@withContext Result.failure(IllegalStateException("Source file size mismatch for $regionId: expected $expectedSize bytes, found ${sourceFile.length()} bytes"))
+                }
+
+                val totalBytes = sourceFile.length()
+                var copiedBytes = 0L
+
+                FileInputStream(sourceFile).use { input ->
+                    FileOutputStream(targetTemp).use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var read: Int
+                        while (input.read(buffer).also { read = it } != -1) {
+                            output.write(buffer, 0, read)
+                            copiedBytes += read
+                            val pct = 10 + ((copiedBytes.toDouble() / totalBytes) * 75).toInt()
+                            onProgress?.invoke(pct.coerceIn(10, 85))
+                        }
+                        output.flush()
+                    }
+                }
+            } else if (meta.downloadUrl != null) {
+                // Real HTTPS streaming download
+                val url = URL(meta.downloadUrl)
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 15000
+                    readTimeout = 30000
+                    instanceFollowRedirects = true
+                    setRequestProperty("User-Agent", "GeoRescuX/1.0 MapDownloader")
+                }
+
+                val responseCode = conn.responseCode
+                if (responseCode !in 200..299) {
+                    return@withContext Result.failure(java.io.IOException("HTTP error $responseCode downloading package from ${meta.downloadUrl}"))
+                }
+
+                val totalBytes = if (conn.contentLengthLong > 0) conn.contentLengthLong else expectedSize
+                var copiedBytes = 0L
+
+                conn.inputStream.use { input ->
+                    FileOutputStream(targetTemp).use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var read: Int
+                        while (input.read(buffer).also { read = it } != -1) {
+                            output.write(buffer, 0, read)
+                            copiedBytes += read
+                            val pct = 10 + ((copiedBytes.toDouble() / totalBytes) * 75).toInt()
+                            onProgress?.invoke(pct.coerceIn(10, 85))
+                        }
+                        output.flush()
+                    }
+                }
+            } else {
                 return@withContext Result.failure(
                     java.io.FileNotFoundException(
-                        "Package source not available for $regionId. No local package found in candidate storage paths."
+                        "Package source not available for $regionId. No local package found in candidate storage paths, and no remote download URL configured."
                     )
                 )
             }
 
-            // Real byte-stream copy with accurate progress
-            val totalBytes = source.length()
-            var copiedBytes = 0L
-
-            FileInputStream(source).use { input ->
-                FileOutputStream(targetTemp).use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var read: Int
-                    while (input.read(buffer).also { read = it } != -1) {
-                        output.write(buffer, 0, read)
-                        copiedBytes += read
-                        val pct = 10 + ((copiedBytes.toDouble() / totalBytes) * 75).toInt()
-                        onProgress?.invoke(pct.coerceIn(10, 85))
-                    }
-                    output.flush()
-                }
-            }
-
             onProgress?.invoke(90)
 
-            // Interrupted download guard
-            if (targetTemp.length() != totalBytes) {
+            // 2. Validate extracted temp file integrity
+            if (targetTemp.length() != expectedSize) {
                 targetTemp.delete()
                 return@withContext Result.failure(
-                    IllegalStateException("Incomplete package: expected $totalBytes bytes, got ${targetTemp.length()} bytes")
+                    IllegalStateException("Incomplete package: expected $expectedSize bytes, got ${targetTemp.length()} bytes")
                 )
             }
 
-            // SHA-256 integrity check
-            val checksum = calculateSha256(targetTemp)
-            val pbf = PBF_METADATA[regionId]
-            val expectedChecksum = when {
-                source.length() == meta.fileSizeBytes -> meta.sha256Checksum
-                pbf != null && source.length() == pbf.first -> pbf.second
-                else -> calculateSha256(source)
+            if (!isMapsforgeFile(targetTemp)) {
+                targetTemp.delete()
+                return@withContext Result.failure(
+                    IllegalArgumentException("Corrupted or invalid map format: temp file missing '$MAPSFORGE_MAGIC' header")
+                )
             }
 
+            val checksum = calculateSha256(targetTemp)
             if (!checksum.equals(expectedChecksum, ignoreCase = true)) {
                 targetTemp.delete()
                 return@withContext Result.failure(
@@ -220,34 +339,45 @@ object MapPackageManager {
                 )
             }
 
-            // Atomic rename
-            if (targetFile.exists()) targetFile.delete()
-            if (!targetTemp.renameTo(targetFile)) {
+            // 3. Atomic replacement with backup safeguard
+            if (targetFile.exists()) {
+                targetFile.renameTo(backupFile)
+            }
+
+            val renameOk = targetTemp.renameTo(targetFile)
+            if (!renameOk) {
                 targetTemp.copyTo(targetFile, overwrite = true)
                 targetTemp.delete()
             }
 
-            // Copy accompanying routing graph and index files if present in the package source
-            val sourceDir = source.parentFile
+            if (!targetFile.exists() || targetFile.length() != expectedSize) {
+                // Restoration from backup if replacement failed
+                if (backupFile.exists()) backupFile.renameTo(targetFile)
+                return@withContext Result.failure(java.io.IOException("Failed to atomically install target map file"))
+            }
+
+            if (backupFile.exists()) backupFile.delete()
+
+            // 4. Copy accompanying routing graph, places, and safe_havens if present in source directory
+            val sourceDir = sourceFile?.parentFile
             if (sourceDir != null) {
-                val graphCandidates = listOf(
+                listOf(
                     File(sourceDir, "route_graph_$regionId"),
                     File(sourceDir, "graph.json"),
-                )
-                graphCandidates.firstOrNull { it.exists() && it.length() > 0L }?.let { gf ->
-                    gf.copyTo(File(targetDir, "route_graph_$regionId"), overwrite = true)
-                }
+                ).firstOrNull { it.exists() && it.length() > 0L }?.copyTo(File(targetDir, "route_graph_$regionId"), overwrite = true)
+
                 val placesCandidate = File(sourceDir, "places.json")
                 if (placesCandidate.exists() && placesCandidate.length() > 0L) {
                     placesCandidate.copyTo(File(targetDir, "places.json"), overwrite = true)
                 }
+
                 val havensCandidate = File(sourceDir, "safe_havens.json")
                 if (havensCandidate.exists() && havensCandidate.length() > 0L) {
                     havensCandidate.copyTo(File(targetDir, "safe_havens.json"), overwrite = true)
                 }
             }
 
-            // Write verified manifest
+            // 5. Write verified manifest
             val manifestFile = File(targetDir, "manifest.json")
             manifestFile.writeText(
                 """
@@ -255,11 +385,13 @@ object MapPackageManager {
                   "regionId": "$regionId",
                   "displayName": "${meta.displayName}",
                   "packageType": "regional_map",
+                  "renderingFormat": "Mapsforge MAP",
                   "renderingFile": "state.map",
                   "fileSizeBytes": ${targetFile.length()},
                   "sha256": "$checksum",
                   "status": "installed",
-                  "verified": true
+                  "verified": true,
+                  "verifiedAt": "${java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date())}"
                 }
                 """.trimIndent()
             )
@@ -268,6 +400,7 @@ object MapPackageManager {
             Result.success(targetFile)
         } catch (e: Exception) {
             if (targetTemp.exists()) targetTemp.delete()
+            if (backupFile.exists() && !targetFile.exists()) backupFile.renameTo(targetFile)
             Result.failure(e)
         }
     }
@@ -287,6 +420,7 @@ object MapPackageManager {
     suspend fun deletePackage(filesDir: File, regionId: String): Long = withContext(Dispatchers.IO) {
         if (regionId == "uttarakhand") return@withContext 0L // Cannot delete bundled primary package
         val dir = getPackageDirectory(filesDir, regionId)
+        if (!dir.exists()) return@withContext 0L
         val freedBytes = dir.walkTopDown().sumOf { it.length() }
         dir.deleteRecursively()
         freedBytes

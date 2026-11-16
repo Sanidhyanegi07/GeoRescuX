@@ -1,11 +1,15 @@
 package com.example.georescux.ui.common
 
 import android.app.Activity
-import com.example.georescux.data.maps.MapRegionCatalog
+import com.example.georescux.data.maps.MapPackageManager
 import com.example.georescux.data.maps.TileArchiveInstaller
 import com.example.georescux.domain.routing.MapRegion
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.MapTileProviderArray
+import org.osmdroid.tileprovider.modules.DatabaseFileArchive
+import org.osmdroid.tileprovider.modules.MapTileFileArchiveProvider
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.tileprovider.util.SimpleRegisterReceiver
 import org.osmdroid.util.GeoPoint
@@ -14,15 +18,13 @@ import java.io.File
 
 /**
  * Configures an osmdroid [MapView] for a region using the shared three-tier
- * offline strategy, so the Map screen and Safe Route render identically:
+ * offline strategy:
  *
- *  1. Mapsforge vector basemap (fully offline)
- *  2. Bundled SQLite raster archive (fully offline)
+ *  1. Mapsforge vector basemap (fully offline, verified binary format)
+ *  2. Bundled SQLite raster archive (fully offline, verified SQLite schema)
  *  3. OSM Mapnik with on-device caching (connection needed)
  *
- * The tier actually used is reported so each screen can show an honest badge
- * and, when no offline package exists for the region, tell the user instead
- * of silently implying the map works offline (spec §17 honesty rule).
+ * Separates archive detection from verified rendering configuration.
  */
 object OfflineMapSetup {
 
@@ -70,6 +72,7 @@ object OfflineMapSetup {
         val expectedArchive = File(osmdroidBase, "${region.id}-tiles.sqlite")
         val expectedZip = File(osmdroidBase, "${region.id}-tiles.zip")
         val expectedMap = File(osmdroidBase, "${region.id}-tiles.map")
+
         val mapCandidates = listOf(
             expectedMap,
             File(File(activity.filesDir, "maps/${region.id}"), "state.map"),
@@ -83,9 +86,11 @@ object OfflineMapSetup {
                 "output/${region.id}",
             ).let { File(it, "state.map") },
         )
-        val mapFile = mapCandidates.firstOrNull { it.exists() && it.length() > 0L }
+
+        val mapFile = mapCandidates.firstOrNull { it.exists() && it.length() > 0L && MapPackageManager.isMapsforgeFile(it) }
 
         val tier = when {
+            // Tier 1: Verified Mapsforge Vector Map
             mapFile != null -> {
                 try {
                     val forge = org.osmdroid.mapsforge.MapsForgeTileSource.createFromFiles(
@@ -101,14 +106,38 @@ object OfflineMapSetup {
                     mapView.setUseDataConnection(false)
                     Tier.VECTOR
                 } catch (e: Exception) {
-                    // Safe fallback if vector basemap fails or is corrupted
                     mapView.setUseDataConnection(true)
-                    mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+                    mapView.setTileSource(TileSourceFactory.MAPNIK)
                     Tier.ONLINE
                 }
             }
 
-            expectedArchive.exists() || expectedZip.exists() -> {
+            // Tier 2: Verified SQLite Raster Tile Archive
+            (expectedArchive.exists() && MapPackageManager.isSqliteArchiveFile(expectedArchive)) -> {
+                try {
+                    val dbArchive = DatabaseFileArchive.getDatabaseFileArchive(expectedArchive)
+                    val tileSource = XYTileSource("${region.id}-offline", 1, 20, 256, ".png", emptyArray())
+                    val archiveProvider = MapTileFileArchiveProvider(
+                        SimpleRegisterReceiver(activity),
+                        tileSource,
+                        arrayOf(dbArchive),
+                    )
+                    val providerArray = MapTileProviderArray(
+                        tileSource,
+                        SimpleRegisterReceiver(activity),
+                        arrayOf(archiveProvider),
+                    )
+                    mapView.tileProvider = providerArray
+                    mapView.setUseDataConnection(false)
+                    Tier.SQLITE_ARCHIVE
+                } catch (e: Exception) {
+                    mapView.setUseDataConnection(true)
+                    mapView.setTileSource(TileSourceFactory.MAPNIK)
+                    Tier.ONLINE
+                }
+            }
+
+            expectedZip.exists() -> {
                 mapView.setUseDataConnection(false)
                 mapView.setTileSource(
                     XYTileSource("${region.id}-offline", 1, 20, 256, ".png", emptyArray()),
@@ -116,15 +145,14 @@ object OfflineMapSetup {
                 Tier.SQLITE_ARCHIVE
             }
 
+            // Tier 3: Online OSM Mapnik with Local Device Cache
             else -> {
                 mapView.setUseDataConnection(true)
-                mapView.setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+                mapView.setTileSource(TileSourceFactory.MAPNIK)
                 Tier.ONLINE
             }
         }
 
-        // State-scale regions frame the whole area; the small sample region
-        // keeps its street-level default.
         val regionLatSpan = region.maxLatitude - region.minLatitude
         mapView.controller.setZoom(if (regionLatSpan > 1.0) 7.5 else 15.5)
         mapView.controller.setCenter(

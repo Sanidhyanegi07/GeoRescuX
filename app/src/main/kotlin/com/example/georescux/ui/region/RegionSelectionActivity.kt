@@ -115,7 +115,8 @@ class RegionSelectionActivity : AppCompatActivity() {
 
         val graphInstalled = MapRegionCatalog.isGraphInstalled(this, region)
         val mapInstalled = MapRegionCatalog.isOfflineMapInstalled(this, region) || MapPackageManager.isPackageInstalled(this, region.id)
-        val isReady = graphInstalled || mapInstalled
+        val isFullyReady = graphInstalled && mapInstalled
+        val hasLocalSource = MapPackageManager.findCandidateSource(filesDir, getExternalFilesDir(null), region.id) != null
 
         val name = row.findViewById<TextView>(R.id.regionName)
         val status = row.findViewById<TextView>(R.id.regionStatus)
@@ -125,29 +126,46 @@ class RegionSelectionActivity : AppCompatActivity() {
 
         name?.text = region.displayName
         status?.text = when {
-            graphInstalled && mapInstalled -> getString(R.string.region_status_installed)
+            isFullyReady -> getString(R.string.region_status_installed)
             mapInstalled -> "Offline Map Ready (Routing online)"
-            graphInstalled -> getString(R.string.region_status_map_missing)
-            else -> getString(R.string.region_status_not_installed)
+            graphInstalled -> "Routing Graph Ready (Offline map missing)"
+            hasLocalSource -> "Staged Package Available (Ready to install)"
+            else -> "Package Unavailable (Host Not Configured)"
         }
         status?.setTextColor(
             getTextColor(
-                if (isReady) R.color.safe_green else R.color.text_muted,
+                when {
+                    isFullyReady -> R.color.safe_green
+                    mapInstalled || graphInstalled -> R.color.hazard_amber
+                    hasLocalSource -> R.color.brand_primary
+                    else -> R.color.text_muted
+                }
             ),
         )
 
         btnDownload?.backgroundTintList = null
-        if (isReady) {
-            btnDownload?.text = if (region.id == selectedRegionId) "Active" else "Select"
-            btnDownload?.setBackgroundResource(if (region.id == selectedRegionId) R.drawable.bg_button_primary else R.drawable.bg_button_white)
-            btnDownload?.setTextColor(getTextColor(if (region.id == selectedRegionId) R.color.white else R.color.brand_primary))
-        } else {
-            btnDownload?.text = "Download"
-            btnDownload?.setBackgroundResource(R.drawable.bg_button_white)
-            btnDownload?.setTextColor(getTextColor(R.color.brand_primary))
+        when {
+            mapInstalled -> {
+                btnDownload?.text = if (region.id == selectedRegionId) "Active" else "Select"
+                btnDownload?.setBackgroundResource(if (region.id == selectedRegionId) R.drawable.bg_button_primary else R.drawable.bg_button_white)
+                btnDownload?.setTextColor(getTextColor(if (region.id == selectedRegionId) R.color.white else R.color.brand_primary))
+                btnDownload?.isEnabled = true
+            }
+            hasLocalSource -> {
+                btnDownload?.text = "Install"
+                btnDownload?.setBackgroundResource(R.drawable.bg_button_white)
+                btnDownload?.setTextColor(getTextColor(R.color.brand_primary))
+                btnDownload?.isEnabled = true
+            }
+            else -> {
+                btnDownload?.text = "Unavailable"
+                btnDownload?.setBackgroundResource(R.drawable.bg_button_white)
+                btnDownload?.setTextColor(getTextColor(R.color.text_muted))
+                btnDownload?.isEnabled = true
+            }
         }
 
-        if (isReady && region.id == selectedRegionId) {
+        if (mapInstalled && region.id == selectedRegionId) {
             dot?.visibility = View.VISIBLE
             card?.strokeColor = getTextColor(R.color.brand_primary)
             card?.strokeWidth = 2
@@ -158,21 +176,34 @@ class RegionSelectionActivity : AppCompatActivity() {
         }
 
         btnDownload?.setOnClickListener {
-            if (!isReady) {
-                btnDownload.isEnabled = false
-                btnDownload.text = "0%"
-                lifecycleScope.launch {
-                    val result = MapPackageManager.installPackage(this@RegionSelectionActivity, region.id) { pct ->
-                        runOnUiThread { btnDownload.text = "$pct%" }
+            if (!mapInstalled) {
+                if (hasLocalSource) {
+                    btnDownload.isEnabled = false
+                    btnDownload.text = "0%"
+                    lifecycleScope.launch {
+                        val result = MapPackageManager.installPackage(this@RegionSelectionActivity, region.id) { pct ->
+                            runOnUiThread { btnDownload.text = "$pct%" }
+                        }
+                        if (result.isSuccess) {
+                            Toast.makeText(this@RegionSelectionActivity, "${region.displayName} offline package verified & installed.", Toast.LENGTH_SHORT).show()
+                            selectedRegionId = region.id
+                            updateStorageSummary()
+                        } else {
+                            Toast.makeText(this@RegionSelectionActivity, "Installation failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
+                        }
+                        renderRegions()
                     }
-                    if (result.isSuccess) {
-                        Toast.makeText(this@RegionSelectionActivity, "${region.displayName} offline package verified & installed.", Toast.LENGTH_SHORT).show()
-                        selectedRegionId = region.id
-                        updateStorageSummary()
-                    } else {
-                        Toast.makeText(this@RegionSelectionActivity, "Download failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
-                    }
-                    renderRegions()
+                } else {
+                    androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle("${region.displayName} Package Hosting Required")
+                        .setMessage(
+                            "No HTTPS package distribution host is currently configured for ${region.displayName}.\n\n" +
+                            "To install offline, place genuine state.map into:\n" +
+                            "/sdcard/Download/georescux/${region.id}/state.map\n\n" +
+                            "The app strictly rejects synthetic or non-Mapsforge files and verifies SHA-256 integrity."
+                        )
+                        .setPositiveButton("OK", null)
+                        .show()
                 }
             } else {
                 selectedRegionId = region.id
@@ -181,7 +212,7 @@ class RegionSelectionActivity : AppCompatActivity() {
         }
 
         row.setOnClickListener {
-            if (isReady) {
+            if (mapInstalled) {
                 selectedRegionId = region.id
                 renderRegions()
             } else {

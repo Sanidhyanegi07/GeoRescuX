@@ -143,12 +143,9 @@ object MapRegionCatalog {
     }
 
     /**
-     * The region containing the given position, or null when the position
-     * lies outside the 4 officially supported states.
+     * The region containing the given position using high-precision geographical polygon geometry,
+     * or null when the position lies outside the 4 officially supported states.
      */
-    fun regionForLocation(latitude: Double, longitude: Double): MapRegion? =
-        availableRegions.firstOrNull { region ->
-            latitude in region.minLatitude..region.maxLatitude &&
-                longitude in region.minLongitude..region.maxLongitude
-        }
+    fun regionForLocation(latitude: Double, longitude: Double, context: Context? = null): MapRegion? =
+        StateBoundaryClassifier.classify(latitude, longitude, context)
 }

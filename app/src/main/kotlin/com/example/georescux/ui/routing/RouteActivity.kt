@@ -294,17 +294,30 @@ class RouteActivity : AppCompatActivity() {
         val destinationEditText = findViewById<EditText>(R.id.editTextDestinationNode)
         val startEditText = findViewById<EditText>(R.id.editTextStartNode)
         val havenIcon = rememberHavenIcon()
+        val facilities = com.example.georescux.data.maps.SafeHavenIndex.loadForRegion(this, activeRegion)
+        val facilityMap = facilities.associateBy { it.nodeId }
+
         // 1. Render Safe Havens / Emergency Facilities Layer
         graph.nodes.filter { it.isSafeHaven }.forEach { safeHaven ->
+            val facility = facilityMap[safeHaven.id]
             val marker = Marker(mapView).apply {
                 position = GeoPoint(safeHaven.latitude, safeHaven.longitude)
-                title = "🏥 Safe Haven: ${safeHaven.id}"
-                snippet = "Emergency Resource Zone · Tap to route here"
+                title = if (facility != null) {
+                    "${facility.categoryEmoji} ${facility.name}"
+                } else {
+                    "🏥 Safe Haven: ${safeHaven.id}"
+                }
+                snippet = if (facility != null) {
+                    "${facility.categoryDisplayName} • ${if (facility.isVerified) "✓ Verified (OSM)" else "Provisional"} • Tap to route"
+                } else {
+                    "Emergency Resource Zone • Tap to route here"
+                }
                 icon = havenIcon
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 setOnMarkerClickListener { _, _ ->
+                    val displayName = facility?.name ?: safeHaven.id
                     destinationEditText.setText(safeHaven.id)
-                    Toast.makeText(this@RouteActivity, "Destination set to safe haven: ${safeHaven.id}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@RouteActivity, "Destination set to safe haven: $displayName", Toast.LENGTH_SHORT).show()
                     uiScope.launch {
                         viewModel.findRouteFromScreen(
                             selectedStartNodeId = resolveNodeId(startEditText.text.toString()),

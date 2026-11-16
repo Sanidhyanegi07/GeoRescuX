@@ -60,6 +60,7 @@ class MapActivity : AppCompatActivity() {
     private var currentUserLng: Double? = null
     private val incidentMarkers = mutableListOf<Marker>()
     private val sosMarkers = mutableListOf<Marker>()
+    private val safeHavenMarkers = mutableListOf<Marker>()
     private val incidents = mutableListOf<IncidentReport>()
     private var currentFilter: IncidentFilter = IncidentFilter()
 
@@ -118,6 +119,7 @@ class MapActivity : AppCompatActivity() {
         }
 
         setupRegionBoundaryOverlay()
+        renderSafeHavenMarkers(region)
     }
 
     private fun setupStateSwitcher() {
@@ -439,6 +441,60 @@ class MapActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun renderSafeHavenMarkers(region: MapRegion) {
+        safeHavenMarkers.forEach {
+            try { mapView.overlayManager.remove(it) } catch (_: Exception) {}
+        }
+        safeHavenMarkers.clear()
+
+        val facilities = com.example.georescux.data.maps.SafeHavenIndex.loadForRegion(this, region)
+        val havenIcon = ContextCompat.getDrawable(this, android.R.drawable.ic_menu_myplaces)
+
+        facilities.forEach { facility ->
+            val marker = Marker(mapView).apply {
+                position = GeoPoint(facility.latitude, facility.longitude)
+                title = "${facility.categoryEmoji} ${facility.name}"
+                snippet = "${facility.categoryDisplayName} • ${if (facility.isVerified) "Verified (OSM)" else "Provisional"}\nTap for emergency routing"
+                if (havenIcon != null) icon = havenIcon
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+
+                setOnMarkerClickListener { m, _ ->
+                    m.showInfoWindow()
+                    showSafeHavenDialog(facility)
+                    true
+                }
+            }
+            mapView.overlays.add(marker)
+            safeHavenMarkers.add(marker)
+        }
+        mapView.invalidate()
+    }
+
+    private fun showSafeHavenDialog(facility: com.example.georescux.data.maps.SafeHavenFacility) {
+        val uLat = currentUserLat
+        val uLng = currentUserLng
+        val distanceStr = if (uLat != null && uLng != null && uLat != 0.0) {
+            val dist = HazardCorroboration.haversineMeters(uLat, uLng, facility.latitude, facility.longitude)
+            if (dist < 1000) "${dist.toInt()}m away" else String.format(Locale.US, "%.1f km away", dist / 1000.0)
+        } else {
+            "Distance calculating…"
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("${facility.categoryEmoji} ${facility.name}")
+            .setMessage("Category: ${facility.categoryDisplayName}\nStatus: ${if (facility.isVerified) "✓ Verified OpenStreetMap Facility" else "Provisional Facility"}\nDistance: $distanceStr\nCoordinates: ${facility.latitude}, ${facility.longitude}\nSource: ${facility.source}")
+            .setPositiveButton("Safe Route Here") { _, _ ->
+                val intent = Intent(this, RouteActivity::class.java).apply {
+                    putExtra(RouteActivity.EXTRA_DEST_LAT, facility.latitude)
+                    putExtra(RouteActivity.EXTRA_DEST_LNG, facility.longitude)
+                    putExtra(RouteActivity.EXTRA_DEST_TITLE, facility.name)
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
     private fun renderIncidentMarkers(list: List<IncidentReport>) {
         incidentMarkers.forEach {
             try {
@@ -573,6 +629,8 @@ class MapActivity : AppCompatActivity() {
         incidentMarkers.clear()
         sosMarkers.forEach { try { mapView.overlayManager.remove(it) } catch (_: Exception) {} }
         sosMarkers.clear()
+        safeHavenMarkers.forEach { try { mapView.overlayManager.remove(it) } catch (_: Exception) {} }
+        safeHavenMarkers.clear()
         boundaryOverlay?.let { try { mapView.overlays.remove(it) } catch (_: Exception) {} }
         boundaryOverlay = null
         mapView.onDetach()

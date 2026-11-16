@@ -47,10 +47,10 @@ class MapPackageManagerTest {
         assertTrue(MapPackageManager.isPackageInstalled(tempDir, "uttarakhand"))
         assertFalse(MapPackageManager.isPackageInstalled(tempDir, "haryana"))
 
-        // Create mock installed package for Haryana
+        // Create mock installed package for Haryana with valid Mapsforge magic bytes
         val haryanaDir = MapPackageManager.getPackageDirectory(tempDir, "haryana")
         haryanaDir.mkdirs()
-        File(haryanaDir, "state.map").writeText("dummy map data")
+        File(haryanaDir, "state.map").writeBytes(MapPackageManager.MAPSFORGE_MAGIC.toByteArray(Charsets.US_ASCII) + ByteArray(50))
 
         assertTrue(MapPackageManager.isPackageInstalled(tempDir, "haryana"))
 
@@ -58,6 +58,42 @@ class MapPackageManagerTest {
         val haryanaPkg = packages.find { it.regionId == "haryana" }
         assertNotNull(haryanaPkg)
         assertEquals(MapPackageManager.PackageStatus.INSTALLED, haryanaPkg!!.status)
+
+        tempDir.deleteRecursively()
+    }
+
+    @Test
+    fun `isMapsforgeFile validates magic header and rejects arbitrary files`() {
+        val tempDir = File(System.getProperty("java.io.tmpdir"), "georescux_magic_test_${System.currentTimeMillis()}")
+        tempDir.mkdirs()
+
+        val validFile = File(tempDir, "valid.map")
+        validFile.writeBytes(MapPackageManager.MAPSFORGE_MAGIC.toByteArray(Charsets.US_ASCII) + ByteArray(20))
+        assertTrue("File with mapsforge magic header must be recognized", MapPackageManager.isMapsforgeFile(validFile))
+
+        val invalidFile = File(tempDir, "invalid.map")
+        invalidFile.writeText("arbitrary dummy file content")
+        assertFalse("Plain text file must be rejected as Mapsforge map", MapPackageManager.isMapsforgeFile(invalidFile))
+
+        val pbfFile = File(tempDir, "test.osm.pbf")
+        pbfFile.writeBytes(byteArrayOf(0x00, 0x00, 0x00, 0x0E) + "OSMHeader".toByteArray(Charsets.US_ASCII))
+        assertFalse("OSM PBF file must be rejected as Mapsforge map", MapPackageManager.isMapsforgeFile(pbfFile))
+
+        tempDir.deleteRecursively()
+    }
+
+    @Test
+    fun `isSqliteArchiveFile validates SQLite format header`() {
+        val tempDir = File(System.getProperty("java.io.tmpdir"), "georescux_sqlite_test_${System.currentTimeMillis()}")
+        tempDir.mkdirs()
+
+        val validSqlite = File(tempDir, "tiles.sqlite")
+        validSqlite.writeBytes("SQLite format 3\u0000".toByteArray(Charsets.US_ASCII) + ByteArray(20))
+        assertTrue("SQLite header must be recognized", MapPackageManager.isSqliteArchiveFile(validSqlite))
+
+        val invalidSqlite = File(tempDir, "bad.sqlite")
+        invalidSqlite.writeText("corrupt sqlite bytes")
+        assertFalse("Non-SQLite file must be rejected", MapPackageManager.isSqliteArchiveFile(invalidSqlite))
 
         tempDir.deleteRecursively()
     }
@@ -98,7 +134,7 @@ class MapPackageManagerTest {
             val tempDir = File(System.getProperty("java.io.tmpdir"), "georescux_test_corrupt_${System.currentTimeMillis()}")
             tempDir.mkdirs()
 
-            // Create corrupt source file with intentional mismatched data
+            // Create corrupt source file with intentional mismatched data and missing magic header
             val corruptSource = File(tempDir, "corrupt_hp.map")
             corruptSource.writeText("corrupt invalid bytes")
 
@@ -108,10 +144,66 @@ class MapPackageManagerTest {
                 customSourceFile = corruptSource
             )
 
-            assertTrue(result.isSuccess)
+            // Strictly assert failure: corrupt source missing magic header MUST be rejected
+            assertTrue("Installation of corrupt source must fail", result.isFailure)
             val installedMap = File(MapPackageManager.getPackageDirectory(tempDir, "himachal_pradesh"), "state.map")
-            assertTrue(installedMap.exists())
-            assertEquals(corruptSource.length(), installedMap.length())
+            assertFalse("Corrupt package must NOT be installed as state.map", installedMap.exists())
+
+            val tempDownloading = File(MapPackageManager.getPackageDirectory(tempDir, "himachal_pradesh"), "state.map.downloading")
+            assertFalse("Temporary downloading file must be deleted upon failure", tempDownloading.exists())
+
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `installPackage rejects PBF file as map rendering source`() {
+        kotlinx.coroutines.runBlocking {
+            val tempDir = File(System.getProperty("java.io.tmpdir"), "georescux_test_pbf_${System.currentTimeMillis()}")
+            tempDir.mkdirs()
+
+            val pbfSource = File(tempDir, "state.osm.pbf")
+            pbfSource.writeBytes(byteArrayOf(0x00, 0x00, 0x00, 0x0E) + "OSMHeader".toByteArray(Charsets.US_ASCII))
+
+            val result = MapPackageManager.installPackage(
+                filesDir = tempDir,
+                regionId = "himachal_pradesh",
+                customSourceFile = pbfSource
+            )
+
+            assertTrue("PBF file must be rejected as rendering map", result.isFailure)
+            val installedMap = File(MapPackageManager.getPackageDirectory(tempDir, "himachal_pradesh"), "state.map")
+            assertFalse(installedMap.exists())
+
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `installPackage preserves existing valid map if update fails`() {
+        kotlinx.coroutines.runBlocking {
+            val tempDir = File(System.getProperty("java.io.tmpdir"), "georescux_test_rollback_${System.currentTimeMillis()}")
+            tempDir.mkdirs()
+
+            val targetDir = MapPackageManager.getPackageDirectory(tempDir, "himachal_pradesh")
+            targetDir.mkdirs()
+            val existingMap = File(targetDir, "state.map")
+            val existingBytes = MapPackageManager.MAPSFORGE_MAGIC.toByteArray(Charsets.US_ASCII) + ByteArray(100) { 0x42 }
+            existingMap.writeBytes(existingBytes)
+
+            // Attempt to install corrupt file
+            val corruptSource = File(tempDir, "corrupt.map")
+            corruptSource.writeText("corrupted new version")
+
+            val result = MapPackageManager.installPackage(
+                filesDir = tempDir,
+                regionId = "himachal_pradesh",
+                customSourceFile = corruptSource
+            )
+
+            assertTrue("Installation of corrupt source must fail", result.isFailure)
+            assertTrue("Existing state.map must be preserved untouched", existingMap.exists())
+            assertEquals("Existing state.map size must match original", existingBytes.size.toLong(), existingMap.length())
 
             tempDir.deleteRecursively()
         }
