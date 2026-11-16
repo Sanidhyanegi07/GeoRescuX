@@ -66,7 +66,12 @@ class GeoRescueBleForegroundService : Service() {
         )
         bluetoothReceiver = receiver
         try {
-            registerReceiver(receiver, BluetoothStateReceiver.createIntentFilter())
+            ContextCompat.registerReceiver(
+                this,
+                receiver,
+                BluetoothStateReceiver.createIntentFilter(),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
         } catch (e: Exception) {
             GeoRescueBleDiagnostics.error(
                 GeoRescueBleDiagnostics.BLE_ERROR,

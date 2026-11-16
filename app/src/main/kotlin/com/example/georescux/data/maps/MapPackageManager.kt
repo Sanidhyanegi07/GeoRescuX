@@ -197,6 +197,12 @@ object MapPackageManager {
                 add(File(externalFilesDir, "output/$regionId/state.map"))
                 add(File(externalFilesDir, "maps/$regionId/state.map"))
             }
+            try {
+                val downloads = android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS
+                )
+                add(File(downloads, "georescux/$regionId/state.map"))
+            } catch (_: Exception) {}
             add(File("/sdcard/Download/georescux/$regionId/state.map"))
             add(File("output/$regionId/state.map"))
         }
@@ -391,7 +397,7 @@ object MapPackageManager {
                   "sha256": "$checksum",
                   "status": "installed",
                   "verified": true,
-                  "verifiedAt": "${java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date())}"
+                  "verifiedAt": "${java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date())}"
                 }
                 """.trimIndent()
             )

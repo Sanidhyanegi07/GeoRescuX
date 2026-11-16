@@ -80,10 +80,14 @@ The Firebase Realtime Database security model enforces strict zero-trust constra
 - **Admin Least Privilege**: Administrators authenticated via verified Firebase Custom Claims (`auth.token.admin == true`) can update SOS records only to `RESOLVED`. Admins are strictly prohibited from altering victim GPS telemetry or situation notes.
 - **Metadata Protection**: Identity verification status (`isVerified`) and internal incident logs (`/incidents`, `/events`) can only be modified by authorized emergency coordinators.
 
-### 4. 🗺️ Partitioned Offline Regional Graphs (`output/`)
-Rather than relying on unwieldy multi-gigabyte nationwide datasets, GeoRescuX uses pre-processed, lightweight regional routing graphs:
-- **Uttarakhand & Sample Region**: Bundled directly inside the APK assets for immediate offline deployment.
-- **Himachal Pradesh, Haryana & Uttar Pradesh**: External regional package catalog entries available for post-install download.
+### 4. 🗺️ Four-State Offline Vector Mapping & Topological Routing (`output/`, `app/src/main/assets/maps/`)
+Rather than relying on unwieldy multi-gigabyte nationwide datasets or fragile online tile scraping, GeoRescuX provides authentic OpenStreetMap-derived regional binary vector maps and topological routing graphs across four officially supported disaster-prone states:
+- **1. Uttarakhand (Primary / Bundled)**: Bundled directly in `app/src/main/assets/maps/uttarakhand-state.map` (26.4 MB) and `route_graph_uttarakhand` (117,972 nodes, 138,164 edges). Renders immediately on first launch with zero network connectivity.
+- **2. Himachal Pradesh (Secondary)**: 18.2 MB Mapsforge binary vector basemap (`state.map`) and 47,137-node routing graph connecting Shimla, Solan, and mountain corridors.
+- **3. Haryana (Secondary)**: 37.4 MB Mapsforge binary vector basemap (`state.map`) and 203,741-node routing graph connecting Gurugram, Faridabad, Hisar, and the plains.
+- **4. Uttar Pradesh (Secondary)**: 156.6 MB high-detail Mapsforge binary vector basemap (`state.map`) and 514,366-node routing graph spanning Lucknow, Kanpur, Varanasi, and the Gangetic plain.
+- **High-Precision Boundary Classifier (`StateBoundaryClassifier.kt`)**: Replaces coarse bounding boxes with authentic 2,000–7,500 point ray-casting polygon geometry, accurately classifying locations and strictly rejecting Delhi, Rajasthan, Bihar, Punjab, and non-supported regions.
+- **Emergency Safe-Haven Network (`SafeHavenIndex.kt`)**: 64 verified OpenStreetMap emergency facilities per state (district disaster HQs, emergency hospitals, police stations, and fire stations) with Haversine distance-sorted offline discovery.
 
 ---
 
@@ -227,6 +231,13 @@ Exhaustive, verified technical specifications and audit reports are available in
 - **Nehal** — Frontend & UI/UX Architect
 - **Dheeraj** — Backend & Simulation Engineer
 - **Nirmay** — QA & Security Systems Auditor
+
+---
+
+## 🗺️ Data Attribution & Open Standards
+- **OpenStreetMap Data**: Geographic vector maps and routing graphs are derived from © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, licensed under the [Open Data Commons Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/).
+- **Vector Rendering Engine**: Offline vector rendering is powered by [Mapsforge](https://github.com/mapsforge/mapsforge) (LGPL-3.0) and [osmdroid](https://github.com/osmdroid/osmdroid) (Apache-2.0).
+- **Administrative Boundaries**: Authentic state boundary polygons derived from OpenStreetMap and DataMeet India under ODbL.
 
 ---
 

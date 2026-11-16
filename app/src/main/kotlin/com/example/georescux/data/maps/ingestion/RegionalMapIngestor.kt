@@ -114,7 +114,7 @@ class RegionalMapIngestor(
             displayName = displayName,
             fileSizeBytes = finalSize,
             sha256 = manifestSha256,
-            generatedAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").apply {
+            generatedAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply {
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
             }.format(java.util.Date())
         )
