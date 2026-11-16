@@ -1,12 +1,15 @@
 package com.example.georescux.data.maps
 
+import android.content.Context
 import android.content.res.AssetManager
+import com.example.georescux.domain.routing.MapRegion
 import com.example.georescux.domain.routing.RouteGraph
 import com.example.georescux.domain.routing.RouteEdge
 import com.example.georescux.domain.routing.RouteNode
+import java.io.File
 
 /**
- * Loads a RouteGraph from the bundled map region asset (graph.json).
+ * Loads a RouteGraph from the bundled map region asset (graph.json) or local package file.
  *
  * Parsing is strict: malformed or incomplete data returns null and the
  * repository falls back to the synthetic default graph — corrupted data is
@@ -21,6 +24,22 @@ object RegionGraphLoader {
         assets.open(path).use { stream -> parse(stream.bufferedReader().readText()) }
     } catch (e: Exception) {
         null
+    }
+
+    fun fromFile(file: File): RouteGraph? = try {
+        if (!file.exists() || file.length() == 0L) null
+        else file.inputStream().use { stream -> parse(stream.bufferedReader().readText()) }
+    } catch (e: Exception) {
+        null
+    }
+
+    fun loadForRegion(context: Context, region: MapRegion): RouteGraph? {
+        if (region.graphAssetPath.isNotBlank()) {
+            val fromAsset = fromAsset(context.assets, region.graphAssetPath)
+            if (fromAsset != null) return fromAsset
+        }
+        val localFile = MapRegionCatalog.getGraphFile(context, region)
+        return if (localFile != null) fromFile(localFile) else null
     }
 
     fun parse(json: String): RouteGraph? = try {

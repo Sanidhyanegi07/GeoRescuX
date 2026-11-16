@@ -114,11 +114,9 @@ class RouteActivity : AppCompatActivity() {
 
         // Offline place-name search: autocomplete + name resolution
         // (places.json is produced by the region's build tool).
-        // Offload to Dispatchers.IO so 2.37MB JSON parsing does not drop UI frames during startup.
+        // Offload to Dispatchers.IO so JSON parsing does not drop UI frames during startup.
         lifecycleScope.launch(Dispatchers.IO) {
-            val loadedPlaces = PlaceIndex.loadFromAsset(
-                assets, "maps/${activeRegion.id}-places.json"
-            )
+            val loadedPlaces = PlaceIndex.loadForRegion(this@RouteActivity, activeRegion)
             withContext(Dispatchers.Main) {
                 places = loadedPlaces
                 val startField = findViewById<AutoCompleteTextView>(R.id.editTextStartNode)
@@ -516,6 +514,7 @@ class RouteActivity : AppCompatActivity() {
         val activeSos = runCatching { container().sosRepository.getActiveEmergency() }.getOrNull()
         container().locationRepository.startAcquisition(fastMode = activeSos != null) { fix ->
             runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
                 lastUserFix = GeoPoint(fix.latitude, fix.longitude)
                 updateUserLocationMarker(fix.latitude, fix.longitude, fix.accuracyMeters, fix.provider)
 
@@ -947,6 +946,12 @@ class RouteActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         uiScope.cancel()
+        if (locationStarted) {
+            try {
+                container().locationRepository.stopAcquisition()
+            } catch (_: Exception) {}
+            locationStarted = false
+        }
         findViewById<MapView>(R.id.mapView)?.onDetach()
         super.onDestroy()
     }

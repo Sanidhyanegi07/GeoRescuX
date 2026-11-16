@@ -46,6 +46,26 @@ object PlaceIndex {
         emptyList()
     }
 
+    fun loadFromFile(file: java.io.File): List<PlaceEntry> = try {
+        if (!file.exists() || file.length() == 0L) emptyList()
+        else file.inputStream().use { stream -> parse(stream.bufferedReader().readText()) }
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    fun loadForRegion(context: android.content.Context, region: com.example.georescux.domain.routing.MapRegion): List<PlaceEntry> {
+        val assetResult = loadFromAsset(context.assets, "maps/${region.id}-places.json")
+        if (assetResult.isNotEmpty()) return assetResult
+        val candidates = listOf(
+            java.io.File(java.io.File(context.filesDir, "maps/${region.id}"), "places.json"),
+            java.io.File(java.io.File(context.filesDir, "output/${region.id}"), "places.json"),
+            java.io.File(java.io.File(context.getExternalFilesDir(null), "maps/${region.id}"), "places.json"),
+            java.io.File(java.io.File(context.getExternalFilesDir(null), "output/${region.id}"), "places.json"),
+        )
+        val file = candidates.firstOrNull { it.exists() && it.length() > 0L }
+        return if (file != null) loadFromFile(file) else emptyList()
+    }
+
     /**
      * Resolves a typed query to a place: exact (case/diacritic-insensitive)
      * name match first, then unique prefix match, then any contains match.

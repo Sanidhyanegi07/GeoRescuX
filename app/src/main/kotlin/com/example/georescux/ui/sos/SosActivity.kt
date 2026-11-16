@@ -193,11 +193,13 @@ class SosActivity : AppCompatActivity() {
                 val textNoteCounter = findViewById<TextView>(R.id.textNoteCounter)
                 val rawIncomingNote = ui.emergency?.note
                 val incomingNote = if (rawIncomingNote.isNullOrBlank() || rawIncomingNote.equals("null", ignoreCase = true)) "" else rawIncomingNote
-                if (editNote.text.toString() != incomingNote) {
+                if (!editNote.hasFocus() && editNote.text.toString() != incomingNote) {
                     editNote.setText(incomingNote)
                     editNote.setSelection(editNote.text.length)
                 }
-                textNoteCounter.text = "${incomingNote.length}/120"
+                if (!editNote.hasFocus()) {
+                    textNoteCounter.text = "${incomingNote.length}/120"
+                }
 
                 // One permission decision per emergency (per activity lifetime).
                 if (!locationSetupDone) {

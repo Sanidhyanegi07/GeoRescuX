@@ -1,0 +1,23 @@
+{
+  "regionId": "haryana",
+  "regionVersion": 1,
+  "bbox": {"minLat": 27.6, "maxLat": 30.9, "minLng": 74.4, "maxLng": 77.6},
+  "inputs": [
+    {"file": "haryana-latest.osm.pbf", "bytes": 52129382, "sha256": "8d0236f90d64c36e8fe46c5b4fb9310178b087c8664f45b75a394c0a039aabf9"},
+    {"file": "himachal_pradesh-latest.osm.pbf", "bytes": 23531962, "sha256": "872ab2813665ab3442426ddcaf66faaa53ee9864c660b47bfcbe1902fb5b7b11"},
+    {"file": "uttarakhand-latest.osm.pbf", "bytes": 33279165, "sha256": "85f3d87ce808465811af0b69bf6a56b37979d9facc1f0bfd761fae9595daf4fb"}
+  ],
+  "osmNodesScanned": 31060424,
+  "osmWaysScanned": 2551324,
+  "graphNodes": 203741,
+  "graphEdges": 234038,
+  "graphLengthKm": 89179.9,
+  "connectedComponents": 6813,
+  "largestComponentNodes": 185291,
+  "largestIslandSizes": [185291, 199, 42, 37, 36, 34, 33, 30, 27, 26],
+  "matchedDistrictHq": 28/31,
+  "matchedHavenTowns": ["ambala","bahadurgarh","bhiwani","charkhi dadri","faridabad","fatehabad","gohana","hansi","hisar","jhajjar","jind","kaithal","kalka","karnal","kurukshetra","mahendragarh","manesar","narwana","nuh","palwal","panchkula","panipat","rewari","rohtak","sirsa","sonipat","tohana","yamunanagar"],
+  "missingHavenTowns": ["Gurugram","Thanesar","Jagadhri"],
+  "highwayWayCounts": {"bridleway": 172,"busway": 62,"construction": 1746,"corridor": 48,"cycleway": 124,"elevator": 4,"footway": 9790,"living_street": 10290,"motorway": 6852,"motorway_link": 1420,"path": 23366,"pedestrian": 850,"primary": 8004,"primary_link": 738,"proposed": 32,"raceway": 6,"residential": 814822,"rest_area": 22,"road": 180,"secondary": 9926,"secondary_link": 1216,"service": 191288,"services": 52,"steps": 1686,"tertiary": 44958,"tertiary_link": 1238,"track": 142830,"trunk": 20384,"trunk_link": 3878,"unclassified": 119460},
+  "output": "C:\Users\sanid\Documents\GitHub\GeoRescuX\output\haryana\route_graph_haryana"
+}

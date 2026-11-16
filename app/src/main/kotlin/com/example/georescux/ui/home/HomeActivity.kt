@@ -82,6 +82,7 @@ class HomeActivity : AppCompatActivity() {
     // The dashboard's own view of the SOS state machine (arming only).
     // The countdown and emergency states live in SosActivity/SosViewModel.
     private var sosMachineState = SosState.IDLE
+    private var hasPromptedLocationSettings = false
 
     private lateinit var recentActivitySummaryText: TextView
     private lateinit var textOfflineRelayBadge: TextView
@@ -328,10 +329,12 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun checkAndRequestLocationService() {
+        if (hasPromptedLocationSettings) return
         val locationManager = getSystemService(LOCATION_SERVICE) as? LocationManager
         val isGpsEnabled = locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true
         val isNetworkEnabled = locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true
         if (!isGpsEnabled && !isNetworkEnabled) {
+            hasPromptedLocationSettings = true
             try {
                 startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
             } catch (_: Exception) { }

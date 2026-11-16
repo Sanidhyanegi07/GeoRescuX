@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderState(state: RoleRoutingState) {
-        if (isFinishing) return
+        if (isFinishing || isDestroyed) return
         when (state) {
             RoleRoutingState.Idle -> {
                 progressRoleResolution.visibility = View.VISIBLE

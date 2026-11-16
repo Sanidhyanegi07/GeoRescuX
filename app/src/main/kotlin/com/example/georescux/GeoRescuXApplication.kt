@@ -136,7 +136,7 @@ class AppContainer(
             // is not installed on this device must never fall back to the
             // synthetic demo graph — that would silently route the user over
             // a fake road network hundreds of kilometres away.
-            if (!MapRegionCatalog.isGraphInstalled(appContext.assets, region)) {
+            if (!MapRegionCatalog.isGraphInstalled(appContext, region)) {
                 throw IllegalStateException(
                     "Region '${region.displayName}' routing data is not installed on this device.",
                 )
@@ -144,7 +144,7 @@ class AppContainer(
             RouteRepositoryImpl(
                 store = routeGraphStore,
                 activeRegionId = regionId,
-                seedProvider = { RegionGraphLoader.fromAsset(appContext.assets, region.graphAssetPath) },
+                seedProvider = { RegionGraphLoader.loadForRegion(appContext, region) },
                 bundledSeedVersion = region.version,
             )
         }
@@ -155,7 +155,7 @@ class AppContainer(
     /** Switches the active region (manual selection or GPS-based). */
     fun setActiveRegion(regionId: String): Boolean {
         val region = MapRegionCatalog.byId(regionId) ?: return false
-        if (!MapRegionCatalog.isGraphInstalled(appContext.assets, region)) return false
+        if (!MapRegionCatalog.isGraphInstalled(appContext, region)) return false
         mapRegionSelection.save(regionId)
         activeRegionId = regionId
         return true

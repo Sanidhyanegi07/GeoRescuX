@@ -1,0 +1,21 @@
+{
+  "regionId": "uttar_pradesh",
+  "regionVersion": 1,
+  "bbox": {"minLat": 23.8, "maxLat": 30.4, "minLng": 77.0, "maxLng": 84.6},
+  "inputs": [
+    {"file": "uttar_pradesh-latest.osm.pbf", "bytes": 199231906, "sha256": "cf5a0759df391c82a441094af1a6b11449757cdb8156ba5aad4de5d69ea05c27"}
+  ],
+  "osmNodesScanned": 56772702,
+  "osmWaysScanned": 6672322,
+  "graphNodes": 514366,
+  "graphEdges": 595399,
+  "graphLengthKm": 266603.8,
+  "connectedComponents": 22446,
+  "largestComponentNodes": 453393,
+  "largestIslandSizes": [453393, 335, 309, 238, 182, 110, 101, 92, 90, 90],
+  "matchedDistrictHq": 69/81,
+  "matchedHavenTowns": ["agra","aligarh","amethi","amroha","auraiya","ayodhya","azamgarh","baghpat","bahraich","ballia","balrampur","banda","barabanki","bareilly","basti","bhadohi","bijnor","budaun","bulandshahr","chandauli","chitrakoot","deoria","etah","etawah","faizabad","farrukhabad","fatehpur","firozabad","ghaziabad","ghazipur","gonda","gorakhpur","greater noida","hamirpur","hapur","hardoi","hathras","jalaun","jaunpur","jhansi","kannauj","kasganj","kushinagar","lalitpur","lucknow","maharajganj","mahoba","mainpuri","mathura","mau","meerut","mirzapur","moradabad","mughalsarai","muzaffarnagar","noida","pilibhit","pratapgarh","prayagraj","rampur","saharanpur","sambhal","shahjahanpur","shamli","sitapur","sultanpur","unnao","varanasi","vrindavan"],
+  "missingHavenTowns": ["Gautam Buddha Nagar","Kanpur Nagar","Kheri","Rae Bareli","Shravasti","Siddharthnagar","Sant Kabir Nagar","Sonbhadra","Kaushambi","Kanpur Dehat","Sarnath","Roorkee"],
+  "highwayWayCounts": {"Ganga Expressway, UP": 2,"bridleway": 32,"bus_stop": 4,"busway": 28,"construction": 1656,"corridor": 306,"cycleway": 292,"footway": 12670,"junction": 2,"living_street": 8006,"motorway": 11102,"motorway_link": 2260,"path": 12142,"pedestrian": 510,"platform": 2,"primary": 10004,"primary_link": 1318,"proposed": 60,"raceway": 34,"residential": 1735476,"rest_area": 24,"road": 510,"secondary": 16090,"secondary_link": 1696,"service": 231178,"services": 28,"steps": 2060,"tertiary": 84742,"tertiary_link": 2268,"track": 205668,"trunk": 28618,"trunk_link": 5842,"unclassified": 284642},
+  "output": "C:\Users\sanid\Documents\GitHub\GeoRescuX\output\uttar_pradesh\route_graph_uttar_pradesh"
+}

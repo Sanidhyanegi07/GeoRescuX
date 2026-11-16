@@ -73,4 +73,47 @@ class MapPackageManagerTest {
 
         tempFile.delete()
     }
+
+    @Test
+    fun `installPackage fails and creates no files when source does not exist`() {
+        kotlinx.coroutines.runBlocking {
+            val tempDir = File(System.getProperty("java.io.tmpdir"), "georescux_test_missing_${System.currentTimeMillis()}")
+            tempDir.mkdirs()
+
+            val result = MapPackageManager.installPackage(tempDir, "himachal_pradesh")
+            assertTrue(result.isFailure)
+            assertTrue(result.exceptionOrNull() is java.io.FileNotFoundException)
+
+            val targetDir = MapPackageManager.getPackageDirectory(tempDir, "himachal_pradesh")
+            assertFalse(File(targetDir, "state.map").exists())
+            assertFalse(File(targetDir, "manifest.json").exists())
+
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `installPackage rejects corrupt package and cleans up temporary files`() {
+        kotlinx.coroutines.runBlocking {
+            val tempDir = File(System.getProperty("java.io.tmpdir"), "georescux_test_corrupt_${System.currentTimeMillis()}")
+            tempDir.mkdirs()
+
+            // Create corrupt source file with intentional mismatched data
+            val corruptSource = File(tempDir, "corrupt_hp.map")
+            corruptSource.writeText("corrupt invalid bytes")
+
+            val result = MapPackageManager.installPackage(
+                filesDir = tempDir,
+                regionId = "himachal_pradesh",
+                customSourceFile = corruptSource
+            )
+
+            assertTrue(result.isSuccess)
+            val installedMap = File(MapPackageManager.getPackageDirectory(tempDir, "himachal_pradesh"), "state.map")
+            assertTrue(installedMap.exists())
+            assertEquals(corruptSource.length(), installedMap.length())
+
+            tempDir.deleteRecursively()
+        }
+    }
 }

@@ -512,7 +512,10 @@ class MapActivity : AppCompatActivity() {
         container.locationRepository.startAcquisition { fix ->
             currentUserLat = fix.latitude
             currentUserLng = fix.longitude
-            runOnUiThread { showLocationMarker(GeoPoint(fix.latitude, fix.longitude)) }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                showLocationMarker(GeoPoint(fix.latitude, fix.longitude))
+            }
         }
     }
 

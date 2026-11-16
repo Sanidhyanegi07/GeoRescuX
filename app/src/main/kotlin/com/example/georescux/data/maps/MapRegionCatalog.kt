@@ -74,10 +74,29 @@ object MapRegionCatalog {
     /** The four official supported states for the GeoRescuX mission. */
     val availableRegions: List<MapRegion> = listOf(uttarakhand, himachalPradesh, uttarPradesh, haryana)
 
+    @Suppress("DEPRECATION")
     fun byId(id: String): MapRegion? =
         availableRegions.firstOrNull { it.id == id }
             ?: bundledRegions.firstOrNull { it.id == id }
             ?: if (id == sampleRegion.id) sampleRegion else null
+
+    /**
+     * Resolves the local file containing the offline routing graph for a downloaded package,
+     * or null if not installed in app private/external storage.
+     */
+    fun getGraphFile(context: Context, region: MapRegion): File? {
+        val candidates = listOf(
+            File(File(context.filesDir, "maps/${region.id}"), "route_graph_${region.id}"),
+            File(File(context.filesDir, "maps/${region.id}"), "graph.json"),
+            File(File(context.filesDir, "output/${region.id}"), "route_graph_${region.id}"),
+            File(context.filesDir, "routing/${region.id}.json"),
+            File(File(context.getExternalFilesDir(null), "maps/${region.id}"), "route_graph_${region.id}"),
+            File(File(context.getExternalFilesDir(null), "maps/${region.id}"), "graph.json"),
+            File(File(context.getExternalFilesDir(null), "output/${region.id}"), "route_graph_${region.id}"),
+            File(context.getExternalFilesDir(null), "routing/${region.id}.json"),
+        )
+        return candidates.firstOrNull { it.exists() && it.length() > 0L }
+    }
 
     /**
      * True when this region's offline routing graph is actually present on
@@ -92,10 +111,7 @@ object MapRegionCatalog {
 
     fun isGraphInstalled(context: Context, region: MapRegion): Boolean {
         if (isGraphInstalled(context.assets, region)) return true
-        val localGraph = File(context.filesDir, "routing/${region.id}.json")
-        if (localGraph.exists() && localGraph.length() > 0) return true
-        val extGraph = File(context.getExternalFilesDir(null), "routing/${region.id}.json")
-        return extGraph.exists() && extGraph.length() > 0
+        return getGraphFile(context, region) != null
     }
 
     /**
@@ -116,10 +132,12 @@ object MapRegionCatalog {
         val candidates = listOf(
             File(File(context.filesDir, "maps/${region.id}"), "state.map"),
             File(File(context.filesDir, "maps"), "${region.id}.map"),
+            File(File(context.filesDir, "output/${region.id}"), "state.map"),
             File(File(context.filesDir, "osmdroid"), "${region.id}-tiles.map"),
             File(File(context.filesDir, "osmdroid"), "${region.id}-tiles.sqlite"),
             File(File(context.getExternalFilesDir(null), "maps/${region.id}"), "state.map"),
             File(File(context.getExternalFilesDir(null), "maps"), "${region.id}.map"),
+            File(File(context.getExternalFilesDir(null), "output/${region.id}"), "state.map"),
         )
         return candidates.any { it.exists() && it.length() > 0L }
     }

@@ -33,6 +33,7 @@ object MapPackageManager {
         val status: PackageStatus,
         val localFilePath: String? = null,
         val storageUsageBytes: Long = 0L,
+        val downloadUrl: String? = null,
     ) {
         val sizeFormatted: String
             get() {
@@ -41,39 +42,46 @@ object MapPackageManager {
             }
     }
 
-    private val OFFICIAL_PACKAGE_METADATA = listOf(
+    val OFFICIAL_PACKAGE_METADATA = listOf(
         StateMapPackage(
             regionId = "uttarakhand",
             displayName = "Uttarakhand",
-            fileSizeBytes = 33279165L,
-            sha256Checksum = "85f3d87ce808465811af0b69bf6a56b37979d9facc1f0bfd761fae9595daf4fb",
+            fileSizeBytes = 26437682L,
+            sha256Checksum = "7397b4e7d92e46c897741fc5e837623746f1ac0abdb6d1facc979fb7d0d75778",
             isBundled = true,
             status = PackageStatus.BUNDLED
         ),
         StateMapPackage(
             regionId = "himachal_pradesh",
             displayName = "Himachal Pradesh",
-            fileSizeBytes = 23531962L,
-            sha256Checksum = "872ab2813665ab3442426ddcaf66faaa53ee9864c660b47bfcbe1902fb5b7b11",
+            fileSizeBytes = 18189967L,
+            sha256Checksum = "eb80ba5856b5e57382386aa9ddf86c03bf7d4e268d53ce9f4ef3f931624bb012",
             isBundled = false,
             status = PackageStatus.NOT_DOWNLOADED
         ),
         StateMapPackage(
             regionId = "haryana",
             displayName = "Haryana",
-            fileSizeBytes = 52129382L,
-            sha256Checksum = "8d0236f90d64c36e8fe46c5b4fb9310178b087c8664f45b75a394c0a039aabf9",
+            fileSizeBytes = 37401197L,
+            sha256Checksum = "34e9813089cef556427c561e74542b69f125ba9485fdc17977acecfe47dc389f",
             isBundled = false,
             status = PackageStatus.NOT_DOWNLOADED
         ),
         StateMapPackage(
             regionId = "uttar_pradesh",
             displayName = "Uttar Pradesh",
-            fileSizeBytes = 199231906L,
-            sha256Checksum = "cf5a0759df391c82a441094af1a6b11449757cdb8156ba5aad4de5d69ea05c27",
+            fileSizeBytes = 156576178L,
+            sha256Checksum = "f7c995832817a1f3e48cc4dc0ae9b52149455f95577765f5532c747db5ff4d3c",
             isBundled = false,
             status = PackageStatus.NOT_DOWNLOADED
         )
+    )
+
+    private val PBF_METADATA = mapOf(
+        "uttarakhand" to Pair(33279165L, "85f3d87ce808465811af0b69bf6a56b37979d9facc1f0bfd761fae9595daf4fb"),
+        "himachal_pradesh" to Pair(23531962L, "872ab2813665ab3442426ddcaf66faaa53ee9864c660b47bfcbe1902fb5b7b11"),
+        "haryana" to Pair(52129382L, "8d0236f90d64c36e8fe46c5b4fb9310178b087c8664f45b75a394c0a039aabf9"),
+        "uttar_pradesh" to Pair(199231906L, "cf5a0759df391c82a441094af1a6b11449757cdb8156ba5aad4de5d69ea05c27"),
     )
 
     fun getPackageDirectory(filesDir: File, regionId: String): File {
@@ -126,6 +134,7 @@ object MapPackageManager {
         filesDir: File,
         regionId: String,
         externalFilesDir: File? = null,
+        customSourceFile: File? = null,
         onProgress: ((Int) -> Unit)? = null
     ): Result<File> = withContext(Dispatchers.IO) {
         val meta = OFFICIAL_PACKAGE_METADATA.find { it.regionId == regionId }
@@ -138,50 +147,48 @@ object MapPackageManager {
         val targetTemp = File(targetDir, "state.map.downloading")
 
         try {
-            onProgress?.invoke(10)
+            if (targetTemp.exists()) targetTemp.delete()
+            onProgress?.invoke(5)
 
-            // Look for existing source in local project output or simulate secure streaming installation
+            // Look for existing source in candidate locations
             val candidateSources = buildList {
+                if (customSourceFile != null) add(customSourceFile)
                 add(File(filesDir, "output/$regionId/state.osm.pbf"))
                 add(File(filesDir, "output/$regionId/state.map"))
                 if (externalFilesDir != null) {
                     add(File(externalFilesDir, "output/$regionId/state.osm.pbf"))
                     add(File(externalFilesDir, "output/$regionId/state.map"))
+                    add(File(externalFilesDir, "maps/$regionId/state.osm.pbf"))
+                    add(File(externalFilesDir, "maps/$regionId/state.map"))
                 }
+                add(File("/sdcard/Download/georescux/$regionId/state.osm.pbf"))
+                add(File("/sdcard/Download/georescux/$regionId/state.map"))
                 add(File("output/$regionId/state.osm.pbf"))
                 add(File("output/$regionId/state.map"))
             }
             val source = candidateSources.firstOrNull { it.exists() && it.length() > 0L }
 
-            if (source != null) {
-                // Copy with real byte stream progress
-                val totalBytes = source.length()
-                var copiedBytes = 0L
+            if (source == null) {
+                return@withContext Result.failure(
+                    java.io.FileNotFoundException(
+                        "Package source not available for $regionId. No local package found in candidate storage paths."
+                    )
+                )
+            }
 
-                FileInputStream(source).use { input ->
-                    FileOutputStream(targetTemp).use { output ->
-                        val buffer = ByteArray(64 * 1024)
-                        var read: Int
-                        while (input.read(buffer).also { read = it } != -1) {
-                            output.write(buffer, 0, read)
-                            copiedBytes += read
-                            val pct = 10 + ((copiedBytes.toDouble() / totalBytes) * 75).toInt()
-                            onProgress?.invoke(pct.coerceIn(10, 85))
-                        }
-                        output.flush()
-                    }
-                }
-            } else {
-                // Remote source download simulation (e.g. headless emulator demo):
-                // Create deterministic validated package file
+            // Real byte-stream copy with accurate progress
+            val totalBytes = source.length()
+            var copiedBytes = 0L
+
+            FileInputStream(source).use { input ->
                 FileOutputStream(targetTemp).use { output ->
-                    val chunk = ByteArray(8192)
-                    java.util.Arrays.fill(chunk, 0x47.toByte()) // 'G' for GeoRescuX
-                    val steps = 5
-                    for (i in 1..steps) {
-                        output.write(chunk)
-                        onProgress?.invoke(10 + (i * 15))
-                        kotlinx.coroutines.delay(50L)
+                    val buffer = ByteArray(64 * 1024)
+                    var read: Int
+                    while (input.read(buffer).also { read = it } != -1) {
+                        output.write(buffer, 0, read)
+                        copiedBytes += read
+                        val pct = 10 + ((copiedBytes.toDouble() / totalBytes) * 75).toInt()
+                        onProgress?.invoke(pct.coerceIn(10, 85))
                     }
                     output.flush()
                 }
@@ -189,14 +196,28 @@ object MapPackageManager {
 
             onProgress?.invoke(90)
 
-            // Validate integrity (delete temp if verification fails)
+            // Interrupted download guard
+            if (targetTemp.length() != totalBytes) {
+                targetTemp.delete()
+                return@withContext Result.failure(
+                    IllegalStateException("Incomplete package: expected $totalBytes bytes, got ${targetTemp.length()} bytes")
+                )
+            }
+
+            // SHA-256 integrity check
             val checksum = calculateSha256(targetTemp)
-            if (source != null && source.length() > 0L) {
-                val expectedChecksum = calculateSha256(source)
-                if (checksum != expectedChecksum) {
-                    targetTemp.delete()
-                    return@withContext Result.failure(IllegalStateException("SHA-256 checksum mismatch for $regionId"))
-                }
+            val pbf = PBF_METADATA[regionId]
+            val expectedChecksum = when {
+                source.length() == meta.fileSizeBytes -> meta.sha256Checksum
+                pbf != null && source.length() == pbf.first -> pbf.second
+                else -> calculateSha256(source)
+            }
+
+            if (!checksum.equals(expectedChecksum, ignoreCase = true)) {
+                targetTemp.delete()
+                return@withContext Result.failure(
+                    IllegalStateException("SHA-256 integrity verification failed for $regionId: expected $expectedChecksum, got $checksum")
+                )
             }
 
             // Atomic rename
@@ -204,6 +225,26 @@ object MapPackageManager {
             if (!targetTemp.renameTo(targetFile)) {
                 targetTemp.copyTo(targetFile, overwrite = true)
                 targetTemp.delete()
+            }
+
+            // Copy accompanying routing graph and index files if present in the package source
+            val sourceDir = source.parentFile
+            if (sourceDir != null) {
+                val graphCandidates = listOf(
+                    File(sourceDir, "route_graph_$regionId"),
+                    File(sourceDir, "graph.json"),
+                )
+                graphCandidates.firstOrNull { it.exists() && it.length() > 0L }?.let { gf ->
+                    gf.copyTo(File(targetDir, "route_graph_$regionId"), overwrite = true)
+                }
+                val placesCandidate = File(sourceDir, "places.json")
+                if (placesCandidate.exists() && placesCandidate.length() > 0L) {
+                    placesCandidate.copyTo(File(targetDir, "places.json"), overwrite = true)
+                }
+                val havensCandidate = File(sourceDir, "safe_havens.json")
+                if (havensCandidate.exists() && havensCandidate.length() > 0L) {
+                    havensCandidate.copyTo(File(targetDir, "safe_havens.json"), overwrite = true)
+                }
             }
 
             // Write verified manifest
@@ -226,7 +267,7 @@ object MapPackageManager {
             onProgress?.invoke(100)
             Result.success(targetFile)
         } catch (e: Exception) {
-            targetTemp.delete()
+            if (targetTemp.exists()) targetTemp.delete()
             Result.failure(e)
         }
     }
@@ -235,7 +276,13 @@ object MapPackageManager {
         context: Context,
         regionId: String,
         onProgress: ((Int) -> Unit)? = null
-    ): Result<File> = installPackage(context.filesDir, regionId, context.getExternalFilesDir(null), onProgress)
+    ): Result<File> = installPackage(
+        filesDir = context.filesDir,
+        regionId = regionId,
+        externalFilesDir = context.getExternalFilesDir(null),
+        customSourceFile = null,
+        onProgress = onProgress
+    )
 
     suspend fun deletePackage(filesDir: File, regionId: String): Long = withContext(Dispatchers.IO) {
         if (regionId == "uttarakhand") return@withContext 0L // Cannot delete bundled primary package

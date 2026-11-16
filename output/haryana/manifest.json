@@ -7,10 +7,10 @@
   "sourceFile": "state.osm.pbf",
   "renderingFormat": "Mapsforge MAP",
   "renderingFile": "state.map",
-  "fileSizeBytes": 52129382,
-  "sha256": "8d0236f90d64c36e8fe46c5b4fb9310178b087c8664f45b75a394c0a039aabf9",
-  "sha256Checksum": "8d0236f90d64c36e8fe46c5b4fb9310178b087c8664f45b75a394c0a039aabf9",
+  "fileSizeBytes": 37401197,
+  "sha256": "34e9813089cef556427c561e74542b69f125ba9485fdc17977acecfe47dc389f",
+  "sha256Checksum": "34e9813089cef556427c561e74542b69f125ba9485fdc17977acecfe47dc389f",
   "packageVersion": 1,
-  "generatedAt": "2026-11-15T20:05:04Z",
+  "generatedAt": "2026-11-15T22:14:38Z",
   "validationStatus": "valid"
 }
